@@ -11,6 +11,7 @@ from rest_framework.decorators import permission_classes
 @permission_classes([IsAuthenticated])
 def create_client(request):
     serializer = ClientSerializer(data=request.data)
+    print(request.data)
     if serializer.is_valid():
       serializer.save(freelancer=request.user)
       return Response(serializer.data, status=status.HTTP_201_CREATED)
