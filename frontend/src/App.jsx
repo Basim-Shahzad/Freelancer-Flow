@@ -1,35 +1,22 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import React, { createContext, useState, useEffect } from 'react'
+export const ThemeContext = createContext({ theme: 'dark', toggle: () => { } })
 
-function App() {
-  const [count, setCount] = useState(0)
+export default function App({ children }) {
+    const [theme, setTheme] = useState('dark')
 
-  return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.jsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
+    useEffect(() => {
+        // toggle class on root (documentElement) so Tailwind's `dark:` classes work
+        if (theme === 'dark') document.documentElement.classList.add('dark')
+        else document.documentElement.classList.remove('dark')
+    }, [theme])
+
+
+    const toggle = () => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))
+
+
+    return (
+        <ThemeContext.Provider value={{ theme, toggle }}>
+            {children}
+        </ThemeContext.Provider>
+    )
 }
-
-export default App
