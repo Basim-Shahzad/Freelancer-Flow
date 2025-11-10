@@ -1,54 +1,55 @@
 from django.db import models
 from clients.models import Client
-from projects.models import Project
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
 
 class Invoice(models.Model):
-    freelancer = models.ForeignKey(
-        User,
-        on_delete=models.CASCADE,
-        related_name="invoices",
-        help_text="Freelancer who issued the invoice."
-    )
-    client = models.ForeignKey(
-         Client,
-        on_delete=models.CASCADE,
-        related_name="invoices",
-        help_text="Client who receives the invoice."
-    )
-    project = models.ForeignKey(
-        Project,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="invoices",
-        help_text="Optional project this invoice is linked to."
-    )
-
-    invoice_number = models.CharField(max_length=20, unique=True)
-    issue_date = models.DateField(auto_now_add=True)
+    STATUS_CHOICES = [
+        ('draft', 'Draft'),
+        ('sent', 'Sent'),
+        ('paid', 'Paid'),
+        ('overdue', 'Overdue'),
+        ('cancelled', 'Cancelled'),
+    ]
+    
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='invoices')
+    client = models.ForeignKey(Client, on_delete=models.SET_NULL, null=True, related_name='invoices')
+    invoice_number = models.CharField(max_length=50, unique=True)
+    issue_date = models.DateField()
     due_date = models.DateField()
-
-    description = models.TextField(blank=True, help_text="Summary of work or services billed.")
-    payment = models.DecimalField(max_digits=10, decimal_places=2)
-
-    status = models.CharField(
-        max_length=10,
-        choices=[
-            ('draft', 'Draft'),
-            ('pending', 'Pending'),
-            ('paid', 'Paid'),
-            ('overdue', 'Overdue'),
-            ('cancelled', 'Cancelled'),
-        ],
-        default='draft'
-    )
-
-    payment_date = models.DateField(null=True, blank=True, help_text="Date the invoice was paid.")
-    notes = models.TextField(blank=True, help_text="Internal notes or comments.")
-
-    created_at = models.DateTimeField(auto_now_add=True )
+    status = models.CharField(max_length=50, choices=STATUS_CHOICES, default='draft')
+    subtotal = models.DecimalField(max_digits=10, decimal_places=2)
+    tax_rate = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    tax_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    total = models.DecimalField(max_digits=10, decimal_places=2)
+    notes = models.TextField(blank=True)
+    payment_date = models.DateField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-
+    
+    class Meta:
+        ordering = ['-issue_date']
+    
     def __str__(self):
-        return f"Invoice {self.invoice_number} - {self.client.name}"
+        return f"Invoice {self.invoice_number}"
+    
+    def save(self, *args, **kwargs):
+        self.tax_amount = self.subtotal * (self.tax_rate / 100)
+        self.total = self.subtotal + self.tax_amount
+        super().save(*args, **kwargs)
+
+class InvoiceItem(models.Model):
+    invoice = models.ForeignKey(Invoice, on_delete=models.CASCADE, related_name='items')
+    description = models.TextField()
+    quantity = models.DecimalField(max_digits=10, decimal_places=2)
+    unit_price = models.DecimalField(max_digits=10, decimal_places=2)
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    def save(self, *args, **kwargs):
+        self.amount = self.quantity * self.unit_price
+        super().save(*args, **kwargs)
+    
+    def __str__(self):
+        return f"{self.description} - {self.amount}"
