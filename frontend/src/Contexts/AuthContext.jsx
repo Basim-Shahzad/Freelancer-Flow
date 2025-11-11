@@ -10,7 +10,6 @@ import axios from "axios";
 import { useApi } from "./Api";
 import { redirect } from "react-router";
 
-
 const AuthContext = createContext();
 
 export const useAuth = () => {
@@ -27,9 +26,9 @@ export const AuthProvider = ({ children }) => {
     const [isLoggedin, setIsloggedin] = useState(false)
     const { api } = useApi()
 
-    useEffect(() => {
-        fetchCurrentUser();
-    }, []);  // for now
+    // useEffect(() => {
+    //     fetchCurrentUser();
+    // }, []);  // for now
 
     const fetchCurrentUser = async () => {
         try {
@@ -61,7 +60,7 @@ export const AuthProvider = ({ children }) => {
             setLoading(false);
         }
     };
-    
+
     const login = async (userData) => {
         try {
             setLoading(true);

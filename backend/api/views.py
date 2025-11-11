@@ -5,7 +5,6 @@ from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 
-
 class RegisterView(generics.CreateAPIView):
   serializer_class = RegisterSerializer
   permission_classes = [permissions.AllowAny]
@@ -27,7 +26,6 @@ class LogoutView(APIView):
         except Exception as e:
             return Response({'detail': 'Invalid token'}, status=status.HTTP_400_BAD_REQUEST)
         
-
 class MeView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 

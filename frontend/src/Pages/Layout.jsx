@@ -1,11 +1,10 @@
 import React from 'react'
 import { Outlet } from 'react-router-dom'
-import Sidebar from '../UiComponents/Sidebar'
+import Sidebar from '../components/layout/Sidebar'
 import App, { ThemeContext } from '../App'
 
 
 const LayoutWrapper = () => {
-    // wrap layout with App (theme provider)
     return (
         <App>
             <Layout />
@@ -13,10 +12,9 @@ const LayoutWrapper = () => {
     )
 }
 
-
 function Layout() {
     return (
-        <div className="min-h-screen flex bg-slate-50 dark:bg-[#071123]">
+        <div className="min-h-screen flex bg-slate-50 dark:bg-[#081028]">
             <Sidebar />
             <div className="flex-1">
                 <Outlet />

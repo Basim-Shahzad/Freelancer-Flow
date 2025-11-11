@@ -1,0 +1,20 @@
+.th {
+  padding: 12px;
+}
+
+.td {
+  padding: 3px;
+}
+
+table {
+  table-layout: fixed;
+  width: 100%;
+}
+
+th,
+td {
+  width: 25%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

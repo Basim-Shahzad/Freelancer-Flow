@@ -1,48 +1,33 @@
+import './index.css'
+import App from './App.jsx'
 import { StrictMode, useRef } from 'react'
 import { createRoot } from 'react-dom/client'
-import App from './App.jsx'
 import { createBrowserRouter } from "react-router-dom";
 import { RouterProvider } from "react-router-dom";
 import { ApiProvider } from "./Contexts/Api.jsx";
 import { ThemeProvider } from './Contexts/Theme.jsx';
 import { AuthProvider } from './Contexts/AuthContext.jsx';
-import './index.css'
-import Dashboard from './Components/Dashboard.jsx';
-import Projects from './Components/Projects.jsx';
+import Dashboard from './Pages/Dashboard.jsx';
+import Projects from './Pages/Projects.jsx';
 import Layout from './Pages/Layout.jsx';
+import Clients from './Pages/Clients.jsx';
+import Hero from './Pages/Hero.jsx';
 
 const router = createBrowserRouter([
     {
+        path : "/",
+        element: <Hero />
+    },
+    {
         path: "/",
         element: <Layout />,
-        errorElement: <>
-            <div className="w-full min-h-screen bg-red-100 flex justify-center items-center flex-col text-3xl select-none">
-                <div className='text-7xl'>⚠️</div>
-                <div>Something went wrong </div>
-                <div>Please try again later.</div>
-            </div>
-        </>,
         children: [
-            { index: true, element: <App /> },
             { path: "dashboard", element: <Dashboard /> },
             { path: "projects", element: <Projects /> },
+            { path: "clients", element: <Clients /> },
         ],
     },
 ]);
-
-// const router = createBrowserRouter([
-//     {
-//         path: "/",
-//         element: <App />,
-//         errorElement: <>
-//             <div className="w-full min-h-screen bg-red-100 flex justify-center items-center flex-col text-3xl select-none">
-//                 <div className='text-7xl'>⚠️</div>
-//                 <div>Something went wrong </div>
-//                 <div>Please try again later.</div>
-//             </div>
-//         </>,
-//     }
-// ])
 
 function Main() {
     return (
