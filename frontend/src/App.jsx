@@ -5,7 +5,6 @@ export default function App({ children }) {
     const [theme, setTheme] = useState('dark')
 
     useEffect(() => {
-        // toggle class on root (documentElement) so Tailwind's `dark:` classes work
         if (theme === 'dark') document.documentElement.classList.add('dark')
         else document.documentElement.classList.remove('dark')
     }, [theme])

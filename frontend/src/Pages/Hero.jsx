@@ -1,7 +1,7 @@
 import React from 'react'
 import bgimg from '../assets/bg-img2.jpg'
 import Navbar from '../components/layout/Navbar'
-import dashboard from '../assets/dashboard.png'
+import dashboard from '../assets/db.png'
 
 const Hero = () => {
    return (
@@ -29,7 +29,7 @@ const Hero = () => {
                </div>
 
             </div>
-               <img src={dashboard} className="blur-[1.4px] border rounded-[100px] mt-12 opacity-85 select-none" />
+               <img src={dashboard} className="blur-[1.2px] w-5/6 border rounded-[100px] mt-12 opacity-85 select-none" />
             <div>
 
             </div>
