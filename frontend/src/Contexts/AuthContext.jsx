@@ -8,7 +8,6 @@ import {
 } from "react";
 import axios from "axios";
 import { useApi } from "./Api";
-import { redirect } from "react-router";
 
 const AuthContext = createContext();
 
@@ -26,36 +25,53 @@ export const AuthProvider = ({ children }) => {
     const [isLoggedin, setIsloggedin] = useState(false)
     const { api } = useApi()
 
-    // useEffect(() => {
-    //     fetchCurrentUser();
-    // }, []);  // for now
+    useEffect(() => {
+        fetchCurrentUser();
+    }, []);
 
     const fetchCurrentUser = async () => {
+        const token = localStorage.getItem('access');
+        if (!token) {
+            setUser(null);
+            setIsloggedin(false);
+            setIsInitialized(true);
+            return;
+        }
+
         try {
             setLoading(true);
-            const res = await api.get('/me');
+            const res = await api.get('/me/');
             setUser(res.data);
-            setIsloggedin(true)
+            setIsloggedin(true);
         } catch (error) {
-            setUser(null); // Any error = not authenticated or logged out .
-            setIsloggedin(false)
+            setUser(null);
+            setIsloggedin(false);
+            localStorage.removeItem('access');
+            localStorage.removeItem('refresh');
         } finally {
             setLoading(false);
             setIsInitialized(true);
         }
     };
 
-    const registerUser = async (userData) => {
+    const signup = async (userData) => {
         try {
             setLoading(true);
             setError('');
-            const res = await api.post("/register", userData);
-            await fetchCurrentUser()
-            return { success: true }; // Return success if done
+            await api.post("/register/", userData);
+            const loginResult = await login({
+                email: userData.email,
+                password: userData.password
+            });
+
+            return loginResult;
         } catch (err) {
-            setError(err.response?.data?.error || 'Registration failed');
-            setIsloggedin(false)
-            return { success: false };
+            const errorMsg = err.response?.data?.username?.[0] ||
+                err.response?.data?.email?.[0] ||
+                err.response?.data?.password?.[0] ||
+                'Registration failed';
+            setError(errorMsg);
+            return { success: false, error: errorMsg };
         } finally {
             setLoading(false);
         }
@@ -65,12 +81,17 @@ export const AuthProvider = ({ children }) => {
         try {
             setLoading(true);
             setError('');
-            const res = await api.post("/login", userData);
+            const res = await api.post("/login/", userData);
+            localStorage.setItem('access', res.data.access);
+            localStorage.setItem('refresh', res.data.refresh);
             await fetchCurrentUser()
-            redirect('/')
+            return { success: true };
         } catch (err) {
-            setError(err.response?.data?.error || 'Log in failed');
-            setIsloggedin(false)
+            const errorMsg = err.response?.data?.detail ||
+                err.response?.data?.email?.[0] ||
+                'Login failed';
+            setError(errorMsg);
+            return { success: false, error: errorMsg };
         } finally {
             setLoading(false);
         }
@@ -78,17 +99,27 @@ export const AuthProvider = ({ children }) => {
 
     const logout = async () => {
         try {
-            setLoading(true)
+            setLoading(true);
             setError('');
-            let res = await api.post('/logout')
-            setUser(null)
-            setIsloggedin(false)
+            const refresh = localStorage.getItem('refresh');
+            if (refresh) {
+                await api.post('/logout/', { refresh });
+            }
+            localStorage.removeItem('access');
+            localStorage.removeItem('refresh');
+            setUser(null);
+            setIsloggedin(false);
         } catch (err) {
-            setError(err.response?.data?.error || 'Logout failed')
+            setError(err.response?.data?.error || 'Logout failed');
+            localStorage.removeItem('access');
+            localStorage.removeItem('refresh');
+            setUser(null);
+            setIsloggedin(false);
         } finally {
-            setLoading(false)
+            setLoading(false);
         }
     }
+
 
     const value = {
         user,
@@ -97,7 +128,7 @@ export const AuthProvider = ({ children }) => {
         isLoggedin,
         setIsloggedin,
         login,
-        registerUser,
+        signup,
         logout,
         fetchCurrentUser,
         // changePassword,
