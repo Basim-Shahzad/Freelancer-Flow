@@ -6,35 +6,79 @@ from .serializers import ProjectSerializer
 from .models import Project
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import permission_classes
+from django.contrib.auth import get_user_model
+from django.shortcuts import get_object_or_404
+from rest_framework.pagination import PageNumberPagination
+
+User = get_user_model()
+
+class ProjectPagination(PageNumberPagination):
+   page_size = 6               # items per page
+   page_size_query_param = 'page_size'  # optional: allow client to override
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def create_project(request):
     serializer = ProjectSerializer(data=request.data)
     if serializer.is_valid():
-        serializer.save(freelancer=request.user)
+        serializer.save(user=request.user)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 @api_view([ "GET" ])
 @permission_classes([IsAuthenticated])
-def get_project_list(request):
-  projects = Project.objects.filter(freelancer=request.user)
-  serializer = ProjectSerializer(projects, many=True)
-  return Response(serializer.data)
+def get_project(request, pk):
+    try:
+        project = get_object_or_404(Project, pk=pk)
+        serializer = ProjectSerializer(project)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        return Response(
+            serializer.errors,
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+    
+@api_view(["PATCH"])
+@permission_classes([IsAuthenticated])
+def update_project_status(request, pk):
+    try :
+        project = Project.objects.get(pk=pk, user=request.user)
+    except Project.DoesNotExist:
+        return Response(
+            {"error": "Project not found or you don't have permission to update it"},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    serializer = ProjectSerializer(project, data=request.data, partial=True)
+    if serializer.is_valid():
+        serializer.save()
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 @api_view([ "GET" ])
 @permission_classes([IsAuthenticated])
-def get_client_project_list(request, pk):
-  projects = Project.objects.filter(freelancer=request.user, client=pk)
+def get_project_list(request):
+  projects = Project.objects.filter(user=request.user).order_by('due_date')  
+
+  paginator = ProjectPagination()
+  paginated_projects = paginator.paginate_queryset(projects, request)
+  
+  serializer = ProjectSerializer(paginated_projects, many=True)
+
+  return Response({ 'projects' : serializer.data})
+
+@api_view([ "GET" ])
+@permission_classes([IsAuthenticated])
+def get_clients_project_list(request, pk):
+  projects = Project.objects.filter(user=request.user, client=pk)
   serializer = ProjectSerializer(projects, many=True)
-  return Response(serializer.data)
+  return Response({ 'projects' : serializer.data})
 
 @api_view(["PUT", "PATCH"])
 @permission_classes([IsAuthenticated])
 def update_project(request, pk):
     try:
-        project = Project.objects.get(pk=pk, freelancer=request.user)
+        project = Project.objects.get(pk=pk, user=request.user)
     except Project.DoesNotExist:
         return Response(status=status.HTTP_404_NOT_FOUND)
 
@@ -48,9 +92,15 @@ def update_project(request, pk):
 @permission_classes([IsAuthenticated])
 def delete_project(request, pk):
     try:
-        project = Project.objects.get(pk=pk, freelancer=request.user)
+        project = Project.objects.get(pk=pk, user=request.user)
     except Project.DoesNotExist:
         return Response(status=status.HTTP_404_NOT_FOUND)
     
     project.delete()
     return Response(status=status.HTTP_204_NO_CONTENT)
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def get_projects_total(request):
+   user = User.objects.get(id=request.user.id)
+   return Response({'projectsTotal': len(user.projects.all()) })
