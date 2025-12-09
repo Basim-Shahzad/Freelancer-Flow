@@ -1,11 +1,8 @@
 from django.db import models
-from django.contrib.auth import get_user_model
 from django.conf import settings
 
-User = get_user_model()
-
 class Client(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='clients')
+    user = models.ForeignKey('api.User', on_delete=models.CASCADE, related_name='clients')
     name = models.CharField(max_length=255)
     email = models.EmailField(blank=True)
     phone = models.CharField(max_length=50, blank=True)

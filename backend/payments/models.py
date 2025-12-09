@@ -1,8 +1,5 @@
 from django.db import models
 from clients.models import Client
-from django.contrib.auth import get_user_model
-
-User = get_user_model()
 
 class Invoice(models.Model):
     STATUS_CHOICES = [
@@ -13,7 +10,7 @@ class Invoice(models.Model):
         ('cancelled', 'Cancelled'),
     ]
     
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='invoices')
+    user = models.ForeignKey('api.User', on_delete=models.CASCADE, related_name='invoices')
     client = models.ForeignKey(Client, on_delete=models.SET_NULL, null=True, related_name='invoices')
     invoice_number = models.CharField(max_length=50, unique=True)
     issue_date = models.DateField()
