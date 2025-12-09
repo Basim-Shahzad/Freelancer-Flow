@@ -86,7 +86,7 @@ export const Login = () => {
                   >Log in</button>
                </div>
 
-               <form onSubmit={handleSubmit(onSubmit)}>
+               <form onSubmit={handleSubmit(onSubmit)} autoComplete='on'>
                   <div className='flex flex-col gap-2.5 mt-4' >
                      {
                         isSignupClicked
@@ -97,6 +97,8 @@ export const Login = () => {
                               <input
                                  type="text"
                                  id="username"
+                                 name="username"
+                                 autoComplete='username'
                                  // value={email}
                                  // onChange={(e) => setEmail(e.target.value)}
                                  placeholder="Enter your username"
@@ -114,6 +116,8 @@ export const Login = () => {
                         <input
                            type="email"
                            id="email"
+                           name="email"
+                           autoComplete="email"
                            placeholder="Enter your email"
                            className="w-full px-4 py-2 bg-transparent border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-white placeholder-gray-500 transition-all duration-200"
                            {...register("email", { required: true })}
@@ -128,8 +132,9 @@ export const Login = () => {
                         <input
                            type="password"
                            id="password"
+                           name="password"
                            placeholder="••••••••"
-                           autoComplete=''
+                           autoComplete={isSignupClicked ? "new-password" : "current-password"}
                            className="w-full px-4 py-2 bg-transparent border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-white placeholder-gray-500 transition-all duration-200"
                            {...register("password", { required: true })}
                         />
@@ -149,14 +154,15 @@ export const Login = () => {
                   <div className='flex flex-col gap-2.5' >
                      <button
                         onClick={handleSubmit}
-                        className="w-full py-2 bg-gradient-to-r text-white/80 cursor-pointer from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 rounded-lg font-medium transition shadow-lg shadow-purple-500/30 transition-all duration-200"
+                        type='submit'
+                        className="w-full py-2 text-white/80 cursor-pointer from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 rounded-lg font-medium shadow-lg shadow-purple-500/30 transition duration-200"
                      >
                         Sign {isPathSignup & isSignupClicked ? 'up' : 'in'}
                      </button>
 
                      <button
                         type="button"
-                        className="w-full text-white/80 py-2 bg-transparent cursor-pointer border border-gray-700 hover:border-gray-600 rounded-lg font-medium transition flex items-center justify-center gap-3 transition-all duration-200"
+                        className="w-full text-white/80 py-2 bg-transparent cursor-pointer border border-gray-700 hover:border-gray-600 rounded-lg font-medium flex items-center justify-center gap-3 transition-all duration-200"
                      >
                         <svg className="w-5 h-5" viewBox="0 0 24 24">
                            <path

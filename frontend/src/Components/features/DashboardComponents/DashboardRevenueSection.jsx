@@ -1,5 +1,6 @@
-import React from 'react'
+import React, { useState, useRef, useEffect, useEffectEvent } from 'react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { useApi } from '../../../Contexts/Api';
 
 const data = [
    { name: 'Jan', value: 12400 },
@@ -17,31 +18,60 @@ const data = [
 ];
 
 const DashboardRevenueSection = () => {
+   const { api } = useApi()
+
+   const [revenue, setRevenue] = useState(0)
+   const [error, setError] = useState('')
+   const [loading, setLoading] = useState(false)
+
+   useEffect(() => {
+      fetchRevenue()
+   }, []);
+
+   const fetchRevenue = async () => {
+      try {
+         setLoading(true);
+         const res = await api.get('/get-revenue/');
+         setRevenue(res.data.revenue);
+      } catch (error) {
+         setError(res.data.detail);
+      } finally {
+         setLoading(false);
+      }
+   };
+
    return (
-      <div class="flex flex-1 flex-col gap-6 lg:flex-row lg:flex-wrap lg:gap-x-8 lg:gap-y-4">
-         <div class="flex flex-col gap-2">
-            <p class="text-[14px] font-medium text-[#94979c]">Revenue</p>
-            <div class="flex items-start gap-2">
-               <div class="flex items-start gap-0.5">
-                  <span class="pt-2 text-xl font-medium text-primary">$</span>
-                  <span class="text-[36px] font-semibold ">18,880</span>
+      <div className="flex flex-1 flex-col gap-6 lg:flex-row lg:flex-wrap lg:gap-x-8 lg:gap-y-4">
+         <div className="flex flex-col gap-2">
+            <p className="text-[14px] font-medium text-[#94979c]">Revenue</p>
+            <div className="flex items-start gap-2">
+               <div className="flex items-start gap-0.5">
+                  <span className="pt-2 text-xl font-medium">$</span>
+                  <span className="text-[36px] font-semibold ">
+                     {
+                        error != '' ? error : ''
+                     }
+                     {
+                        loading ? "Loading..." : revenue
+                     }
+                  </span>
                </div>
-               <div class="flex items-center gap-1">
+               <div className="flex items-center gap-1">
                   <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor"
-                     stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"
-                     aria-hidden="true" class="stroke-[3px] size-4 text-[#47cd89]">
+                     strokeWidth="2" fill="none" strokeLinejoin="round"
+                     aria-hidden="true" className="stroke-[3px] size-4 text-[#47cd89]">
                      <path
                         d="m22 7-7.869 7.869c-.396.396-.594.594-.822.668a1 1 0 0 1-.618 0c-.228-.074-.426-.272-.822-.668L9.13 12.13c-.396-.396-.594-.594-.822-.668a1 1 0 0 0-.618 0c-.228.074-.426.272-.822.668L2 17M22 7h-7m7 0v7">
                      </path>
                   </svg>
-                  <span class="text-[14px] font-medium text-[#47cd89]">7.4%</span>
+                  <span className="text-[14px] font-medium text-[#47cd89]">7.4%</span>
                </div>
             </div>
          </div>
          <div
-            class="flex h-50 w-full flex-col gap-2 lg:h-60 lg:min-w-[480px] lg:flex-1 xl:min-w-[560px]">
-            <div class="recharts-responsive-container h-full">
-               <div class="recharts-responsive-container h-full">
+            className="flex h-50 w-full flex-col gap-2 lg:h-60 lg:min-w-[480px] lg:flex-1 xl:min-w-[560px]">
+            <div className="recharts-responsive-container h-full">
+               <div className="recharts-responsive-container h-full">
                   <ResponsiveContainer width="100%" height="100%">
                      <LineChart data={data}>
                         <Line type="monotone" dataKey="value" stroke="#8884d8" />
