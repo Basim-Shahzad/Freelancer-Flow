@@ -1,4 +1,3 @@
-from django.shortcuts import render
 from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
@@ -64,7 +63,6 @@ def get_project_list(request):
   paginated_projects = paginator.paginate_queryset(projects, request)
   
   serializer = ProjectSerializer(paginated_projects, many=True)
-
   return Response({ 'projects' : serializer.data})
 
 @api_view([ "GET" ])
