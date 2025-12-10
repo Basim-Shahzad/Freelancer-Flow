@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
-import { useApi } from "../Contexts/Api";
+import { useApi } from "./useApi.jsx";
 
 export function useProjects(page = 1, pageSize = 6) {
    const { api } = useApi();

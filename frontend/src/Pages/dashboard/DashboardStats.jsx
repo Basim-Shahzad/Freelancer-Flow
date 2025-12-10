@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useEffectEvent } from "react";
-import { useApi } from "../../../Contexts/Api";
+import { useApi } from "../../hooks/useApi.jsx";
 
 const DashboardStats = () => {
    const { api } = useApi();

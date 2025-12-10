@@ -1,7 +1,7 @@
 import React from 'react'
 import { Outlet } from 'react-router-dom'
-import App, { ThemeContext } from '../App'
-import DashSideBar from '../components/layout/DashSideBar'
+import App, { ThemeContext } from '../App.jsx'
+import DashSideBar from '../layout/DashSideBar.jsx'
 
 
 const LayoutWrapper = () => {

@@ -11,13 +11,13 @@ import {
    Select,
    SelectItem,
 } from "@heroui/react";
-import { useClients } from "../../../hooks/useClients";
-import { useProjects } from "../../../hooks/useProjects";
+import { useClients } from "../../hooks/useClients.js";
+import { useProjects } from "../../hooks/useProjects.js";
+import { useFormatters } from "../../hooks/useFormatters.js";
 import { useForm, Controller } from "react-hook-form";
-import { useFormatters } from "../../../hooks/useFormatters";
 
 const ProjectsAddModal = ({ isOpen, onOpenChange }) => {
-   const { clients, fetchClients } = useClients();
+   const { clients } = useClients();
    const { createProject, error, loading } = useProjects();
    const { formatDueDateForServer } = useFormatters();
    const {
@@ -26,10 +26,6 @@ const ProjectsAddModal = ({ isOpen, onOpenChange }) => {
       formState: { errors },
       control,
    } = useForm();
-
-   useEffect(() => {
-      fetchClients();
-   }, []);
 
    const onSubmit = async (projectData) => {
       const formatted = {

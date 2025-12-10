@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Select, SelectItem } from "@heroui/react";
-import { useProject } from "../../../hooks/useProjects";
+import { useProject } from "../../hooks/useProjects.js";
 
 const ProjectDetailMid = ({ project, onStatusChange }) => {
    const { due_date, time_tracking, price, hourly_rate, client, status, description } = project;

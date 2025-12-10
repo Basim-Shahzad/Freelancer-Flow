@@ -1,0 +1,24 @@
+{
+  "compilerOptions": {
+    "strict": true,
+    "allowJs": true,
+    "checkJs": true,
+    "noEmit": true,
+
+    "jsx": "react-jsx",
+    "module": "nodenext",
+    "target": "esnext",
+
+    "moduleResolution": "nodenext",
+    "resolveJsonModule": true,
+
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true
+  },
+
+  "include": ["src"],
+  "exclude": ["node_modules", "dist"]
+}

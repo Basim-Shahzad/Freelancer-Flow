@@ -1,9 +1,9 @@
 import React, { useEffect } from "react";
-import MobileHeader from "../components/layout/MobileHeader";
-import ProjectDetailHeader from "../components/features/ProjectDetailComponents/ProjectDetailHeader";
+import MobileHeader from "../../layout/MobileHeader.jsx";
+import ProjectDetailHeader from "./ProjectDetailHeader.jsx";
 import { useParams, useNavigate } from "react-router-dom";
-import { useProject } from "../hooks/useProjects";
-import ProjectDetailMid from "../components/features/ProjectDetailComponents/ProjectDetailMid";
+import { useProject } from "../../hooks/useProjects.js";
+import ProjectDetailMid from "./ProjectDetailMid.jsx";
 
 const ProjectDetail = () => {
    const { id } = useParams();

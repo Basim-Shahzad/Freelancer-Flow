@@ -1,10 +1,10 @@
 import React, { useState, useContext } from 'react'
-import DashSideBar from '../components/layout/DashSideBar'
-import MobileHeader from '../components/layout/MobileHeader'
-import DashboardHeader from '../components/features/DashboardComponents/DashboardHeader'
-import DashboardRevenueSection from '../components/features/DashboardComponents/DashboardRevenueSection'
-import DashboardStats from '../components/features/DashboardComponents/DashboardStats'
-import DashboardMid from '../components/features/DashboardComponents/DashboardMid'
+import DashSideBar from '../../layout/DashSideBar.jsx'
+import MobileHeader from '../../layout/MobileHeader.jsx'
+import DashboardHeader from './DashboardHeader.jsx'
+import DashboardRevenueSection from './DashboardRevenueSection.jsx'
+import DashboardStats from './DashboardStats.jsx'
+import DashboardMid from './DashboardMid.jsx'
 
 const Dashboard = () => {
 

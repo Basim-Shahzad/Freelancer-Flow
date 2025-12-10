@@ -1,10 +1,10 @@
 import React, { useContext, useState , useEffect} from 'react'
-import { ThemeContext } from '../../App'
+import { ThemeContext } from '../App.jsx'
 import { CiDark } from 'react-icons/ci';
 import { CiLight } from 'react-icons/ci';
 import { Link } from 'react-router-dom';
-import { useAuth } from '../../Contexts/AuthContext';
-import ff from '../../assets/FF.png'
+import { useAuth } from '../Contexts/AuthContext.jsx';
+import ff from '../assets/FF.png'
 
 const DashSideBar = () => {
    const { theme, toggle } = useContext(ThemeContext);
@@ -103,7 +103,7 @@ const DashSideBar = () => {
                   </li>
 
                   <li className="py-0.5">
-                     <a className="px-3 py-2 group relative flex w-full cursor-pointer items-center rounded-md outline-focus-ring transition duration-100 ease-linear select-none hover_hover focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-offset-2">
+                     <Link to={'/clients'} className="px-3 py-2 group relative flex w-full cursor-pointer items-center rounded-md outline-focus-ring transition duration-100 ease-linear select-none hover_hover focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-offset-2">
                         <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" strokeWidth="2"
                            fill="none" strokeLinejoin="round" aria-hidden="true"
                            className="mr-2 size-5 shrink-0 text-[#85888E] transition-inherit-all">
@@ -115,7 +115,7 @@ const DashSideBar = () => {
                            className="flex-1 text-md font-semibold transition-inherit-all group-hover_hover truncate">Clients</span>
                         <span
                            className="size-max flex items-center whitespace-nowrap rounded-full ring-1 ring-inset py-0.5 px-2 text-xs font-medium bg-utility-gray-50 text-utility-gray-700 ring-[#85888E] text-whitr/85 ml-3">4</span>
-                     </a>
+                     </Link>
                   </li>
                   <li className="py-0.5">
                      <a className="px-3 py-2 group relative flex w-full cursor-pointer items-center rounded-md outline-focus-ring transition duration-100 ease-linear select-none hover_hover focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-offset-2">

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import ModalComponent from "../../../UiComponents/ModalComponent";
+import ModalComponent from "../../UiComponents/ModalComponent.jsx";
 import {
    Modal,
    ModalContent,
@@ -8,18 +8,15 @@ import {
    ModalFooter,
    Button,
    useDisclosure,
-} from "@heroui/react";
-import { useClients } from "../../../hooks/useClients";
-import { useFormatters } from "../../../hooks/useFormatters";
-import logo from "../../../assets/FF.png";
+} from "@heroui/react";;
+
+import { useClients } from "../../hooks/useClients.js";
+import { useFormatters} from "../../hooks/useFormatters.js";
+import logo from "../../assets/FF.png"
 
 const DashboardMid = () => {
-   const { clients, fetchClients, loading } = useClients();
+   const { clients, clientsError, clientsLoading } = useClients();
    const { formatDate } = useFormatters();
-
-   useEffect(() => {
-      fetchClients();
-   }, []);
 
    const { isOpen, onOpen, onOpenChange } = useDisclosure();
 

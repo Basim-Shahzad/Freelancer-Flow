@@ -1,9 +1,9 @@
 import React from "react";
 import { IoIosAdd, IoMdSearch } from "react-icons/io";
 import { MdFileDownload } from "react-icons/md";
-import ProjectsDataTable from "./ProjectsDataTable";
+import ProjectsDataTable from "./ProjectsDataTable.jsx";
 import { useDisclosure } from "@heroui/react";
-import ProjectsAddModal from "./ProjectsAddModal";
+import ProjectsAddModal from "./ProjectsAddModal.jsx";
 
 const ProjectsMid = () => {
    const { isOpen, onOpen, onOpenChange } = useDisclosure();

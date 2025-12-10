@@ -1,23 +1,26 @@
 import { useState, useEffect } from "react";
-import { useApi } from "../Contexts/Api";
+import { useApi } from "./useApi.jsx";
+import { useQuery } from "@tanstack/react-query";
 
 export function useClients() {
    const { api } = useApi();
-   const [ clients, setClients ] = useState([]);
-   const [error, setError] = useState("");
-   const [loading, setLoading] = useState(false);
 
-   async function fetchClients() {
-      try {
-         setLoading(true);
-         const res = await api.get("/clients/");
-         setClients(res.data.clients);
-      } catch (err) {
-         setError(err);
-      } finally {
-         setLoading(false);
+   const {
+      data: clients = [],
+      error : clientsError,
+      isLoading : clientsLoading,
+   } = useQuery({
+      queryKey: ["clients"],
+      queryFn: async () => {
+         try {
+            const res = await api.get("/clients/");
+            console.log(res.data.clients);
+            return res.data.clients;
+         } catch (error) {
+            console.error(error);
+         }
       }
-   }
+   });
 
-   return { clients, fetchClients, error, loading };
+   return { clients, clientsError, clientsLoading };
 }

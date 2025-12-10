@@ -1,7 +1,7 @@
 import React, { useState, useContext } from 'react'
-import MobileHeader from '../components/layout/MobileHeader'
-import ProjectsMid from '../components/features/ProjectComponents/ProjectsMid'
-import ProjectsHeader from '../components/features/ProjectComponents/ProjectsHeader'
+import MobileHeader from '../../layout/MobileHeader.jsx'
+import ProjectsMid from './ProjectsMid.jsx'
+import ProjectsHeader from './ProjectsHeader.jsx'
 
 const Projects = () => {
 

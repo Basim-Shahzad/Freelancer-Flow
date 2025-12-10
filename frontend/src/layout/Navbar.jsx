@@ -1,6 +1,6 @@
 import React from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useAuth } from '../../Contexts/AuthContext'
+import { useAuth } from '../Contexts/AuthContext.jsx'
 
 const Navbar = () => {
    const navigate = useNavigate()

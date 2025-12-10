@@ -9,19 +9,19 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 
-import { ApiProvider } from "./Contexts/Api.jsx";
+import { ApiProvider } from "./hooks/useApi.jsx";
 import { HeroUIProvider } from "@heroui/system";
 import { AuthProvider } from "./Contexts/AuthContext.jsx";
 
-import Dashboard from "./Pages/Dashboard.jsx";
-import Projects from "./Pages/Projects.jsx";
-import Layout from "./Pages/Layout.jsx";
-import Clients from "./Pages/Clients.jsx";
-import Hero from "./Pages/Hero.jsx";
-import { Login } from "./Pages/Login.jsx";
+import Dashboard from "./pages/dashboard/Dashboard.jsx";
+import Projects from "./pages/projects/Projects.jsx";
+import Layout from "./pages/Layout.jsx";
+import Clients from "./pages/clients/Clients.jsx";
+import Hero from "./pages/homepage/Hero.jsx";
+import { Login } from "./pages/homepage/Login.jsx";
 import ProtectedRoute from "./Contexts/ProtectedRoute.jsx";
-import ProjectDetail from "./Pages/ProjectDetail.jsx";
-import NotFound from "./Pages/NotFound.jsx";
+import ProjectDetail from "./pages/projectDetail/ProjectDetail.jsx";
+import NotFound from "./pages/miscPages/NotFound.jsx";
 import { QueryClientProvider, QueryClient } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 
@@ -94,4 +94,6 @@ function Main() {
    );
 }
 
-createRoot(document.getElementById("root")).render(<Main />);
+const root = document.getElementById("root");
+if (!root) throw new Error("Missing #root element");
+createRoot(root).render(<Main />);

@@ -1,7 +1,7 @@
 import React from 'react'
-import bgimg from '../assets/bg-img2.jpg'
-import Navbar from '../components/layout/Navbar'
-import dashboard from '../assets/db.png'
+import bgimg from '../../assets/bg-img2.jpg'
+import Navbar from '../../layout/Navbar.jsx'
+import dashboard from '../../assets/db.png'
 
 const Hero = () => {
    return (

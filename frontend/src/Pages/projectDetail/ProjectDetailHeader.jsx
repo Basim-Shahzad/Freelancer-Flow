@@ -1,6 +1,6 @@
 import React from "react";
-import { useFormatters } from "../../../hooks/useFormatters";
 import { MdAvTimer } from "react-icons/md";
+import { useFormatters } from "../../hooks/useFormatters.js";
 
 const ProjectDetailHeader = ({ project }) => {
    const { formatDueDate } = useFormatters();
