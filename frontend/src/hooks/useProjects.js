@@ -34,7 +34,6 @@ export function useProjects(page = 1, pageSize = 6) {
             console.error(error);
          }
       },
-      keepPreviousData: true,
    });
 
    // Create project mutation

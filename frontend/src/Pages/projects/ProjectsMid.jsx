@@ -29,8 +29,8 @@ const ProjectsMid = () => {
             </div>
          </div>
 
-         <ProjectsDataTable />
          <ProjectsAddModal isOpen={isOpen} onOpenChange={onOpenChange} />
+         <ProjectsDataTable />
       </>
    );
 };

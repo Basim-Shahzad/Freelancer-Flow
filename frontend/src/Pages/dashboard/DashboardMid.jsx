@@ -1,18 +1,10 @@
 import React, { useState, useEffect } from "react";
 import ModalComponent from "../../UiComponents/ModalComponent.jsx";
-import {
-   Modal,
-   ModalContent,
-   ModalHeader,
-   ModalBody,
-   ModalFooter,
-   Button,
-   useDisclosure,
-} from "@heroui/react";;
+import { useDisclosure } from "@heroui/react";
 
 import { useClients } from "../../hooks/useClients.js";
-import { useFormatters} from "../../hooks/useFormatters.js";
-import logo from "../../assets/FF.png"
+import { useFormatters } from "../../hooks/useFormatters.js";
+import logo from "../../assets/FF.png";
 
 const DashboardMid = () => {
    const { clients, clientsError, clientsLoading } = useClients();
@@ -94,12 +86,8 @@ const DashboardMid = () => {
                         </svg>
                      </div>
                      <div className="flex min-w-0 flex-1 flex-col items-start gap-0.5 text-left">
-                        <p className="text-md font-semibold text-[#cecfd2]">
-                           Add a Client
-                        </p>
-                        <p className="max-w-full truncate text-sm text-[#94979c]">
-                           Add or import from CSV
-                        </p>
+                        <p className="text-md font-semibold text-[#cecfd2]">Add a Client</p>
+                        <p className="max-w-full truncate text-sm text-[#94979c]">Add or import from CSV</p>
                      </div>
                   </button>
                   <button className="flex min-w-[320px] flex-1 cursor-pointer gap-3 rounde p-4 shadow-xs ring-1 ring-white/10 outline-focus-ring ring-inset focus-visible:outline-2 focus-visible:outline-offset-2 lg:p-5">
@@ -138,9 +126,7 @@ const DashboardMid = () => {
                         </svg>
                      </div>
                      <div className="flex min-w-0 flex-1 flex-col items-start gap-0.5 text-left">
-                        <p className="text-md font-semibold text-[#cecfd2]">
-                           Create a new Project
-                        </p>
+                        <p className="text-md font-semibold text-[#cecfd2]">Create a new Project</p>
                         <p className="max-w-full truncate text-sm text-[#94979c]">
                            Dive into the work and start working
                         </p>
@@ -182,10 +168,7 @@ const DashboardMid = () => {
                   </div>
                   <div className="flex flex-wrap gap-6">
                      <div className="flex flex-col gap-4 min-w-[320px] flex-1">
-                        <a
-                           href="#"
-                           className="overflow-hidden rounded-2xl"
-                           tabIndex="-1">
+                        <a href="#" className="overflow-hidden rounded-2xl" tabIndex="-1">
                            <img
                               src="https://www.untitledui.com/application/spirals.webp"
                               alt="UX review presentations"
@@ -194,9 +177,7 @@ const DashboardMid = () => {
                         </a>
                         <div className="flex flex-col gap-6">
                            <div className="flex flex-col items-start gap-2">
-                              <p className="text-sm font-semibold">
-                                 Olivia Rhye • 20 Jan 2025
-                              </p>
+                              <p className="text-sm font-semibold">Olivia Rhye • 20 Jan 2025</p>
                               <div className="flex w-full flex-col gap-1">
                                  <a
                                     href="#"
@@ -216,8 +197,7 @@ const DashboardMid = () => {
                                     </svg>
                                  </a>
                                  <p className="line-clamp-2 text-md text-tertiary">
-                                    How do you create compelling presentations
-                                    that wow your colleagues and impress your
+                                    How do you create compelling presentations that wow your colleagues and impress your
                                     managers?
                                  </p>
                               </div>
@@ -248,10 +228,7 @@ const DashboardMid = () => {
                         </div>
                      </div>
                      <div className="flex flex-col gap-4 min-w-[320px] flex-1">
-                        <a
-                           href="#"
-                           className="overflow-hidden rounded-2xl"
-                           tabIndex="-1">
+                        <a href="#" className="overflow-hidden rounded-2xl" tabIndex="-1">
                            <img
                               src="https://www.untitledui.com/application/conversation.webp"
                               alt="Migrating to Linear 101"
@@ -260,9 +237,7 @@ const DashboardMid = () => {
                         </a>
                         <div className="flex flex-col gap-6">
                            <div className="flex flex-col items-start gap-2">
-                              <p className="text-sm font-semibold">
-                                 Phoenix Baker • 19 Jan 2025
-                              </p>
+                              <p className="text-sm font-semibold">Phoenix Baker • 19 Jan 2025</p>
                               <div className="flex w-full flex-col gap-1">
                                  <a
                                     href="#"
@@ -282,8 +257,7 @@ const DashboardMid = () => {
                                     </svg>
                                  </a>
                                  <p className="line-clamp-2 text-md text-tertiary">
-                                    Linear helps streamline software projects,
-                                    sprints, tasks, and bug tracking. Here
+                                    Linear helps streamline software projects, sprints, tasks, and bug tracking. Here
                                     &#x27;s how to get started.
                                  </p>
                               </div>
@@ -377,9 +351,7 @@ const DashboardMid = () => {
                                        {client.name}
                                     </a>
                                  </div>
-                                 <p className="text-sm text-tertiary">
-                                    {formatDate(client.created_at)}
-                                 </p>
+                                 <p className="text-sm text-tertiary">{formatDate(client.created_at)}</p>
                               </header>
                            </div>
                         </article>
