@@ -5,6 +5,12 @@
     "checkJs": true,
     "noEmit": true,
 
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"],
+      "types/*": ["types/*"]
+    },
+
     "jsx": "react-jsx",
     "module": "nodenext",
     "target": "esnext",
