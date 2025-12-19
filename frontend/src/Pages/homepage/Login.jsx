@@ -1,33 +1,20 @@
-import React, { useState, useRef } from 'react'
-import bgimg from '../../assets/bg-img2.jpg'
-import { Link, useLocation } from 'react-router-dom';
-import { AiFillBackward } from 'react-icons/ai'
-import { useForm } from "react-hook-form"
-import dashboard from '../../assets/db.png'
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../../Contexts/AuthContext.jsx';
+import { useState } from "react";
+import bgimg from "../../assets/bg-img2.jpg";
+import { Link, useLocation } from "react-router-dom";
+import { AiFillBackward } from "react-icons/ai";
+import { useForm } from "react-hook-form";
+import dashboard from "../../assets/db.png";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../../Contexts/AuthContext.jsx";
 
 export const Login = () => {
-
    const location = useLocation();
-   const [email, setEmail] = useState('');
-   const [password, setPassword] = useState('');
-   const bgImg = useRef(null);
-   const isPathSignup = location.pathname == '/signup' ? true : false
+   const isPathSignup = location.pathname == "/signup" ? true : false;
    const [isSignupClicked, setIsSignupClicked] = useState(isPathSignup ? true : false);
    const [isLoginClicked, setIsLoginClicked] = useState(isPathSignup ? false : true);
-   const navigate = useNavigate()
+   const navigate = useNavigate();
 
-   const {
-      user,
-      loading,
-      isLoggedin,
-      login,
-      signup,
-      logout,
-      fetchCurrentUser,
-      // changePassword,
-      error, } = useAuth();
+   const { login, signup, error } = useAuth();
 
    const {
       register,
@@ -36,79 +23,85 @@ export const Login = () => {
    } = useForm();
 
    const buttonClick = () => {
-      setIsSignupClicked(!isSignupClicked)
-      setIsLoginClicked(!isLoginClicked)
-   }
+      setIsSignupClicked(!isSignupClicked);
+      setIsLoginClicked(!isLoginClicked);
+   };
 
    const onSubmit = async (data) => {
       if (isPathSignup) {
-         const result = await signup(data)
+         const result = await signup(data);
          if (result.success) {
-            navigate('/dashboard');
+            navigate("/dashboard");
          }
-
       } else {
-         const result = await login(data)
+         const result = await login(data);
          if (result.success) {
-            navigate('/dashboard');
+            navigate("/dashboard");
          }
       }
-   }
+   };
 
    return (
-      <div className='grid grid-cols-1 lg:grid-cols-5 h-screen w-screen' >
-
-         <div className='dark:bg-[#0C0E12] col-span-2 flex items-center justify-center flex-col' >
-
-            <div className='w-3/4 sm:w-1/2 lg:w-3/5' >
-               <div className='flex items-center gap-1.5 p-3 justify-center' >
-                  <div className="w-8 h-8 rounded-md flex items-center justify-center bg-linear-to-br from-[#7c3aed] to-[#2dd4bf] text-white font-bold select-none">FF</div>
-                  <h1 className='text-white font-satoshi text-2xl ' >FreelancerFlow</h1>
+      <div className="grid grid-cols-1 lg:grid-cols-5 h-screen w-screen">
+         <div className="dark:bg-[#0C0E12] col-span-2 flex items-center justify-center flex-col">
+            <div className="w-3/4 sm:w-1/2 lg:w-3/5">
+               <div className="flex items-center gap-1.5 p-3 justify-center">
+                  <div className="w-8 h-8 rounded-md flex items-center justify-center bg-linear-to-br from-[#7c3aed] to-[#2dd4bf] text-white font-bold select-none">
+                     FF
+                  </div>
+                  <h1 className="text-white font-satoshi text-2xl ">FreelancerFlow</h1>
                </div>
-               <div className='text-2xl text-white flex gap-2 flex-col items-center font-bold'>
-                  <div>{isPathSignup & isSignupClicked ? 'Create an Account' : 'Log in to your account'}</div>
-                  <p className='text-white/50 text-sm font-normal'>Welcome, {isPathSignup & isSignupClicked ? '' : 'back!'} Please enter your details.</p>
+               <div className="text-2xl text-white flex gap-2 flex-col items-center font-bold">
+                  <div>{isPathSignup && isSignupClicked ? "Create an Account" : "Log in to your account"}</div>
+                  <p className="text-white/50 text-sm font-normal">
+                     Welcome, {isPathSignup && isSignupClicked ? "" : "back!"} Please enter your details.
+                  </p>
                </div>
-               <div className='w-full flex mt-5' >
+               <div className="w-full flex mt-5">
                   <button
-                     className={`w-1/2 border border-white/30 text-sm px-0.5 py-1 rounded-sm cursor-pointer ${isSignupClicked ? 'bg-gray-500/25 border-white/50 text-white/75' : "text-white/50"}`}
+                     className={`w-1/2 border border-white/30 text-sm px-0.5 py-1 rounded-sm cursor-pointer ${
+                        isSignupClicked ? "bg-gray-500/25 border-white/50 text-white/75" : "text-white/50"
+                     }`}
                      onClick={() => {
-                        buttonClick()
-                        navigate('/signup')
-                     }}
-                  >Sign up</button>
+                        buttonClick();
+                        navigate("/signup");
+                     }}>
+                     Sign up
+                  </button>
                   <button
-                     className={`w-1/2 border border-white/30 text-sm px-0.5 py-1 rounded-sm cursor-pointer  ${isLoginClicked ? 'bg-gray-500/25 border-white/50 text-white/75' : "text-white/50"}`}
+                     className={`w-1/2 border border-white/30 text-sm px-0.5 py-1 rounded-sm cursor-pointer  ${
+                        isLoginClicked ? "bg-gray-500/25 border-white/50 text-white/75" : "text-white/50"
+                     }`}
                      onClick={() => {
-                        buttonClick()
-                        navigate('/login')
-                     }}
-                  >Log in</button>
+                        buttonClick();
+                        navigate("/login");
+                     }}>
+                     Log in
+                  </button>
                </div>
 
-               <form onSubmit={handleSubmit(onSubmit)} autoComplete='on'>
-                  <div className='flex flex-col gap-2.5 mt-4' >
-                     {
-                        isSignupClicked
-                           ? <div>
-                              <label htmlFor="username" className="block text-sm font-medium text-white/75">
-                                 Username
-                              </label>
-                              <input
-                                 type="text"
-                                 id="username"
-                                 name="username"
-                                 autoComplete='username'
-                                 // value={email}
-                                 // onChange={(e) => setEmail(e.target.value)}
-                                 placeholder="Enter your username"
-                                 className="w-full px-4 py-2 bg-transparent border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-white placeholder-gray-500 transition-all duration-200"
-                                 {...register("username", { required: true })}
-
-                              />
-                           </div>
-                           : ''
-                     }
+               <form onSubmit={handleSubmit(onSubmit)} autoComplete="on">
+                  <div className="flex flex-col gap-2.5 mt-4">
+                     {isSignupClicked ? (
+                        <div>
+                           <label htmlFor="username" className="block text-sm font-medium text-white/75">
+                              Username
+                           </label>
+                           <input
+                              type="text"
+                              id="username"
+                              name="username"
+                              autoComplete="username"
+                              // value={email}
+                              // onChange={(e) => setEmail(e.target.value)}
+                              placeholder="Enter your username"
+                              className="w-full px-4 py-2 bg-transparent border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-white placeholder-gray-500 transition-all duration-200"
+                              {...register("username", { required: true })}
+                           />
+                        </div>
+                     ) : (
+                        ""
+                     )}
                      <div>
                         <label htmlFor="email" className="block text-sm font-medium text-white/75">
                            Email
@@ -122,8 +115,6 @@ export const Login = () => {
                            className="w-full px-4 py-2 bg-transparent border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-white placeholder-gray-500 transition-all duration-200"
                            {...register("email", { required: true })}
                         />
-
-
                      </div>
                      <div>
                         <label htmlFor="password" className="block text-sm font-medium text-white/75">
@@ -151,19 +142,16 @@ export const Login = () => {
                      </a>
                   </div>
 
-                  <div className='flex flex-col gap-2.5' >
+                  <div className="flex flex-col gap-2.5">
                      <button
-                        onClick={handleSubmit}
-                        type='submit'
-                        className="w-full py-2 text-white/80 cursor-pointer from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 rounded-lg font-medium shadow-lg shadow-purple-500/30 transition duration-200"
-                     >
-                        Sign {isPathSignup & isSignupClicked ? 'up' : 'in'}
+                        type="submit"
+                        className="w-full py-2 text-white/80 cursor-pointer from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 rounded-lg font-medium shadow-lg shadow-purple-500/30 transition duration-200">
+                        Sign {isPathSignup && isSignupClicked ? "up" : "in"}
                      </button>
 
                      <button
                         type="button"
-                        className="w-full text-white/80 py-2 bg-transparent cursor-pointer border border-gray-700 hover:border-gray-600 rounded-lg font-medium flex items-center justify-center gap-3 transition-all duration-200"
-                     >
+                        className="w-full text-white/80 py-2 bg-transparent cursor-pointer border border-gray-700 hover:border-gray-600 rounded-lg font-medium flex items-center justify-center gap-3 transition-all duration-200">
                         <svg className="w-5 h-5" viewBox="0 0 24 24">
                            <path
                               fill="#4285F4"
@@ -184,28 +172,26 @@ export const Login = () => {
                         </svg>
                         <span>Sign in with Google</span>
                      </button>
-
                   </div>
                </form>
-               <Link className='text-white fixed bottom-0 left-0 px-2 py-3 flex gap-1 items-center' to={'/'} >
+               <Link className="text-white fixed bottom-0 left-0 px-2 py-3 flex gap-1 items-center" to={"/"}>
                   <AiFillBackward />
                   Go back
                </Link>
             </div>
          </div>
 
-         <div className='dark:bg-[#22262F] col-span-3 overflow-hidden relative z-10'>
+         <div className="dark:bg-[#22262F] col-span-3 overflow-hidden relative z-10">
             <img
                src={bgimg}
                alt="Background"
                className="hidden lg:block absolute w-full h-full object-cover opacity-70 select-none cursor-default -z-50"
             />
 
-            <div className='text-white hidden lg:block fixed -bottom-55 -right-3/12 w-4/5 rounded-4xl' >
+            <div className="text-white hidden lg:block fixed -bottom-55 -right-3/12 w-4/5 rounded-4xl">
                <img src={dashboard} className="rounded-4xl border-2 border-white/10" />
             </div>
-
          </div>
-      </div >
-   )
-}
+      </div>
+   );
+};
