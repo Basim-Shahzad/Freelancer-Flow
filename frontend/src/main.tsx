@@ -24,8 +24,11 @@ import ProjectDetail from "./pages/projectDetail/ProjectDetail.jsx";
 import NotFound from "./pages/miscPages/NotFound.jsx";
 import { QueryClientProvider, QueryClient } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
+import { TimeTrackingPage } from "./pages/Timetracking/TimeTrackingPage.js";
+import { TimerProvider } from "./Contexts/TimerContext.js";
 
 const router = createBrowserRouter([
+   
    {
       path: "/",
       element: <Hero />,
@@ -66,6 +69,14 @@ const router = createBrowserRouter([
                </ProtectedRoute>
             ),
          },
+         {
+            path: "/time-tracking",
+            element: (
+               <ProtectedRoute>
+                  <TimeTrackingPage />
+               </ProtectedRoute>
+            ),
+         },
       ],
    },
    { path: "/login", element: <Login /> },
@@ -76,6 +87,7 @@ const router = createBrowserRouter([
 const queryClient = new QueryClient();
 
 function Main() {
+   
    return (
       <StrictMode>
          <QueryClientProvider client={queryClient}>
@@ -83,8 +95,10 @@ function Main() {
                <App>
                   <ApiProvider>
                      <AuthProvider>
-                        <RouterProvider router={router} />
-                        <ReactQueryDevtools initialIsOpen={false} />
+                        <TimerProvider>
+                           <RouterProvider router={router} />
+                           <ReactQueryDevtools initialIsOpen={false} />
+                        </TimerProvider>
                      </AuthProvider>
                   </ApiProvider>
                </App>
