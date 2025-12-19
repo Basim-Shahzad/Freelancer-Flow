@@ -12,15 +12,15 @@ import {
    SelectItem,
 } from "@heroui/react";
 import { useClients } from "../../hooks/useClients.ts";
-import { useProjects } from "../../hooks/useProjects.js";
 import { useFormatters } from "../../hooks/useFormatters.js";
+import { useProjects } from "@/hooks/useProjects.js";
 import { useForm, Controller } from "react-hook-form";
 
 const ProjectsAddModal = ({ isOpen, onOpenChange }) => {
    const { clients } = useClients();
    const { createProject, error  } = useProjects();
    const { formatDueDateForServer } = useFormatters();
-   const {
+   const {  
       register,
       handleSubmit,
       formState: { errors },
