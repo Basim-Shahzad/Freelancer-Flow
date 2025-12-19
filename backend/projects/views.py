@@ -1,8 +1,8 @@
 from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
-from .serializers import ProjectSerializer
-from .models import Project
+from .serializers import ProjectSerializer, TimeEntrySerializer
+from .models import Project, TimeEntry
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import permission_classes
 from django.contrib.auth import get_user_model
@@ -58,11 +58,9 @@ def update_project_status(request, pk):
 @permission_classes([IsAuthenticated])
 def get_project_list(request):
   projects = Project.objects.filter(user=request.user).order_by('due_date')  
-
   paginator = ProjectPagination()
   paginated_projects = paginator.paginate_queryset(projects, request)
-  
-  serializer = ProjectSerializer(paginated_projects, many=True)
+  serializer = ProjectSerializer(projects, many=True)
   return Response({ 'projects' : serializer.data})
 
 @api_view([ "GET" ])
@@ -102,3 +100,34 @@ def delete_project(request, pk):
 def get_projects_total(request):
    user = User.objects.get(id=request.user.id)
    return Response({'projectsTotal': len(user.projects.all()) })
+
+#  TIME TRACKING VIEWS
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def create_time_entry(request):
+    serializer = TimeEntrySerializer(data=request.data)
+    if serializer.is_valid():
+        serializer.save(user=request.user)
+        return Response(serializer.data, status=201)
+    return Response(serializer.errors, status=400)
+
+@api_view([ "GET" ])
+@permission_classes([IsAuthenticated])
+def get_time_entries_list(request):
+  time_entries = TimeEntry.objects.filter(user=request.user)
+  serializer = TimeEntrySerializer(time_entries, many=True)
+  return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+@api_view(["PATCH"])
+@permission_classes([IsAuthenticated])
+def update_time_entry_desc(request, pk):
+    try:
+        entry = TimeEntry.objects.get(pk=pk, user=request.user)
+    except TimeEntry.DoesNotExist:
+        return Response({"detail": "Not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    entry.description = request.data.get("description", entry.description)
+    entry.save(update_fields=["description"])
+
+    return Response({"description": entry.description}, status=status.HTTP_200_OK)
