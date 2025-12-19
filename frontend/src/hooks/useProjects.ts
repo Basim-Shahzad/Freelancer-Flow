@@ -1,7 +1,8 @@
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { useApi } from "./useApi.jsx";
 
-export function useProjects(page = 1, pageSize = 6) {
+export function useProjects() {
+   // page = 1, pageSize = 6
    const { api } = useApi();
    const queryClient = useQueryClient();
 
@@ -20,15 +21,17 @@ export function useProjects(page = 1, pageSize = 6) {
       error,
       isLoading,
    } = useQuery({
-      queryKey: ["projects", page, pageSize],
+      queryKey: ["projects"], // , page, pageSize
       queryFn: async () => {
          try {
-            const res = await api.get("/projects/", {
-               params: {
-                  page: page,
-                  page_size: pageSize,
-               },
-            });
+            const res = await api.get("/projects/");
+            console.log(res.data.projects)
+            // {
+            //    params: {
+            //       page: page,
+            //       page_size: pageSize,
+            //    },
+            // });
             return res.data.projects;
          } catch (error) {
             console.error(error);

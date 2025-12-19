@@ -3,7 +3,7 @@ import { useApi } from "./useApi.jsx";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMutation } from "@tanstack/react-query";
 
-export function useClients(page = 1, pageSize = 8) {
+export function useClients(page: number = 1, pageSize: number = 8) {
    const { api } = useApi();
    const queryClient = useQueryClient();
 
@@ -29,7 +29,6 @@ export function useClients(page = 1, pageSize = 8) {
                   page_size: pageSize,
                },
             });
-            console.log(res.data.clients);
             return res.data.clients;
          } catch (error) {
             console.error(error);
@@ -47,7 +46,7 @@ export function useClients(page = 1, pageSize = 8) {
 
    // Delete project mutation
    const deleteClientMutation = useMutation({
-      mutationFn: (projectId) => api.delete(`/projects/${projectId}/delete/`),
+      mutationFn: (projectId : number) => api.delete(`/projects/${projectId}/delete/`),
       onSuccess: () => {
          queryClient.invalidateQueries({ queryKey: ["projects"] });
       },

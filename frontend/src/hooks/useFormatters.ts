@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useApi } from "./useApi.jsx";
+import type { Project } from "@/types/models.js";
 
 const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
@@ -14,7 +15,7 @@ export function useFormatters() {
       return `Client since ${day} ${monthName} ${year}`;
    }
 
-   function formatDueDate(date) {
+   function formatDueDate(date : string) : string {
       const dateString = String(date);
 
       const year = dateString.slice(0, 4);
