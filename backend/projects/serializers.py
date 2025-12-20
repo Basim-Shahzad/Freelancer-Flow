@@ -13,7 +13,7 @@ class ProjectSerializer(serializers.ModelSerializer):
     class Meta:
         model = Project
         fields = [
-            "id", "name", "description", "created_at", "due_date", "price", "status", "updated_at", "hourly_rate", 'client_id', 'client', 'time_tracking'
+            "id", "name", "description", "created_at", "due_date", "total_time", "status", "updated_at", "hourly_rate", 'client_id', 'client', 'time_tracking'
         ]
         
 class TimeEntrySerializer(serializers.ModelSerializer):
@@ -21,7 +21,7 @@ class TimeEntrySerializer(serializers.ModelSerializer):
     project_id = serializers.PrimaryKeyRelatedField(
         queryset=Project.objects.all(),
         source='project',
-        write_only=True  # For POST requests
+        write_only=True
     )
 
     class Meta:
