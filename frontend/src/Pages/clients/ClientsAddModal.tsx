@@ -7,13 +7,10 @@ import {
    ModalFooter,
    Button,
    Input,
-   DateInput,
-   Select,
-   SelectItem,
 } from "@heroui/react";
 import { useClients } from "../../hooks/useClients.js";
 import { useFormatters } from "../../hooks/useFormatters.js";
-import { useForm, Controller } from "react-hook-form";
+import { useForm } from "react-hook-form";
 
 type ClientsAddModalProps = {
    isOpen: boolean;

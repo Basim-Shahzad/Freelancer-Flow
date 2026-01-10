@@ -9,7 +9,7 @@ type Props = {
 };
 
 const ProjectCard = ({ project }: Props) => {
-   const { name, price, client, hourly_rate, id, due_date, status, time_tracking, description } = project;
+   const { name, client, hourly_rate, id, due_date, status, time_tracking, description, total_time } = project;
    const navigate = useNavigate();
    const { formatDueDate } = useFormatters();
 
@@ -102,10 +102,10 @@ const ProjectCard = ({ project }: Props) => {
          </div>
          <p className="text-white/60 text-sm">{description}</p>
          <div>
-            <span className="price text-xs px-1 py-0.5 rounded-xl bg-[#212425]">
-               {time_tracking ? `$${hourly_rate}` : `$${price}`}
+            <span className={`text-xs px-1 py-0.5 rounded-xl bg-[#212425] ${time_tracking ? '' : 'hidden'}`}>
+               {time_tracking ? `$${hourly_rate}/h` : null}
             </span>{" "}
-            <span className="timespent text-xs px-1 py-0.5 rounded-xl bg-[#212425]">1h spent</span>
+            <span className="timespent text-xs px-1 py-0.5 rounded-xl bg-[#212425]">{total_time} spent</span>
          </div>
          <div className="flex items-center justify-between mt-2">
             <div className="flex items-center">

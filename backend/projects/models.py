@@ -30,6 +30,9 @@ class Project(models.Model):
 
     def calculate_time_spent(self):
         return sum(entry.duration_minutes for entry in self.time_entries.all() if entry.duration_minutes)
+    
+    def get_hourly_rate(self, user):
+        return self.hourly_rate if self.hourly_rate is not None else user.hourly_rate
 
     def update_total_time(self):
         self.total_time = self.calculate_time_spent()
@@ -65,7 +68,7 @@ class TimeEntry(models.Model):
             self.duration_minutes = int((self.end_time - self.start_time).total_seconds() / 60)
         super().save(*args, **kwargs)
         if self.project:
-            self.project.update_total_time()  # update project total_time after saving
+            self.project.update_total_time()
      
     def __str__(self):
         return f"{self.project.name} - {self.start_time.date()}"

@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useEffectEvent } from 'react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { useApi } from '../../hooks/useApi.jsx';
+import { useApi } from '../../hooks/useApi.tsx';
 
 const data = [
    { name: 'Jan', value: 12400 },

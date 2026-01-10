@@ -1,15 +1,21 @@
-import React from "react";
+import { useState } from "react";
 import { Play, Pause, Square } from "lucide-react";
 import type { Project } from "@/types/models.js";
 import { formatTime } from "@/utils/time.utils.js";
 import { useTimer } from "@/Contexts/TimerContext.js";
+import { Checkbox } from "@heroui/checkbox";
 
 interface Props {
    project: Project;
 }
 
 export const ActiveTimer: React.FC<Props> = ({ project }) => {
-   const { state, pauseTimer, resumeTimer, stopTimer, updateDescription } = useTimer();
+   const { state, pauseTimer, resumeTimer, stopTimer, updateDescription, setIsBillable } = useTimer();
+   const isSelected = !state.is_billable;
+
+   const toggleIsBillable = () => {
+      setIsBillable();
+   };
 
    return (
       <div className="rounded-lg shadow-lg py-4 px-3 border dark:border-white/20 border-black/20">
@@ -33,8 +39,14 @@ export const ActiveTimer: React.FC<Props> = ({ project }) => {
             value={state.description}
             onChange={(e) => updateDescription(e.target.value)}
             title="Used in invoices"
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
          />
+
+         <div className="my-4 mx-1 flex items-center">
+            <Checkbox color="secondary" size="lg" isSelected={isSelected} onValueChange={toggleIsBillable}>
+               Exclude from invoice
+            </Checkbox>
+         </div>
 
          <div className="flex gap-2">
             {state.status === "running" ? (

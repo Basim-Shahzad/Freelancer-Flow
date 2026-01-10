@@ -1,11 +1,14 @@
 import { useState, useEffect } from "react";
-import { useApi } from "./useApi.jsx";
+import { useApi } from "./useApi.tsx";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMutation } from "@tanstack/react-query";
+import { useAuth } from "@/Contexts/AuthContext.js";
+import type { Client } from "@/types/models.js";
 
 export function useClients(page: number = 1, pageSize: number = 8) {
    const { api } = useApi();
    const queryClient = useQueryClient();
+   const { isInitialized, isLoggedin } = useAuth();
 
    const { data: clientsTotal } = useQuery({
       queryKey: ["clientsTotal"],
@@ -13,6 +16,7 @@ export function useClients(page: number = 1, pageSize: number = 8) {
          const res = await api.get("/clients-total");
          return res.data.clientsTotal;
       },
+      enabled: isInitialized && isLoggedin,
    });
 
    const {
@@ -21,22 +25,14 @@ export function useClients(page: number = 1, pageSize: number = 8) {
       isLoading: clientsLoading,
    } = useQuery({
       queryKey: ["clients", page, pageSize],
-      queryFn: async () => {
-         try {
-            const res = await api.get("/clients/", {
-               params: {
-                  page: page,
-                  page_size: pageSize,
-               },
-            });
-            return res.data.clients;
-         } catch (error) {
-            console.error(error);
-         }
+      queryFn: async (): Promise<Client[]> => {
+         const res = await api.get("/clients/");
+         return res.data.clients;
       },
+      enabled: isInitialized && isLoggedin,
    });
 
-   // Create project mutation
+   // Create Client mutation
    const createClientMutation = useMutation({
       mutationFn: (projectData: {}) => api.post("/create-client/", projectData),
       onSuccess: () => {
@@ -44,9 +40,9 @@ export function useClients(page: number = 1, pageSize: number = 8) {
       },
    });
 
-   // Delete project mutation
+   // Delete Client mutation
    const deleteClientMutation = useMutation({
-      mutationFn: (projectId : number) => api.delete(`/projects/${projectId}/delete/`),
+      mutationFn: (projectId: number) => api.delete(`/projects/${projectId}/delete/`),
       onSuccess: () => {
          queryClient.invalidateQueries({ queryKey: ["projects"] });
       },

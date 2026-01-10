@@ -1,17 +1,12 @@
 import "./index.css";
-// import './Styles/0141b25862e58bec.css'
-// import './Styles/d905fbbaa55da57f.css'
-// import './Styles/c63e60b46454ebae.css'
-// import './Styles/3448e2a90adc2c00.css'
-
 import App from "./App.jsx";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 
-import { ApiProvider } from "./hooks/useApi.jsx";
+import { ApiProvider } from "./hooks/useApi.js";
 import { HeroUIProvider } from "@heroui/system";
-import { AuthProvider } from "./Contexts/AuthContext.jsx";
+import { AuthProvider } from "@/Contexts/AuthContext.js";
 
 import Dashboard from "./pages/dashboard/Dashboard.jsx";
 import Projects from "./pages/projects/Projects.jsx";
@@ -26,16 +21,25 @@ import { QueryClientProvider, QueryClient } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { TimeTrackingPage } from "./pages/Timetracking/TimeTrackingPage.js";
 import { TimerProvider } from "./Contexts/TimerContext.js";
+import Invoices from "./pages/invoices/Invoices.js";
+import InvoiceCreate from "./pages/InvoiceCreate/InvoiceCreate.js";
+import { InvoicesProvider } from "./Contexts/InvoicesContext.js";
+import InvoiceDetail from "./pages/invoiceDetail/InvoiceDetail.js";
 
 const router = createBrowserRouter([
-   
    {
       path: "/",
       element: <Hero />,
    },
    {
       path: "/",
-      element: <Layout />,
+      element: (
+         <TimerProvider>
+            <InvoicesProvider>
+               <Layout />
+            </InvoicesProvider>
+         </TimerProvider>
+      ),
       children: [
          {
             path: "projects",
@@ -70,13 +74,37 @@ const router = createBrowserRouter([
             ),
          },
          {
-            path: "/time-tracking",
+            path: "time-tracking",
             element: (
                <ProtectedRoute>
                   <TimeTrackingPage />
                </ProtectedRoute>
             ),
          },
+         {
+            path: "invoices",
+            element: (
+               <ProtectedRoute>
+                  <Invoices />
+               </ProtectedRoute>
+            ),
+         },
+         {
+            path: "invoices/create",
+            element: (
+               <ProtectedRoute>
+                  <InvoiceCreate />
+               </ProtectedRoute>
+            ),
+         },
+         {
+            path: "invoices/:id",
+            element : (
+               <ProtectedRoute>
+                  <InvoiceDetail />
+               </ProtectedRoute>
+            )
+         }
       ],
    },
    { path: "/login", element: <Login /> },
@@ -84,10 +112,18 @@ const router = createBrowserRouter([
    { path: "/not-found", element: <NotFound /> },
 ]);
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+   defaultOptions: {
+      queries: {
+         enabled: !!localStorage.getItem("token"),
+         staleTime: 5 * 60 * 1000, // 5 minutes
+         refetchOnWindowFocus: false,
+         refetchOnMount: false,
+      },
+   },
+});
 
 function Main() {
-   
    return (
       <StrictMode>
          <QueryClientProvider client={queryClient}>
@@ -95,10 +131,8 @@ function Main() {
                <App>
                   <ApiProvider>
                      <AuthProvider>
-                        <TimerProvider>
-                           <RouterProvider router={router} />
-                           <ReactQueryDevtools initialIsOpen={false} />
-                        </TimerProvider>
+                        <RouterProvider router={router} />
+                        <ReactQueryDevtools initialIsOpen={false} />
                      </AuthProvider>
                   </ApiProvider>
                </App>

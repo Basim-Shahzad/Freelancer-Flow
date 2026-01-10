@@ -106,19 +106,6 @@ const ProjectsAddModal = ({ isOpen, onOpenChange }) => {
                            }
                            type="number"
                         />
-                        <span>OR</span>
-                        <Input
-                           className="w-"
-                           label="Price"
-                           placeholder="0.00"
-                           {...register("price")}
-                           startContent={
-                              <div className="pointer-events-none flex items-center">
-                                 <span className="text-default-400 text-small">$</span>
-                              </div>
-                           }
-                           type="number"
-                        />
                      </div>
                   </ModalBody>
 

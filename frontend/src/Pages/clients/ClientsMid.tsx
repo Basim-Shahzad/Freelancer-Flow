@@ -24,7 +24,7 @@ const ClientsMid = () => {
                   className="flex items-center cursor-pointer bg-[#7F56D9] w-max h-max py-2 px-3 rounded-lg hover:bg-[#9E77ED]/80 transition-colors duration-150 gap-1 text-sm"
                   onClick={onOpen}>
                   <IoIosAdd className="text-xl text-white/90" />
-                  <button className="cursor-pointer">Create Project</button>
+                  <button className="cursor-pointer">Create Client</button>
                </div>
             </div>
          </div>

@@ -8,12 +8,13 @@ from rest_framework.decorators import permission_classes
 from django.contrib.auth import get_user_model
 from django.shortcuts import get_object_or_404
 from rest_framework.pagination import PageNumberPagination
+from payments.models import InvoiceItem, Invoice
 
 User = get_user_model()
 
 class ProjectPagination(PageNumberPagination):
-   page_size = 6               # items per page
-   page_size_query_param = 'page_size'  # optional: allow client to override
+   page_size = 6 # items per page
+   page_size_query_param = 'page_size' # optional: allow client to override
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
@@ -24,7 +25,7 @@ def create_project(request):
         return Response(serializer.data, status=status.HTTP_201_CREATED)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-@api_view([ "GET" ])
+@api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def get_project(request, pk):
     try:
@@ -54,7 +55,7 @@ def update_project_status(request, pk):
         return Response(serializer.data, status=status.HTTP_200_OK)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-@api_view([ "GET" ])
+@api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def get_project_list(request):
   projects = Project.objects.filter(user=request.user).order_by('due_date')  

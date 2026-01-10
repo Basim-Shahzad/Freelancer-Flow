@@ -1,5 +1,6 @@
 import React, { createContext, useState, useEffect } from "react";
 export const ThemeContext = createContext({ theme: "dark", toggle: () => {} });
+import { Toaster } from "react-hot-toast";
 
 export default function App({ children }) {
   const [theme, setTheme] = useState("dark");
@@ -13,6 +14,7 @@ export default function App({ children }) {
 
   return (
     <ThemeContext.Provider value={{ theme, toggle }}>
+      <Toaster position="top-center"  />
       {children}
     </ThemeContext.Provider>
   );

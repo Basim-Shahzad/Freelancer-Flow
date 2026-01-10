@@ -8,7 +8,7 @@ import {
    getFilteredRowModel,
    getPaginationRowModel,
 } from "@tanstack/react-table";
-import { useProjects } from "../../hooks/useProjects.js";
+// import { useProjects } from "../../hooks/useProjects.js";
 import { useFormatters } from "../../hooks/useFormatters.js";
 import { MdDelete, MdEdit, MdRefresh } from "react-icons/md";
 import { Checkbox } from "@heroui/react";

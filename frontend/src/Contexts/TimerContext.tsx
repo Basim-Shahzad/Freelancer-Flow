@@ -13,6 +13,7 @@ interface TimerContextValue {
    resumeTimer: () => void;
    stopTimer: () => void;
    updateDescription: (description: string) => void;
+   setIsBillable: () => void;
 }
 
 const TimerContext = createContext<TimerContextValue | null>(null);
@@ -30,6 +31,7 @@ export const TimerProvider: React.FC<{ children: ReactNode }> = ({ children }) =
             status: "idle",
             elapsed_ms: 0,
             start_time: null,
+            is_billable: true,
          }
    );
 
@@ -83,6 +85,7 @@ export const TimerProvider: React.FC<{ children: ReactNode }> = ({ children }) =
          status: "running",
          elapsed_ms: 0,
          start_time: Date.now(),
+         is_billable: true,
       });
    }, []);
 
@@ -99,6 +102,10 @@ export const TimerProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       setState((prev) => ({ ...prev, description }));
    }, []);
 
+   const setIsBillable = useCallback(() => {
+      setState((prev) => ({ ...prev, is_billable : !prev.is_billable }));
+   }, []);
+
    const stopTimer = useCallback(() => {
       if (!state.active_project_id || !state.start_time) return;
 
@@ -108,6 +115,7 @@ export const TimerProvider: React.FC<{ children: ReactNode }> = ({ children }) =
          start_time: state.start_time,
          end_time: Date.now(),
          duration_ms: state.elapsed_ms,
+         is_billable: state.is_billable,
       };
 
       // Actually send to backend
@@ -125,8 +133,9 @@ export const TimerProvider: React.FC<{ children: ReactNode }> = ({ children }) =
          status: "idle",
          elapsed_ms: 0,
          start_time: null,
+         is_billable: true,
       });
-   }, [state, createTimeEntry]);
+   }, [state, createTimeEntry, state.is_billable]);
 
    /*  provider  */
 
@@ -140,6 +149,7 @@ export const TimerProvider: React.FC<{ children: ReactNode }> = ({ children }) =
             resumeTimer,
             stopTimer,
             updateDescription,
+            setIsBillable,
          }}>
          {children}
       </TimerContext.Provider>

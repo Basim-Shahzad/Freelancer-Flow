@@ -9,13 +9,9 @@ import {
    getPaginationRowModel,
 } from "@tanstack/react-table";
 import { type ColumnDef } from "@tanstack/table-core";
-import { useProjects } from "../../hooks/useProjects.js";
 import { useFormatters } from "../../hooks/useFormatters.js";
-import { MdDelete, MdEdit, MdRefresh } from "react-icons/md";
 import { Checkbox } from "@heroui/react";
 import { useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
-import { Select, SelectSection, SelectItem } from "@heroui/select";
 import { useClients } from "../../hooks/useClients.js";
 
 const ClientsDataTable = () => {

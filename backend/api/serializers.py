@@ -83,4 +83,6 @@ class UserSerializer(serializers.ModelSerializer):
             "tax_id",
             "business_name",
             "last_login",
+            'revenue',
+            'hourly_rate',
         )

@@ -6,8 +6,7 @@ export const formatTime = (ms: number): string => {
    return `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
 };
 
-export const formatDuration = (ms: number): string => {
-   const minutes = Math.round(ms / 60000);
+export const formatDuration = (minutes: number): string => {
    if (minutes < 60) return `${minutes}m`;
    const hours = Math.floor(minutes / 60);
    const mins = minutes % 60;

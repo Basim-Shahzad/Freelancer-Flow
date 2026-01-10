@@ -2,7 +2,7 @@ import React, { useEffect } from "react";
 import MobileHeader from "../../layout/MobileHeader.jsx";
 import ProjectDetailHeader from "./ProjectDetailHeader.jsx";
 import { useParams, useNavigate } from "react-router-dom";
-import { useProject } from "../../hooks/useProjects.js";
+import { useProject } from "@/hooks/useProjects.js";
 import ProjectDetailMid from "./ProjectDetailMid.jsx";
 
 const ProjectDetail = () => {

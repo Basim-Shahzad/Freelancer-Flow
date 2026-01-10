@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Select, SelectItem } from "@heroui/react";
 
 const ProjectDetailMid = ({ project, onStatusChange }) => {
-   const { due_date, time_tracking, price, hourly_rate, client, status, description } = project;
+   const { due_date, time_tracking, hourly_rate, client, status, description } = project;
    const statuses = [
       { key: "active", label: "Active" },
       { key: "completed", label: "Completed" },
@@ -43,10 +43,10 @@ const ProjectDetailMid = ({ project, onStatusChange }) => {
                </dd>
             </div>
             <div className="flex flex-col items-center gap-2 bg-white/5 px-8 py-5 rounded-xl">
-               <dt className="text-[16px] font-medium text-[#94979c]">{time_tracking ? "Hourly Rate" : "Price"}</dt>
+               <dt className="text-[16px] font-medium text-[#94979c]">{time_tracking ? "Hourly Rate" : ""}</dt>
                <dd className="flex items-start gap-2">
                   <span className="text-[30px] font-semibold text-[#f7f7f7]">
-                     ${time_tracking ? hourly_rate : price}
+                     ${time_tracking ? hourly_rate : ''}
                   </span>
                </dd>
             </div>

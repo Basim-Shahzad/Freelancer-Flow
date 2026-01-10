@@ -1,10 +1,7 @@
 import React from "react";
 import { MdAvTimer } from "react-icons/md";
-import { useFormatters } from "../../hooks/useFormatters.js";
 
 const ProjectDetailHeader = ({ project }) => {
-   const { formatDueDate } = useFormatters();
-   console.log(project);
 
    return (
       <div className="flex flex-col gap-5 px-4 lg:px-8 lg:gap-1">

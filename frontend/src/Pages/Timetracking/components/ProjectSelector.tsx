@@ -20,17 +20,6 @@ export const ProjectSelector: React.FC<Props> = ({ projects }) => {
    return (
       <div className="rounded-lg shadow-lg px-3 py-3">
          <h3 className="font-semibold text-2xl mb-4">Start Timer</h3>
-         {/* <select
-            value={selected || ""}
-            onChange={(e) => setSelected(Number(e.target.value))}
-            className="bg-white dark:bg-black w-full  px-4 py-2 border border-gray-300 rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500">
-            <option value="">Select a project...</option>
-            {projects.map((p) => (
-               <option key={p.id} value={p.id} className="text-lg transition-colors duration-500">
-                  {p.name} - {p.client.name}
-               </option>
-            ))}
-         </select> */}
          <div className="flex flex-col gap-2.5">
             <Select
                aria-label="Project Select"
@@ -47,7 +36,7 @@ export const ProjectSelector: React.FC<Props> = ({ projects }) => {
             <button
                onClick={handleStart}
                disabled={!selected}
-               className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition hover:cursor-pointer">
+               className={`w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition hover:cursor-pointer`}>
                <Play size={20} />
                Start Timer
             </button>

@@ -1,9 +1,10 @@
 from django.urls import path
-# from .views import InvoicePDFView
-from .views import create_invoice, get_revenue
+from . import views
 
 urlpatterns = [
-    # path('<int:pk>/pdf/', InvoicePDFView.as_view(), name='invoice-pdf'),
-    path('invoice/pdf/', create_invoice, name='create-invoice-pdf'),
-    path('get-revenue/', get_revenue, name='get-revenue'),
+    path('invoices/', views.list_invoices, name='list_invoices'),
+    path('invoices/create/', views.create_invoice, name='create_invoice'),
+    path('invoices/<int:invoice_id>/', views.get_invoice, name='get_invoice'),
+    path('invoices/<int:invoice_id>/update/', views.update_invoice, name='update_invoice'),
+    path('invoices/<int:invoice_id>/delete/', views.delete_invoice, name='delete_invoice'),
 ]

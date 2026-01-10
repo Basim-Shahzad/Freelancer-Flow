@@ -1,11 +1,11 @@
 import { useState } from "react";
 import bgimg from "../../assets/bg-img2.jpg";
+import dashboard from "../../assets/db.png";
 import { Link, useLocation } from "react-router-dom";
 import { AiFillBackward } from "react-icons/ai";
 import { useForm } from "react-hook-form";
-import dashboard from "../../assets/db.png";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "../../Contexts/AuthContext.jsx";
+import { useAuth } from "@/Contexts/AuthContext.js";
 
 export const Login = () => {
    const location = useLocation();

@@ -1,0 +1,88 @@
+.container {
+   font-family: sans-serif;
+   font-size: 12px;
+   position: relative;
+}
+
+.title {
+   margin: 0;
+   font-size: 28px;
+}
+
+.invoiceNumber {
+   font-size: 14px;
+}
+
+.header {
+   display: flex;
+   justify-content: space-between;
+   margin-bottom: 30px;
+}
+
+.meta p {
+   text-align: right;
+   margin: 2px 0;
+}
+
+.billing {
+   margin: 0 0 1rem;
+   padding-bottom: 0.75rem;
+   border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+   font-size: 0.9rem;
+}
+
+.billing p {
+   margin: 0;
+   line-height: 1.4;
+}
+
+.billing strong {
+   font-weight: 600;
+}
+
+.items {
+   width: 100%;
+   border-collapse: collapse;
+   margin-bottom: 20px;
+}
+
+.items th {
+   background: #f5f5f5;
+   padding: 8px;
+   border-bottom: 1px solid #ccc;
+   text-align: left;
+}
+
+.items td {
+   padding: 8px;
+   border-bottom: 1px solid #eee;
+}
+
+.right {
+   text-align: right;
+}
+
+.totals {
+   width: 40%;
+   margin-left: auto;
+}
+
+.totals table {
+   width: 100%;
+   border-collapse: collapse;
+}
+
+.totals td {
+   padding: 6px;
+}
+
+.total td {
+   font-weight: bold;
+   border-top: 2px solid #000;
+}
+
+.footer {
+   margin-top: 40px;
+   text-align: center;
+   font-size: 11px;
+}

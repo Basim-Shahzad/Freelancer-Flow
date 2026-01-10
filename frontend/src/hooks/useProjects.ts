@@ -1,10 +1,13 @@
-import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
-import { useApi } from "./useApi.jsx";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useApi } from "./useApi.js";
+import type { Project } from "@/types/models.js";
+import { useAuth } from "@/Contexts/AuthContext.js";
 
 export function useProjects() {
    // page = 1, pageSize = 6
    const { api } = useApi();
    const queryClient = useQueryClient();
+   const { isLoggedin, isInitialized } = useAuth();
 
    // Fetch projects Count
    const { data: projectsTotal } = useQuery({
@@ -13,6 +16,7 @@ export function useProjects() {
          const res = await api.get("/projects-total");
          return res.data.projectsTotal;
       },
+      enabled: isInitialized && isLoggedin,
    });
 
    // Fetch projects
@@ -21,22 +25,12 @@ export function useProjects() {
       error,
       isLoading,
    } = useQuery({
-      queryKey: ["projects"], // , page, pageSize
-      queryFn: async () => {
-         try {
-            const res = await api.get("/projects/");
-            console.log(res.data.projects)
-            // {
-            //    params: {
-            //       page: page,
-            //       page_size: pageSize,
-            //    },
-            // });
-            return res.data.projects;
-         } catch (error) {
-            console.error(error);
-         }
+      queryKey: ["projects"],
+      queryFn: async (): Promise<Project[]> => {
+         const res = await api.get("/projects/");
+         return res.data.projects;
       },
+      enabled: isInitialized && isLoggedin,
    });
 
    // Create project mutation
@@ -58,8 +52,8 @@ export function useProjects() {
    return {
       projectsTotal,
       projects,
-      error,
-      isLoading,
+      projectsError: error,
+      projectsLoading: isLoading,
       createProject: createProjectMutation.mutate,
       isCreating: createProjectMutation.isPending,
       deleteProject: deleteProjectMutation.mutate,
@@ -67,27 +61,28 @@ export function useProjects() {
    };
 }
 
-export function useProject(projectId) {
+export function useProject(projectId: number) {
    const { api } = useApi();
+   const { isLoggedin, isInitialized } = useAuth();
    const queryClient = useQueryClient();
 
    const {
       data: project = [],
-      error,
-      isLoading,
+      error: projectFetchError,
+      isLoading: fetchingProject,
    } = useQuery({
       queryKey: ["project", projectId],
       queryFn: async () => {
          const res = await api.get(`/projects/${projectId}/`);
          return res.data;
       },
-      enabled: !!projectId,
+      enabled: !!projectId && isInitialized && isLoggedin,
    });
 
    const updateStatusMutation = useMutation({
       mutationFn: (newStatus) => api.patch(`/projects/${projectId}/status/`, { status: newStatus }),
       onSuccess: () => {
-         queryClient.invalidateQueries({ queryKey: ["project", id] });
+         queryClient.invalidateQueries({ queryKey: ["project"] });
          queryClient.invalidateQueries({ queryKey: ["projects"] });
       },
    });
@@ -98,8 +93,8 @@ export function useProject(projectId) {
 
    return {
       project,
-      error,
-      isLoading,
+      projectFetchError,
+      fetchingProject,
       handleStatusChange,
    };
 }
