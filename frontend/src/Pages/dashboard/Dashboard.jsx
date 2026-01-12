@@ -2,9 +2,9 @@ import React, { useState, useContext } from 'react'
 import DashSideBar from '../../layout/DashSideBar.jsx'
 import MobileHeader from '../../layout/MobileHeader.jsx'
 import DashboardHeader from './DashboardHeader.jsx'
-import DashboardRevenueSection from './DashboardRevenueSection.jsx'
+import DashboardRevenueSection from './DashboardRevenueSection.js'
 import DashboardStats from './DashboardStats.jsx'
-import DashboardMid from './DashboardMid.jsx'
+import DashboardMid from './DashboardMid.js'
 
 const Dashboard = () => {
 

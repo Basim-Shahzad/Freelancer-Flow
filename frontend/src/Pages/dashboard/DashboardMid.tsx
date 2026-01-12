@@ -4,7 +4,7 @@ import { useDisclosure } from "@heroui/react";
 
 import { useClients } from "../../hooks/useClients.js";
 import { useFormatters } from "../../hooks/useFormatters.js";
-import logo from "../../assets/FF.png";
+import logo from '../../assets/FF.png'
 
 const DashboardMid = () => {
    const { clients, clientsError, clientsLoading } = useClients();
@@ -24,7 +24,6 @@ const DashboardMid = () => {
                      className="cursor-pointer rounded-md text-fg-quaternary outline-focus-ring transition duration-100 ease-linear"
                      data-rac=""
                      type="button"
-                     tabIndex="0"
                      aria-haspopup="true"
                      aria-expanded="false"
                      id="react-aria-_R_2f9bsnpfiv7b_"
@@ -144,7 +143,6 @@ const DashboardMid = () => {
                               className="cursor-pointer rounded-md text-fg-quaternary outline-focus-ring transition duration-100 ease-linear"
                               data-rac=""
                               type="button"
-                              tabIndex="0"
                               aria-haspopup="true"
                               aria-expanded="false"
                               id="react-aria-_R_4pn9bsnpfiv7b_"
@@ -168,7 +166,7 @@ const DashboardMid = () => {
                   </div>
                   <div className="flex flex-wrap gap-6">
                      <div className="flex flex-col gap-4 min-w-[320px] flex-1">
-                        <a href="#" className="overflow-hidden rounded-2xl" tabIndex="-1">
+                        <a href="#" className="overflow-hidden rounded-2xl">
                            <img
                               src="https://www.untitledui.com/application/spirals.webp"
                               alt="UX review presentations"
@@ -228,7 +226,7 @@ const DashboardMid = () => {
                         </div>
                      </div>
                      <div className="flex flex-col gap-4 min-w-[320px] flex-1">
-                        <a href="#" className="overflow-hidden rounded-2xl" tabIndex="-1">
+                        <a href="#" className="overflow-hidden rounded-2xl">
                            <img
                               src="https://www.untitledui.com/application/conversation.webp"
                               alt="Migrating to Linear 101"
@@ -303,7 +301,6 @@ const DashboardMid = () => {
                            className="cursor-pointer rounded-md text-fg-quaternary outline-focus-ring transition duration-100 ease-linear"
                            data-rac=""
                            type="button"
-                           tabIndex="0"
                            aria-haspopup="true"
                            aria-expanded="false"
                            id="react-aria-_R_1an9bsnpfiv7b_"

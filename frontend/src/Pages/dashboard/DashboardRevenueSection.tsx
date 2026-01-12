@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useEffectEvent } from 'react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { useApi } from '../../hooks/useApi.tsx';
+import { useApi } from '../../hooks/useApi.js';
+import { useDashboard } from '@/hooks/useDashboard.js';
 
 const data = [
    { name: 'Jan', value: 12400 },
@@ -19,26 +20,7 @@ const data = [
 
 const DashboardRevenueSection = () => {
    const { api } = useApi()
-
-   const [revenue, setRevenue] = useState(0)
-   const [error, setError] = useState('')
-   const [loading, setLoading] = useState(false)
-
-   useEffect(() => {
-      fetchRevenue()
-   }, []);
-
-   const fetchRevenue = async () => {
-      try {
-         setLoading(true);
-         const res = await api.get('/get-revenue/');
-         setRevenue(res.data.revenue);
-      } catch (error) {
-         setError(res.data.detail);
-      } finally {
-         setLoading(false);
-      }
-   };
+   const {revenue, error, isError, refreshDashboard, isLoading} = useDashboard()
 
    return (
       <div className="flex flex-1 flex-col gap-6 lg:flex-row lg:flex-wrap lg:gap-x-8 lg:gap-y-4">
@@ -49,10 +31,10 @@ const DashboardRevenueSection = () => {
                   <span className="pt-2 text-xl font-medium">$</span>
                   <span className="text-[36px] font-semibold ">
                      {
-                        error != '' ? error : ''
+                        isError ? error?.message : ''
                      }
                      {
-                        loading ? "Loading..." : revenue
+                        isLoading ? "Loading..." : revenue
                      }
                   </span>
                </div>
