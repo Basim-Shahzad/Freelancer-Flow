@@ -11,19 +11,35 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 from pathlib import Path
+import os
+from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+APP_ENV = os.getenv('APP_ENV', 'development')
+env_file_path = BASE_DIR / f".env.{APP_ENV}"
+
+if os.path.exists(env_file_path):
+    load_dotenv(env_file_path)
+else:
+    load_dotenv(BASE_DIR / ".env")
+
+# 3. Environment Check
+if APP_ENV == "development":
+    print("✅ Running in DEVELOPMENT mode")
+else:
+    print("🚀 Running in PRODUCTION mode")
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
-# SECURITY WARNING: keep the secret key used in production secret!  
-SECRET_KEY = 'django-insecure-fz_$9$vt+vi^!0555#%t8s$ww(d$lwu++_oc8zn7^ow9g!1bcb'
+SECRET_KEY = os.environ.get('SECRET_KEY')
+if not SECRET_KEY and APP_ENV != "development":
+    raise ValueError("FATAL: SECRET_KEY must be set in production environment")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv("DEBUG", "True").lower() == "true"
 
 ALLOWED_HOSTS = ["localhost", "127.0.0.1"]
 
