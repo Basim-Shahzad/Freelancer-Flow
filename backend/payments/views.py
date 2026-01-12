@@ -11,10 +11,42 @@ from .serializers import InvoiceSerializer, InvoiceItemSerializer
 from rest_framework.decorators import permission_classes
 from .utils import render_pdf
 from projects.models import Project, TimeEntry
+from django.db.models import Sum
 from clients.models import Client
 from django.db import transaction
 
 User = get_user_model()
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def get_revenue(request):
+    """Get confirmed revenue (paid invoices) for the authenticated user"""
+    user = request.user
+
+    try:
+        # aggregate returns a dict: {'total_paid': Decimal('xxx.xx')} or None
+        result = Invoice.objects.filter(
+            user=user, 
+            status='paid'
+        ).aggregate(
+            total_paid=Sum('total')
+        )
+
+        # If no invoices exist, result['total_paid'] will be None. 
+        # Default to 0.00 for a consistent API response.
+        total_revenue = result.get('total_paid') or 0
+
+        return Response(
+                float(total_revenue),
+                status=status.HTTP_201_CREATED
+        )
+        
+    except Exception as e:
+        return Response({
+            "success": False,
+            "error": "An unexpected error occurred."
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
