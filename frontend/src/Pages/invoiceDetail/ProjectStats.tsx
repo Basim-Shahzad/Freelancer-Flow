@@ -1,5 +1,6 @@
-import { Clock, DollarSign, Calendar, TrendingUp } from "lucide-react";
 import type { Invoice } from "@/types/models.js";
+import { FaClock } from "react-icons/fa";
+import { CiCalendar } from "react-icons/ci";
 
 interface InvoiceDetailStatsProps {
    invoice: Invoice;
@@ -20,7 +21,7 @@ const ProjectStats = ({ invoice }: InvoiceDetailStatsProps) => {
          <div className="bg-white dark:bg-gray-900 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-gray-800">
             <div className="flex items-center gap-3 mb-3">
                <div className="p-2 rounded-lg bg-purple-100 dark:bg-purple-900">
-                  <Clock className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                  <FaClock className="w-5 h-5 text-purple-600 dark:text-purple-400" />
                </div>
                <h3 className="font-semibold text-gray-800 dark:text-gray-100">Total Time Tracked</h3>
             </div>
@@ -44,7 +45,7 @@ const ProjectStats = ({ invoice }: InvoiceDetailStatsProps) => {
          <div className="bg-white dark:bg-gray-900 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-gray-800">
             <div className="flex items-center gap-3 mb-3">
                <div className="p-2 rounded-lg bg-orange-100 dark:bg-orange-900">
-                  <Calendar className="w-5 h-5 text-orange-600 dark:text-orange-400" />
+                  <CiCalendar className="w-5 h-5 text-orange-600 dark:text-orange-400" />
                </div>
                <h3 className="font-semibold text-gray-800 dark:text-gray-100">
                   {invoice.project ? "Project Info" : "Invoice Dates"}

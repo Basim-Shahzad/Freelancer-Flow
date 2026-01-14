@@ -1,5 +1,6 @@
-import { Clock, DollarSign, Calendar, TrendingUp } from "lucide-react";
 import type { Invoice } from "@/types/models.js";
+import { FaDollarSign } from "react-icons/fa";
+import { FaArrowTrendUp } from "react-icons/fa6";
 
 interface InvoiceDetailStatsProps {
    invoice: Invoice;
@@ -45,7 +46,7 @@ export default function InvoiceDetailStats({ invoice }: InvoiceDetailStatsProps)
                         ? "bg-red-100 dark:bg-red-900"
                         : "bg-blue-100 dark:bg-blue-900"
                   }`}>
-                  <DollarSign
+                  <FaDollarSign
                      className={`w-5 h-5 ${
                         isPaid
                            ? "text-green-600 dark:text-green-400"
@@ -107,7 +108,7 @@ export default function InvoiceDetailStats({ invoice }: InvoiceDetailStatsProps)
          <div className="bg-white dark:bg-gray-900 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-gray-800">
             <div className="flex items-center gap-3 mb-3">
                <div className="p-2 rounded-lg bg-emerald-100 dark:bg-emerald-900">
-                  <TrendingUp className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+                  <FaArrowTrendUp className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
                </div>
                <h3 className="font-semibold text-gray-800 dark:text-gray-100">Financial Details</h3>
             </div>

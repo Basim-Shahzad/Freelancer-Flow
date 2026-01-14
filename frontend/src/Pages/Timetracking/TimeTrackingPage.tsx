@@ -1,5 +1,4 @@
 import React from "react";
-import { Clock } from "lucide-react";
 import { useTimer } from "@/Contexts/TimerContext.js";
 import { ActiveTimer } from "./components/ActiveTimer.js";
 import { ProjectSelector } from "./components/ProjectSelector.js";

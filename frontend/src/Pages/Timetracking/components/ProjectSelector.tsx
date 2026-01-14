@@ -1,8 +1,8 @@
 import React, { useState } from "react";
-import { Play } from "lucide-react";
 import type { Project } from "@/types/models.js";
 import { useTimer } from "@/Contexts/TimerContext.js";
 import { Select, SelectItem } from "@heroui/react";
+import { FaPlay } from "react-icons/fa";
 
 interface Props {
    projects: Project[];
@@ -37,7 +37,7 @@ export const ProjectSelector: React.FC<Props> = ({ projects }) => {
                onClick={handleStart}
                disabled={!selected}
                className={`w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition hover:cursor-pointer`}>
-               <Play size={20} />
+               <FaPlay size={20} />
                Start Timer
             </button>
          </div>

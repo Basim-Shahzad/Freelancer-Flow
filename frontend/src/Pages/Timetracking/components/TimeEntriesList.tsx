@@ -1,5 +1,4 @@
 import React from "react";
-import { RefreshCw } from "lucide-react";
 
 import type { Project, TimeEntry } from "@/types/models.js";
 import { TimeEntryRow } from "./TimeEntryRow.js";

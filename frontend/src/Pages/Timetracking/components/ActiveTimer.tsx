@@ -1,9 +1,12 @@
 import { useState } from "react";
-import { Play, Pause, Square } from "lucide-react";
 import type { Project } from "@/types/models.js";
 import { formatTime } from "@/utils/time.utils.js";
 import { useTimer } from "@/Contexts/TimerContext.js";
 import { Checkbox } from "@heroui/checkbox";
+import { FaPlay } from "react-icons/fa";
+import { FaPause } from "react-icons/fa";
+import { FaSquare } from "react-icons/fa";
+
 
 interface Props {
    project: Project;
@@ -53,21 +56,21 @@ export const ActiveTimer: React.FC<Props> = ({ project }) => {
                <button
                   onClick={pauseTimer}
                   className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition">
-                  <Pause size={20} />
+                  <FaPause size={20} />
                   Pause
                </button>
             ) : (
                <button
                   onClick={resumeTimer}
                   className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition">
-                  <Play size={20} />
+                  <FaPlay size={20} />
                   Resume
                </button>
             )}
             <button
                onClick={stopTimer}
                className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition">
-               <Square size={20} />
+               <FaSquare size={20} />
                Stop
             </button>
          </div>
