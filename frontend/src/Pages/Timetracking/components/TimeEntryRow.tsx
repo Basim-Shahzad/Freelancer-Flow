@@ -1,5 +1,4 @@
 import { useState, useRef, useEffect } from "react";
-import { CheckCircle, AlertCircle } from "lucide-react";
 import type { Project, TimeEntry } from "@/types/models.js";
 import { formatDuration } from "@/utils/time.utils.js";
 import { useUpdateTimeEntryDesc } from "@/hooks/useTimeTracking.js";
