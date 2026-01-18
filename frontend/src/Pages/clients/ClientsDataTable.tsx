@@ -2,16 +2,16 @@ import React, { useEffect, useState } from "react";
 import {
    useReactTable,
    getCoreRowModel,
-   createColumnHelper,
    flexRender,
+   createColumnHelper,
    getSortedRowModel,
    getFilteredRowModel,
    getPaginationRowModel,
 } from "@tanstack/react-table";
 import { type ColumnDef } from "@tanstack/table-core";
-import { useFormatters } from "../../hooks/useFormatters.js";
 import { Checkbox } from "@heroui/react";
 import { useNavigate } from "react-router-dom";
+import { useFormatters } from "@/hooks/useFormatters.js";
 import { useClients } from "../../hooks/useClients.js";
 
 const ClientsDataTable = () => {
@@ -88,8 +88,8 @@ const ClientsDataTable = () => {
       pageCount: Math.ceil(clientsTotal / pagination.pageSize),
    });
 
-   const currentPage : number = pagination.pageIndex + 1;
-   const totalPages : number = Math.ceil(clientsTotal / pagination.pageSize);
+   const currentPage: number = pagination.pageIndex + 1;
+   const totalPages: number = Math.ceil(clientsTotal / pagination.pageSize);
 
    return (
       <div className="">
@@ -169,7 +169,9 @@ const ClientsDataTable = () => {
             </tbody>
          </table>
          <div className="TABLE_HEADER flex justify-between items-center px-5 py-3 border-b border-l border-r border-white/10 rounded-b-2xl">
-            <div className="text-white/95 ">Page {currentPage} of {totalPages || 1}</div>
+            <div className="text-white/95 ">
+               Page {currentPage} of {totalPages || 1}
+            </div>
             <div className="flex gap-6">
                <button
                   className="border border-white/30 rounded-md px-3 py-0.5 cursor-pointer hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"

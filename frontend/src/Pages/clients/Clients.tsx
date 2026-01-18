@@ -1,7 +1,7 @@
 import React, { useState, useContext } from 'react'
 import MobileHeader from '../../layout/MobileHeader.jsx'
 import ClientsHeader from './ClientsHeader.jsx'
-import ClientsMid from './ClientsMid.jsx'
+import ClientsMid from './ClientsMid.js'
 
 const Clients = () => {
 

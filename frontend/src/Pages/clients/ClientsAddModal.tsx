@@ -8,9 +8,9 @@ import {
    Button,
    Input,
 } from "@heroui/react";
-import { useClients } from "../../hooks/useClients.js";
-import { useFormatters } from "../../hooks/useFormatters.js";
 import { useForm } from "react-hook-form";
+import { useFormatters } from "@/hooks/useFormatters.js";
+import { useClients } from "../../hooks/useClients.js";
 
 type ClientsAddModalProps = {
    isOpen: boolean;

@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from "react";
-import MobileHeader from "../../layout/MobileHeader.jsx";
 import InvoiceCreateHeader from "./InvoiceCreateHeader.js";
 import InvoiceCreateForm from "./InvoiceCreateForm.js";
 import InvoicePreview from "./InvoicePreview.js";
+import MobileHeader from "@/layout/MobileHeader.jsx";
 
 const InvoiceCreate = () => {
    return (

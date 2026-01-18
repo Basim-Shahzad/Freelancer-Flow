@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
-import { useApi } from "./useApi.tsx";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/Contexts/AuthContext.js";
 import type { Client } from "@/types/models.js";
+import { useApi } from "@/hooks/useApi.js";
 
 export function useClients(page: number = 1, pageSize: number = 8) {
    const { api } = useApi();

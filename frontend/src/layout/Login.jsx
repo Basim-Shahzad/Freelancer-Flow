@@ -1,6 +1,6 @@
 import { useState } from "react";
-import bgimg from "../../assets/bg-img2.jpg";
-import dashboard from "../../assets/db.png";
+import bgimg from "../assets/bg-img2.jpg";
+import dashboard from "../assets/db.png";
 import { Link, useLocation } from "react-router-dom";
 import { AiFillBackward } from "react-icons/ai";
 import { useForm } from "react-hook-form";
@@ -90,7 +90,6 @@ export const Login = () => {
                            <input
                               type="text"
                               id="username"
-                              name="username"
                               autoComplete="username"
                               // value={email}
                               // onChange={(e) => setEmail(e.target.value)}
@@ -109,7 +108,6 @@ export const Login = () => {
                         <input
                            type="email"
                            id="email"
-                           name="email"
                            autoComplete="email"
                            placeholder="Enter your email"
                            className="w-full px-4 py-2 bg-transparent border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-white placeholder-gray-500 transition-all duration-200"
@@ -123,7 +121,6 @@ export const Login = () => {
                         <input
                            type="password"
                            id="password"
-                           name="password"
                            placeholder="••••••••"
                            autoComplete={isSignupClicked ? "new-password" : "current-password"}
                            className="w-full px-4 py-2 bg-transparent border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-white placeholder-gray-500 transition-all duration-200"
