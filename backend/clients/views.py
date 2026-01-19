@@ -6,16 +6,15 @@ from .models import Client
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import permission_classes
 from django.contrib.auth import get_user_model
-from django.shortcuts import get_object_or_404
 from rest_framework.pagination import PageNumberPagination
 
 User = get_user_model()
 
 class ClientPagination(PageNumberPagination):
-   page_size = 10        # items per page
-   page_size_query_param = 'page_size'  # optional: allow client to override
+   page_size = 10
+   page_size_query_param = 'page_size'
 
-@api_view([ "POST" ])
+@api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def create_client(request):
     serializer = ClientSerializer(data=request.data)
@@ -29,32 +28,15 @@ def create_client(request):
 def get_client_list(request):
     clients = Client.objects.filter(user=request.user)
     
-    # Check if pagination is disabled
     if request.query_params.get('paginate') == 'false':
         serializer = ClientSerializer(clients, many=True)
         return Response({'clients': serializer.data, 'total': clients.count()})
     
-    # Paginated response
     paginator = ClientPagination()
     paginated_clients = paginator.paginate_queryset(clients, request)
     serializer = ClientSerializer(paginated_clients, many=True)
     
     return Response({'clients': serializer.data, 'total': clients.count()})
-    
-@api_view(["GET"])
-@permission_classes([IsAuthenticated])
-def get_client_list(request):
-    clients = Client.objects.filter(user=request.user)
-    
-    paginator = ClientPagination()
-    paginated_clients = paginator.paginate_queryset(clients, request)
-    
-    serializer = ClientSerializer(paginated_clients, many=True)
-
-    return Response({
-        'clients': serializer.data, 
-        'total': clients.count()
-    })
         
 @api_view(["PUT", "PATCH"])
 @permission_classes([IsAuthenticated])
