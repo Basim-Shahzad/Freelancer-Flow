@@ -1,10 +1,12 @@
 import { useApi } from "./useApi.js";
 import { useQuery } from "@tanstack/react-query";
-import { useAuth } from "@/Contexts/AuthContext.js";
+import { useAuthStore } from "@/features/auth/store.js";
 
 export function useDashboard() {
    const { api } = useApi();
-   const { isInitialized, isLoggedin } = useAuth();
+   const user = useAuthStore((state) => state.user)
+   const isInitialized = useAuthStore((state) => state.isInitialized)
+   const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
 
    const {
       data: revenue,
@@ -19,7 +21,7 @@ export function useDashboard() {
          return res.data;
       },
       // Only run if auth is ready
-      enabled: !!(isInitialized && isLoggedin),
+      enabled: !!(isInitialized && isAuthenticated),
       // Cache settings for a dashboard (don't refetch every 2 seconds)
       staleTime: 1000 * 60 * 5, // 5 minutes
       retry: 1, // Don't spam the server if it fails

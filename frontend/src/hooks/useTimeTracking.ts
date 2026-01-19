@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useApi } from "./useApi.tsx";
 import type { TimeEntry } from "@/types/models.js";
-import { useAuth } from "@/Contexts/AuthContext.js";
+import { useApi } from "./useApi.js";
+import { useAuthStore } from "@/features/auth/store.js";
 
 interface CreateTimeEntryData {
    project_id: number;
@@ -15,7 +15,8 @@ interface CreateTimeEntryData {
 export function useTimeTracking() {
    const { api } = useApi();
    const queryClient = useQueryClient();
-   const { isInitialized, isLoggedin } = useAuth();
+   const isInitialized = useAuthStore((state) => state.isInitialized)
+   const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
 
    // Fetch timeEntries
    const {
@@ -33,7 +34,7 @@ export function useTimeTracking() {
             throw error;
          }
       },
-      enabled: isInitialized && isLoggedin,
+      enabled: isInitialized && isAuthenticated,
    });
 
    // Create time entry mutation

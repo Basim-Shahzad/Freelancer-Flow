@@ -1,13 +1,14 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useApi } from "./useApi.js";
 import type { Project } from "@/types/models.js";
-import { useAuth } from "@/Contexts/AuthContext.js";
+import { useAuthStore } from "@/features/auth/store.js";
 
 export function useProjects() {
    // page = 1, pageSize = 6
    const { api } = useApi();
    const queryClient = useQueryClient();
-   const { isLoggedin, isInitialized } = useAuth();
+   const isInitialized = useAuthStore((state) => state.isInitialized);
+   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
 
    // Fetch projects Count
    const { data: projectsTotal } = useQuery({
@@ -16,7 +17,7 @@ export function useProjects() {
          const res = await api.get("/projects-total");
          return res.data.projectsTotal;
       },
-      enabled: isInitialized && isLoggedin,
+      enabled: isInitialized && isAuthenticated,
    });
 
    // Fetch projects
@@ -30,7 +31,7 @@ export function useProjects() {
          const res = await api.get("/projects/");
          return res.data.projects;
       },
-      enabled: isInitialized && isLoggedin,
+      enabled: isInitialized && isAuthenticated,
    });
 
    // Create project mutation
@@ -63,7 +64,8 @@ export function useProjects() {
 
 export function useProject(projectId: number) {
    const { api } = useApi();
-   const { isLoggedin, isInitialized } = useAuth();
+   const isInitialized = useAuthStore((state) => state.isInitialized);
+   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
    const queryClient = useQueryClient();
 
    const {
@@ -76,7 +78,7 @@ export function useProject(projectId: number) {
          const res = await api.get(`/projects/${projectId}/`);
          return res.data;
       },
-      enabled: !!projectId && isInitialized && isLoggedin,
+      enabled: !!projectId && isInitialized && isAuthenticated,
    });
 
    const updateStatusMutation = useMutation({

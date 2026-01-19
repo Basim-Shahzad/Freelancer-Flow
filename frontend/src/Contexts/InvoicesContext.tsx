@@ -3,7 +3,7 @@ import type { Invoice, Project, Client, TimeEntry, InvoiceItem, InvoiceItemWithM
 import { useMutation, useQuery, useQueryClient, type UseMutationResult } from "@tanstack/react-query";
 import type { AxiosInstance } from "axios";
 import { useApi } from "@/hooks/useApi.js";
-import { useAuth } from "./AuthContext.js";
+import { useAuthStore } from "@/features/auth/store.js";
 import { useTimeTracking } from "@/hooks/useTimeTracking.js";
 import { toast } from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
@@ -46,7 +46,9 @@ export const InvoicesContext = createContext<InvoicesContextValue | null>(null);
 export const InvoicesProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
    const { api } = useApi() as { api: AxiosInstance };
    const queryClient = useQueryClient();
-   const { user, isInitialized, isLoggedin } = useAuth();
+   const user = useAuthStore((state) => state.user);
+   const isInitialized = useAuthStore((state) => state.isInitialized)
+   const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
    const { timeEntries } = useTimeTracking();
    const navigate = useNavigate();
 
@@ -126,13 +128,13 @@ export const InvoicesProvider: React.FC<{ children: ReactNode }> = ({ children }
          });
          return res.data;
       },
-      enabled: isInitialized && isLoggedin,
+      enabled: isInitialized && isAuthenticated,
    });
 
    const createInvoiceMutation = useMutation({
       mutationFn: async (invoiceData: CreateInvoiceInput): Promise<Invoice> => {
          const cleanPayload = prepareInvoicePayload(invoiceData);
-         console.log(cleanPayload)
+         console.log(cleanPayload);
 
          if (!cleanPayload.client_id || !cleanPayload.project_id) {
             throw new Error("Client and Project are required");
@@ -159,7 +161,7 @@ export const InvoicesProvider: React.FC<{ children: ReactNode }> = ({ children }
          });
          queryClient.invalidateQueries({ queryKey: ["invoices"] });
          navigate(`/invoices/${data.id}`);
-         console.log(`Data Recieved : ${data}` )
+         console.log(`Data Recieved : ${data}`);
 
          // Reset form state
          setInvoice({

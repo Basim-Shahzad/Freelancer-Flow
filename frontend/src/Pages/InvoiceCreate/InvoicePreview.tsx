@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import styles from "@/Styles/invoiceCreate.module.css";
 import { useInvoices } from "@/hooks/useInvoices.js";
 import { Button, Textarea } from "@heroui/react";
-import { useAuth } from "@/Contexts/AuthContext.jsx";
+import { useAuthStore } from "@/features/auth/store.js";
 import { FaMinus, FaPlus } from "react-icons/fa6";
 import { TiTick } from "react-icons/ti";
 import { useFormatters } from "@/hooks/useFormatters.js";

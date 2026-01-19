@@ -2,15 +2,16 @@ import React, { useState, useEffect } from "react";
 import ModalComponent from "../../UiComponents/ModalComponent.jsx";
 import { useDisclosure } from "@heroui/react";
 
-import { useClients } from "../../hooks/useClients.js";
 import { useFormatters } from "../../hooks/useFormatters.js";
-import logo from '../../assets/FF.png'
+import logo from "../../assets/FF.png";
+import { useClients } from "@/features/clients/hooks.js";
 
 const DashboardMid = () => {
-   const { clients, clientsError, clientsLoading } = useClients();
-   const { formatDate } = useFormatters();
+   const { data: response, isLoading: clientsLoading } = useClients();
 
-   const { isOpen, onOpen, onOpenChange } = useDisclosure();
+   const clients = response?.items ?? [];
+
+   const { formatDate } = useFormatters();
 
    return (
       <div>

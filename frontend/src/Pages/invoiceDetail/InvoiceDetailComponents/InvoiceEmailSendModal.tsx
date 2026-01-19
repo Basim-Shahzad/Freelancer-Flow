@@ -12,7 +12,7 @@ import {
 } from "@heroui/react";
 import { useInvoices } from "@/hooks/useInvoices.js";
 import type { Invoice } from "@/types/models.js";
-import { useAuth } from "@/Contexts/AuthContext.js";
+import { useAuthStore } from "@/features/auth/store.js";
 
 type Props = {
    isOpen: boolean;

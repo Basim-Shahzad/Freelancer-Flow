@@ -13,7 +13,7 @@ import { AuthProvider } from "@/Contexts/AuthContext.js";
 import Dashboard from "./pages/dashboard/Dashboard.jsx";
 import Projects from "./pages/projects/Projects.jsx";
 import Layout from "./pages/Layout.jsx";
-import Clients from "./pages/clients/Clients.js";
+import Clients from "./pages/ClientsPage.js";
 import Hero from "./pages/homepage/Hero.jsx";
 import { ProtectedRoute } from "./Contexts/ProtectedRoute.jsx";
 import ProjectDetail from "./pages/projectDetail/ProjectDetail.jsx";

@@ -3,12 +3,12 @@ import { ThemeContext } from "../App.jsx";
 import { CiDark } from "react-icons/ci";
 import { CiLight } from "react-icons/ci";
 import { Link } from "react-router-dom";
-import { useAuth } from "@/Contexts/AuthContext.js";
+import { useAuthStore } from "@/features/auth/store.js";
 import ff from "../assets/FF.png";
 
 const DashSideBar = () => {
    const { theme, toggle } = useContext(ThemeContext);
-   const { user } = useAuth();
+   const user = useAuthStore((state) => state.user)
 
    return (
       <>
