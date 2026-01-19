@@ -13,10 +13,9 @@ import { AuthProvider } from "@/Contexts/AuthContext.js";
 import Dashboard from "./pages/dashboard/Dashboard.jsx";
 import Projects from "./pages/projects/Projects.jsx";
 import Layout from "./pages/Layout.jsx";
-import Clients from "./pages/clients/Clients.js"
+import Clients from "./pages/clients/Clients.js";
 import Hero from "./pages/homepage/Hero.jsx";
-import { Login } from "./layout/Login.jsx";
-import ProtectedRoute from "./Contexts/ProtectedRoute.jsx";
+import { ProtectedRoute } from "./Contexts/ProtectedRoute.jsx";
 import ProjectDetail from "./pages/projectDetail/ProjectDetail.jsx";
 import NotFound from "./pages/miscPages/NotFound.jsx";
 import { QueryClientProvider, QueryClient } from "@tanstack/react-query";
@@ -25,6 +24,9 @@ import { TimeTrackingPage } from "./pages/Timetracking/TimeTrackingPage.js";
 import Invoices from "./pages/invoices/Invoices.js";
 import InvoiceCreate from "./pages/InvoiceCreate/InvoiceCreate.js";
 import InvoiceDetail from "./pages/invoiceDetail/InvoiceDetail.js";
+import { LoginPage } from "./pages/LoginPage.js";
+import { SignupPage } from "./pages/SignupPage.js";
+import { AuthInitializer } from "./AuthInitializer.js";
 
 const router = createBrowserRouter([
    {
@@ -99,16 +101,16 @@ const router = createBrowserRouter([
          },
          {
             path: "invoices/:id",
-            element : (
+            element: (
                <ProtectedRoute>
                   <InvoiceDetail />
                </ProtectedRoute>
-            )
-         }
+            ),
+         },
       ],
    },
-   { path: "/login", element: <Login /> },
-   { path: "/signup", element: <Login /> },
+   { path: "/login", element: <LoginPage /> },
+   { path: "/signup", element: <SignupPage /> },
    { path: "/not-found", element: <NotFound /> },
 ]);
 
@@ -130,10 +132,9 @@ function Main() {
             <HeroUIProvider>
                <App>
                   <ApiProvider>
-                     <AuthProvider>
-                        <RouterProvider router={router} />
-                        <ReactQueryDevtools initialIsOpen={false} />
-                     </AuthProvider>
+                     <RouterProvider router={router} />
+                     <AuthInitializer />
+                     <ReactQueryDevtools initialIsOpen={false} />
                   </ApiProvider>
                </App>
             </HeroUIProvider>
