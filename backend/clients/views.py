@@ -12,7 +12,7 @@ from rest_framework.pagination import PageNumberPagination
 User = get_user_model()
 
 class ClientPagination(PageNumberPagination):
-   page_size = 8             # items per page
+   page_size = 10        # items per page
    page_size_query_param = 'page_size'  # optional: allow client to override
 
 @api_view([ "POST" ])
@@ -24,32 +24,37 @@ def create_client(request):
       return Response(serializer.data, status=status.HTTP_201_CREATED)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-@api_view([ "GET" ])
-@permission_classes([IsAuthenticated])
-def get_client(request, pk):
-    try:
-        client = get_object_or_404(Client, pk=pk)
-        serializer = ClientSerializer(client)
-        return Response(serializer.data, status=status.HTTP_200_OK)
-
-    except Exception as e:
-        return Response(
-            serializer.errors,
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR
-        )
-    
-@api_view([ "GET" ])
+@api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def get_client_list(request):
     clients = Client.objects.filter(user=request.user)
-    serializer = ClientSerializer(clients, many=True)
+    
+    # Check if pagination is disabled
+    if request.query_params.get('paginate') == 'false':
+        serializer = ClientSerializer(clients, many=True)
+        return Response({'clients': serializer.data, 'total': clients.count()})
+    
+    # Paginated response
+    paginator = ClientPagination()
+    paginated_clients = paginator.paginate_queryset(clients, request)
+    serializer = ClientSerializer(paginated_clients, many=True)
+    
+    return Response({'clients': serializer.data, 'total': clients.count()})
+    
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def get_client_list(request):
+    clients = Client.objects.filter(user=request.user)
     
     paginator = ClientPagination()
     paginated_clients = paginator.paginate_queryset(clients, request)
     
     serializer = ClientSerializer(paginated_clients, many=True)
 
-    return Response({ 'clients' : serializer.data})
+    return Response({
+        'clients': serializer.data, 
+        'total': clients.count()
+    })
         
 @api_view(["PUT", "PATCH"])
 @permission_classes([IsAuthenticated])
