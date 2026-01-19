@@ -1,37 +1,33 @@
-import React, { useEffect } from "react";
-import {
-   Modal,
-   ModalContent,
-   ModalHeader,
-   ModalBody,
-   ModalFooter,
-   Button,
-   Input,
-} from "@heroui/react";
+import React from "react";
+import { Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Button, Input } from "@heroui/react";
 import { useForm } from "react-hook-form";
-import { useFormatters } from "@/hooks/useFormatters.js";
-import { useClients } from "../../hooks/useClients.js";
+import { useCreateClient } from "../hooks.js";
+import type { Client } from "../types.js";
 
 type ClientsAddModalProps = {
    isOpen: boolean;
    onOpenChange: (open: boolean) => void;
 };
 
+type ClientFormData = Omit<Client, "id" | "created_at" | "updated_at" | "user">;
+
 const ClientsAddModal = ({ isOpen, onOpenChange }: ClientsAddModalProps) => {
-   const { createClient, isCreatingClient } = useClients();
-   const { formatDueDateForServer } = useFormatters();
+   const { mutate: createClient, isPending: isCreatingClient } = useCreateClient();
+
    const {
       register,
       handleSubmit,
       formState: { errors },
-      control,
       reset,
-   } = useForm();
+   } = useForm<ClientFormData>();
 
-   const onSubmit = async (clientData: {}) => {
-      await createClient(clientData);
-      reset();
-      onOpenChange(false);
+   const onSubmit = async (clientData: ClientFormData) => {
+      createClient(clientData, {
+         onSuccess: () => {
+            reset();
+            onOpenChange(false);
+         },
+      });
    };
 
    return (
@@ -54,11 +50,17 @@ const ClientsAddModal = ({ isOpen, onOpenChange }: ClientsAddModalProps) => {
                         type="text"
                         isRequired
                         {...register("name", { required: "Client Name is required" })}
+                        isInvalid={!!errors.name}
+                        errorMessage={errors.name?.message}
                      />
-                     {errors.root && <p className="text-sm text-red-600">{errors.root?.message}</p>}
 
-                     <Input label="Email" type="text" {...register("email")} />
-                     {errors.root && <p className="text-sm text-red-600">{errors.root?.message}</p>}
+                     <Input
+                        label="Email"
+                        type="email"
+                        {...register("email")}
+                        isInvalid={!!errors.email}
+                        errorMessage={errors.email?.message}
+                     />
                   </ModalBody>
 
                   <ModalFooter>
@@ -67,6 +69,7 @@ const ClientsAddModal = ({ isOpen, onOpenChange }: ClientsAddModalProps) => {
                            color="secondary"
                            variant="flat"
                            className="w-full"
+                           isLoading={isCreatingClient}
                            onPress={async () => {
                               await handleSubmit(onSubmit)();
                            }}>
@@ -75,7 +78,7 @@ const ClientsAddModal = ({ isOpen, onOpenChange }: ClientsAddModalProps) => {
                      </div>
                      <div className="flex items-center justify-center w-full">
                         <Button color="secondary" variant="flat" className="w-full">
-                           Add billing Adress
+                           Add billing Address
                         </Button>
                      </div>
                   </ModalFooter>

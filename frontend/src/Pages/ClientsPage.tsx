@@ -1,7 +1,7 @@
 import React, { useState, useContext } from 'react'
-import MobileHeader from '../../layout/MobileHeader.jsx'
-import ClientsHeader from './ClientsHeader.jsx'
-import ClientsMid from './ClientsMid.js'
+import MobileHeader from '../layout/MobileHeader.jsx'
+import ClientsHeader from '../features/clients/components/ClientsHeader.jsx'
+import ClientsDataTable from '@/features/clients/components/ClientsDataTable.js'
 
 const Clients = () => {
 
@@ -19,8 +19,8 @@ const Clients = () => {
             <div className="flex flex-col gap-8" >
                <ClientsHeader />
 
-               <div className="flex flex-col gap-6 px-4 lg:px-8">
-                  <ClientsMid />
+               <div className="px-4 lg:px-8">
+                  <ClientsDataTable />
                </div>
 
             </div>
