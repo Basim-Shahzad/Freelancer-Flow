@@ -54,13 +54,6 @@ const DashSideBar = () => {
                            placeholder="Search"
                            className="m-0 w-full bg-transparent text-md text-primary ring-0 outline-hidden placeholder:text-black/60 dark:placeholder:text-white/60 autofill:rounded-lg autofill:text-primary px-3 py-2 pl-10"
                         />
-                        <div className="pointer-events-none absolute inset-y-0.5 right-0.5 z-10 flex items-center rounded-r-[inherit] bg-linear-to-r from-transparent to to-40% pl-8 pr-2.5">
-                           <span
-                              className="pointer-events-none rounded px-1 py-px text-xs font-medium text-quaternary ring-1 select-none ring-[#85888E] text-[#85888E]"
-                              aria-hidden="true">
-                              Ctrl-K
-                           </span>
-                        </div>
                      </div>
                      {/* {show && <div>This div appeared after 3 seconds!</div>} */}
                   </div>
