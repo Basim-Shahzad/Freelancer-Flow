@@ -123,9 +123,9 @@ def create_time_entry(request):
 @api_view([ "GET" ])
 @permission_classes([IsAuthenticated])
 def get_time_entries_list(request):
-  time_entries = TimeEntry.objects.filter(user=request.user)
-  serializer = TimeEntrySerializer(time_entries, many=True)
-  return Response(serializer.data, status=status.HTTP_201_CREATED)
+    time_entries = TimeEntry.objects.filter(user=request.user).order_by('created_at')
+    serializer = TimeEntrySerializer(time_entries, many=True)
+    return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 @api_view(["PATCH"])
 @permission_classes([IsAuthenticated])
