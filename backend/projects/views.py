@@ -13,7 +13,7 @@ from payments.models import InvoiceItem, Invoice
 User = get_user_model()
 
 class ProjectPagination(PageNumberPagination):
-   page_size = 6 # items per page
+   page_size = 12 # items per page
    page_size_query_param = 'page_size' # optional: allow client to override
 
 @api_view(["POST"])
@@ -24,6 +24,21 @@ def create_project(request):
         serializer.save(user=request.user)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def get_project_list(request):
+  projects = Project.objects.filter(user=request.user).order_by('due_date')  
+
+  if request.query_params.get('paginate') == 'false':
+        serializer = ProjectSerializer(projects, many=True)
+        return Response({'projects': serializer.data, 'total': projects.count()})
+  
+  paginator = ProjectPagination()
+  paginated_projects = paginator.paginate_queryset(projects, request)
+  serializer = ProjectSerializer(paginated_projects, many=True)
+
+  return Response({ 'projects' : serializer.data, 'total': projects.count()})
 
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
@@ -55,14 +70,6 @@ def update_project_status(request, pk):
         return Response(serializer.data, status=status.HTTP_200_OK)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-@api_view(["GET"])
-@permission_classes([IsAuthenticated])
-def get_project_list(request):
-  projects = Project.objects.filter(user=request.user).order_by('due_date')  
-  paginator = ProjectPagination()
-  paginated_projects = paginator.paginate_queryset(projects, request)
-  serializer = ProjectSerializer(projects, many=True)
-  return Response({ 'projects' : serializer.data})
 
 @api_view([ "GET" ])
 @permission_classes([IsAuthenticated])
