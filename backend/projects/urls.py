@@ -13,8 +13,8 @@ urlpatterns = [
 
 
     # TIME TRACKING URLS
-    path("create-time-entry/", create_time_entry, name="create-time-entry"),
     path("time-entries/", get_time_entries_list, name="time-entries-list"),
-    path("time-entries/<int:pk>/", update_time_entry_desc),
+    path("create-time-entry/", create_time_entry, name="create-time-entry"),
+    path("time-entries/<int:pk>/update", update_time_entry_desc),
 
 ]
