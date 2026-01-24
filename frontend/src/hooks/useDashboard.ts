@@ -4,7 +4,6 @@ import { useAuthStore } from "@/features/auth/store.js";
 
 export function useDashboard() {
    const { api } = useApi();
-   const user = useAuthStore((state) => state.user)
    const isInitialized = useAuthStore((state) => state.isInitialized)
    const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
 

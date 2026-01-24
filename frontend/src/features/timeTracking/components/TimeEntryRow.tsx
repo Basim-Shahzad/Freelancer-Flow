@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import type { Project, TimeEntry } from "@/types/models.js";
 import { formatDuration } from "@/utils/time.utils.js";
-import { useUpdateTimeEntryDesc } from "@/hooks/useTimeTracking.js";
+import { useUpdateTimeEntry } from "@/features/timeTracking/hooks.js";
 
 interface Props {
    entry: TimeEntry;
@@ -14,13 +14,13 @@ export const TimeEntryRow: React.FC<Props> = ({ entry, project }) => {
    const [desc, setDesc] = useState(entry.description ?? "");
    const inputRef = useRef<HTMLInputElement>(null);
 
-   const updateDesc = useUpdateTimeEntryDesc();
+   const updateMutation = useUpdateTimeEntry();
 
    const close = () => {
       setIsEditing(false);
-      updateDesc.mutate({
+      updateMutation.mutate({
          id: entry.id,
-         description: desc,
+         data: { description: desc },
       });
    };
 
@@ -32,7 +32,7 @@ export const TimeEntryRow: React.FC<Props> = ({ entry, project }) => {
       };
       document.addEventListener("mousedown", handler);
       return () => document.removeEventListener("mousedown", handler);
-   }, []);
+   }, [desc]);
 
    return (
       <div className="border text-gray-800 border-gray-200 dark:border-white/20 dark:text-white flex items-center justify-between py-2 px-2 rounded-xl">

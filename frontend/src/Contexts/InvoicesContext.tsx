@@ -4,8 +4,8 @@ import { useMutation, useQuery, useQueryClient, type UseMutationResult } from "@
 import type { AxiosInstance } from "axios";
 import { useApi } from "@/hooks/useApi.js";
 import { useAuthStore } from "@/features/auth/store.js";
-import { useTimeTracking } from "@/hooks/useTimeTracking.js";
 import { toast } from "react-hot-toast";
+import { useTimeEntries } from "@/features/timeTracking/hooks.js";
 import { useNavigate } from "react-router-dom";
 
 export type CreateInvoiceInput = Invoice;
@@ -49,7 +49,7 @@ export const InvoicesProvider: React.FC<{ children: ReactNode }> = ({ children }
    const user = useAuthStore((state) => state.user);
    const isInitialized = useAuthStore((state) => state.isInitialized)
    const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
-   const { timeEntries } = useTimeTracking();
+   const { data : timeEntries } = useTimeEntries();
    const navigate = useNavigate();
 
    function isoToDate(iso: string): string {

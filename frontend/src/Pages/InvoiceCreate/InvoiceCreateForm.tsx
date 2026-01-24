@@ -1,6 +1,4 @@
 import { useState, useMemo, useEffect, useRef } from "react";
-import { useProjects } from "@/hooks/useProjects.js";
-import { useTimeTracking } from "@/hooks/useTimeTracking.js";
 import { formatDuration } from "@/utils/time.utils.js";
 import { Select, SelectItem, type Selection } from "@heroui/react";
 import { FaPlus } from "react-icons/fa6";
@@ -12,13 +10,16 @@ import { getLocalTimeZone, today } from "@internationalized/date";
 import type { TimeEntry } from "@/types/models.js";
 import { useAuthStore } from "@/features/auth/store.js";
 import { useClients } from "@/features/clients/hooks.js";
+import { useProjectStore } from "@/features/projects/store.js";
+import { useProjects } from "@/features/projects/hooks.js";
+import { useTimeEntries } from "@/features/timeTracking/hooks.js";
 
 const InvoiceCreateForm = () => {
    const user = useAuthStore((state) => state.user);
-   const { projects, projectsLoading } = useProjects();
+   const { data: projects, isLoading : projectsLoading } = useProjects();
    const { data: response, isLoading: clientsLoading } = useClients();
    const clients = response?.items ?? [];
-   const { timeEntries, timeEntriesLoading } = useTimeTracking();
+   const { data : timeEntries, isLoading :timeEntriesLoading } = useTimeEntries();
 
    // Separate state for client and project
    const [selectedClientId, setSelectedClientId] = useState<Selection>(new Set());

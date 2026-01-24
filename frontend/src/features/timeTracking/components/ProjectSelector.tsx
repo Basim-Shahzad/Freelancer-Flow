@@ -1,8 +1,9 @@
-import React, { useState } from "react";
+import React, { useEffect } from "react";
 import type { Project } from "@/types/models.js";
-import { useTimer } from "@/Contexts/TimerContext.js";
-import { Select, SelectItem } from "@heroui/react";
+import { useTimer } from "@/features/timeTracking/hooks.js";
+import { Autocomplete, AutocompleteItem } from "@heroui/react";
 import { FaPlay } from "react-icons/fa";
+import { useProjectStore } from "@/features/projects/store.js";
 
 interface Props {
    projects: Project[];
@@ -10,32 +11,36 @@ interface Props {
 
 export const ProjectSelector: React.FC<Props> = ({ projects }) => {
    const { startTimer } = useTimer();
-   const [selected, setSelected] = useState<Set<string>>(new Set());
+   const { selectedProjectId, setSelectedProjectId } = useProjectStore();
+
+   useEffect(() => {
+      return () => setSelectedProjectId(null); // Clear on unmount
+   }, [setSelectedProjectId]);
 
    const handleStart = () => {
-      const id = Number([...selected][0]);
-      if (id) startTimer(id);
+      if (selectedProjectId) startTimer(selectedProjectId);
    };
 
    return (
       <div className="rounded-lg shadow-lg px-3 py-3">
          <h3 className="font-semibold text-2xl mb-4">Start Timer</h3>
          <div className="flex flex-col gap-2.5">
-            <Select
+            <Autocomplete
                aria-label="Project Select"
-               selectedKeys={selected}
-               onSelectionChange={(keys) => setSelected(keys as Set<string>)}
+               selectedKey={selectedProjectId ? String(selectedProjectId) : undefined}
+               onSelectionChange={(key) => setSelectedProjectId(key ? Number(key) : null)}
                placeholder="Select a project"
                renderValue={(items) => items.map((item) => item.textValue).join(", ")}>
                {projects.map((proj) => (
-                  <SelectItem key={String(proj.id)} textValue={`${proj.name} - ${proj.client.name}`}>
-                     <span className="font-bold" >{proj.name}</span> - <span className="font-light text-zinc-300" >{proj.client.name}</span>
-                  </SelectItem>
+                  <AutocompleteItem key={String(proj.id)} textValue={`${proj.name} - ${proj.client?.name || ""}`}>
+                     <span className="font-bold">{proj.name}</span> -{" "}
+                     <span className="font-light text-zinc-300">{proj.client?.name || ""}</span>
+                  </AutocompleteItem>
                ))}
-            </Select>
+            </Autocomplete>
             <button
                onClick={handleStart}
-               disabled={!selected}
+               disabled={!selectedProjectId}
                className={`w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition hover:cursor-pointer`}>
                <FaPlay size={20} />
                Start Timer

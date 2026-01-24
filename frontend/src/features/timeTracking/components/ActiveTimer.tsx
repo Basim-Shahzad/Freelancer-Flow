@@ -1,24 +1,16 @@
-import { useState } from "react";
 import type { Project } from "@/types/models.js";
 import { formatTime } from "@/utils/time.utils.js";
-import { useTimer } from "@/Contexts/TimerContext.js";
+import { useTimer } from "@/features/timeTracking/hooks.js";
 import { Checkbox } from "@heroui/checkbox";
-import { FaPlay } from "react-icons/fa";
-import { FaPause } from "react-icons/fa";
-import { FaSquare } from "react-icons/fa";
-
+import { FaPlay, FaPause, FaSquare } from "react-icons/fa";
 
 interface Props {
    project: Project;
 }
 
 export const ActiveTimer: React.FC<Props> = ({ project }) => {
-   const { state, pauseTimer, resumeTimer, stopTimer, updateDescription, setIsBillable } = useTimer();
+   const { state, pauseTimer, resumeTimer, stopTimer, updateDescription, toggleBillable } = useTimer();
    const isSelected = !state.is_billable;
-
-   const toggleIsBillable = () => {
-      setIsBillable();
-   };
 
    return (
       <div className="rounded-lg shadow-lg py-4 px-3 border dark:border-white/20 border-black/20">
@@ -46,7 +38,7 @@ export const ActiveTimer: React.FC<Props> = ({ project }) => {
          />
 
          <div className="my-4 mx-1 flex items-center">
-            <Checkbox color="secondary" size="lg" isSelected={isSelected} onValueChange={toggleIsBillable}>
+            <Checkbox color="secondary" size="lg" isSelected={isSelected} onValueChange={toggleBillable}>
                Exclude from invoice
             </Checkbox>
          </div>
