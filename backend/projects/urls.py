@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import create_project, delete_project, update_project, get_clients_project_list, get_project_list, get_projects_total, get_project, update_project_status, create_time_entry, update_time_entry_desc, get_time_entries
+from .views import create_project, delete_project, update_project, get_clients_project_list, get_project_list, get_projects_total, get_project, update_project_status, create_time_entry, update_time_entry, get_time_entries
 
 urlpatterns = [
     path("create-project/", create_project, name="create-project"),
@@ -15,6 +15,5 @@ urlpatterns = [
     # TIME TRACKING URLS
     path("time-entries/", get_time_entries, name="time-entries-list"),
     path("create-time-entry/", create_time_entry, name="create-time-entry"),
-    path("time-entries/<int:pk>/update", update_time_entry_desc),
-
+    path("time-entries/<int:pk>/update/", update_time_entry),
 ]

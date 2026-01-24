@@ -139,15 +139,16 @@ def get_time_entries(request):
 
     return Response({ 'timeEntries' : serializer.data, 'total': time_entries.count()}, status=status.HTTP_200_OK)
 
-@api_view(["PATCH"])
-@permission_classes([IsAuthenticated]) # change this to make it accept and return full
-def update_time_entry_desc(request, pk):
+@api_view(["PUT", "PATCH"])
+@permission_classes([IsAuthenticated])
+def update_time_entry(request, pk):
     try:
         entry = TimeEntry.objects.get(pk=pk, user=request.user)
     except TimeEntry.DoesNotExist:
-        return Response({"detail": "Not found"}, status=status.HTTP_404_NOT_FOUND)
-
-    entry.description = request.data.get("description", entry.description)
-    entry.save(update_fields=["description"])
-
-    return Response({"description": entry.description}, status=status.HTTP_200_OK)
+        return Response(status=status.HTTP_404_NOT_FOUND)
+    
+    serializer = TimeEntrySerializer(entry, data=request.data, partial=(request.method == "PATCH"))
+    if serializer.is_valid():
+        serializer.save()
+        return Response(serializer.data)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
