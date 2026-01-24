@@ -14,7 +14,11 @@ User = get_user_model()
 
 class ProjectPagination(PageNumberPagination):
    page_size = 12 # items per page
-   page_size_query_param = 'page_size' # optional: allow client to override
+   page_size_query_param = 'page_size'
+
+class TimeEntryPagination(PageNumberPagination):
+   page_size = 8 # items per page
+   page_size_query_param = 'page_size'
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
@@ -122,13 +126,21 @@ def create_time_entry(request):
 
 @api_view([ "GET" ])
 @permission_classes([IsAuthenticated])
-def get_time_entries_list(request):
-    time_entries = TimeEntry.objects.filter(user=request.user).order_by('created_at')
-    serializer = TimeEntrySerializer(time_entries, many=True)
-    return Response(serializer.data, status=status.HTTP_201_CREATED)
+def get_time_entries(request):
+    time_entries = TimeEntry.objects.filter(user=request.user).order_by('-created_at')
+
+    if request.query_params.get('paginate') == 'false':
+        serializer = TimeEntrySerializer(time_entries, many=True)
+        return Response({'timeEntries' : serializer.data, 'total' : time_entries.count()}, status=status.HTTP_200_OK)
+    
+    paginator = TimeEntryPagination()
+    paginated_Time_entries = paginator.paginate_queryset(time_entries, request)
+    serializer = TimeEntrySerializer(paginated_Time_entries, many=True)
+
+    return Response({ 'timeEntries' : serializer.data, 'total': time_entries.count()}, status=status.HTTP_200_OK)
 
 @api_view(["PATCH"])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated]) # change this to make it accept and return full
 def update_time_entry_desc(request, pk):
     try:
         entry = TimeEntry.objects.get(pk=pk, user=request.user)
