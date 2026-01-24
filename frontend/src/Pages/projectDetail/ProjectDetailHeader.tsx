@@ -1,16 +1,16 @@
 import React from "react";
+import type { Project } from "@/features/projects/types.js";
 import { MdAvTimer } from "react-icons/md";
 
-const ProjectDetailHeader = ({ project }) => {
+interface ProjectDetailHeaderProps {
+   project: Project;
+}
 
+const ProjectDetailHeader: React.FC<ProjectDetailHeaderProps> = ({ project }) => {
    return (
       <div className="flex flex-col gap-5 px-4 lg:px-8 lg:gap-1">
          <div className="flex gap-0.5 lg:gap-1 items-center justify-between">
             <h1 className="text-2xl font-semibold  lg:text-display-xs">{project?.name}</h1>
-            {/* <div className="flex gap-2.5" >
-               <button className="cursor-pointer bg-[#7F56D9] py-2 px-3 rounded-lg hover:bg-[#9E77ED]/80 transition-colors duration-150 gap-1 text-sm">Track Time</button>
-               <button className="cursor-pointer bg-[#7F56D9] py-2 px-3 rounded-lg hover:bg-[#9E77ED]/80 transition-colors duration-150 gap-1 text-sm">Create Invoice</button>
-            </div> */}
             <div className="flex gap-3">
                <button
                   type="button"

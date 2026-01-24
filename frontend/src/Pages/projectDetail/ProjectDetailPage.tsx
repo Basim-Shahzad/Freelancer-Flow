@@ -2,22 +2,16 @@ import React, { useEffect } from "react";
 import MobileHeader from "../../layout/MobileHeader.jsx";
 import ProjectDetailHeader from "./ProjectDetailHeader.jsx";
 import { useParams, useNavigate } from "react-router-dom";
-import { useProject } from "@/hooks/useProjects.js";
 import ProjectDetailMid from "./ProjectDetailMid.jsx";
+import { useProject } from "@/features/projects/hooks.js";
 
 const ProjectDetail = () => {
    const { id } = useParams();
-   const navigate = useNavigate();
-   
-   const { project, error, isLoading, handleStatusChange } = useProject(id);
+   if (!id) return null;
 
-   useEffect(() => {
-      if (!isLoading && !project && !error) {
-         navigate("/not-found");
-      }
-   }, [isLoading, project, error, navigate]);
+   const { data :project, error, isLoading : projectDetailLoading } = useProject(Number(id));
 
-   if (isLoading) {
+   if (projectDetailLoading) {
       return (
          <div className="flex flex-col lg:flex-row bg-white text-black dark:bg-[#000000] dark:text-white transition-colors duration-300">
             <header>
@@ -59,10 +53,10 @@ const ProjectDetail = () => {
 
          <main className="min-w-0 flex-1 pt-8 pb-12">
             <div className="flex flex-col gap-8">
-               <ProjectDetailHeader project={project || {}} />
+               <ProjectDetailHeader project={project!} />
 
                <div className="flex flex-col gap-6 px-4 lg:px-8">
-                  <ProjectDetailMid project={project || {}} onStatusChange={handleStatusChange} />
+                  <ProjectDetailMid project={project!} />  
                </div>
             </div>
          </main>

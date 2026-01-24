@@ -2,7 +2,7 @@ import React from "react";
 import { MdFileDownload } from "react-icons/md";
 import { IoIosAdd } from "react-icons/io";
 import { useDisclosure } from "@heroui/react";
-import ProjectsAddModal from "./ProjectsAddModal.jsx";
+import ProjectsAddModal from "./ProjectsAddModal.js";
 
 const ProjectsHeader = () => {
    const { isOpen, onOpen, onOpenChange } = useDisclosure();

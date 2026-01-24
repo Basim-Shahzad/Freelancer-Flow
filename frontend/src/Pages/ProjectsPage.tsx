@@ -1,7 +1,7 @@
 import React, { useState, useContext } from 'react'
-import MobileHeader from '../../layout/MobileHeader.jsx'
-import ProjectsMid from './ProjectsMid.jsx'
-import ProjectsHeader from './ProjectsHeader.jsx'
+import MobileHeader from '../layout/MobileHeader.jsx'
+import ProjectsHeader from '../features/projects/components/ProjectsHeader.jsx'
+import ProjectGrid from '@/features/projects/components/ProjectGrid.js'
 
 const Projects = () => {
 
@@ -20,7 +20,7 @@ const Projects = () => {
                <ProjectsHeader />
 
                <div className="flex flex-col gap-6 px-4 lg:px-8">
-                  <ProjectsMid />
+                  <ProjectGrid />
                </div>
 
             </div>

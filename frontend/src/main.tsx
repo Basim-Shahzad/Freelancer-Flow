@@ -7,23 +7,23 @@ import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import { ApiProvider } from "./hooks/useApi.js";
 import { HeroUIProvider } from "@heroui/system";
 import { InvoicesProvider } from "./Contexts/InvoicesContext.js";
-import { TimerProvider } from "./Contexts/TimerContext.js";
+// import { TimerProvider } from "./Contexts/TimerContext.js";
 import { AuthProvider } from "@/Contexts/AuthContext.js";
 
 import Dashboard from "./pages/dashboard/Dashboard.jsx";
-import Projects from "./pages/projects/Projects.jsx";
+import Projects from "./pages/ProjectsPage.jsx";
 import Layout from "./pages/Layout.jsx";
 import Clients from "./pages/ClientsPage.js";
 import Hero from "./pages/homepage/Hero.jsx";
 import { ProtectedRoute } from "./Contexts/ProtectedRoute.jsx";
-import ProjectDetail from "./pages/projectDetail/ProjectDetail.jsx";
+import ProjectDetail from "./pages/projectDetail/ProjectDetailPage.js";
 import NotFound from "./pages/miscPages/NotFound.jsx";
 import { QueryClientProvider, QueryClient } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
-import { TimeTrackingPage } from "./pages/Timetracking/TimeTrackingPage.js";
 import Invoices from "./pages/invoices/Invoices.js";
 import InvoiceCreate from "./pages/InvoiceCreate/InvoiceCreate.js";
 import InvoiceDetail from "./pages/invoiceDetail/InvoiceDetail.js";
+import { TimeTrackingPage } from "./pages/TimeTrackingPage.js";
 import { LoginPage } from "./pages/LoginPage.js";
 import { SignupPage } from "./pages/SignupPage.js";
 import { AuthInitializer } from "./AuthInitializer.js";
@@ -36,11 +36,9 @@ const router = createBrowserRouter([
    {
       path: "/",
       element: (
-         <TimerProvider>
-            <InvoicesProvider>
-               <Layout />
-            </InvoicesProvider>
-         </TimerProvider>
+         <InvoicesProvider>
+            <Layout />
+         </InvoicesProvider>
       ),
       children: [
          {
