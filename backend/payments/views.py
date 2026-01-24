@@ -14,6 +14,11 @@ from projects.models import Project, TimeEntry
 from django.db.models import Sum
 from clients.models import Client
 from django.db import transaction
+from rest_framework.pagination import PageNumberPagination
+
+class InvoicePagination(PageNumberPagination):
+    page_size = 10
+    page_size_query_param = "size"
 
 User = get_user_model()
 
@@ -158,31 +163,40 @@ def create_invoice(request):
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def list_invoices(request):
-    """List all invoices for the authenticated user"""
     user = request.user
-    
-    # Get query parameters for filtering
-    status_filter = request.query_params.get('status')
-    client_id = request.query_params.get('client_id')
-    project_id = request.query_params.get('project_id')
-    
-    # Build queryset
+
+    status = request.query_params.get("status")
+    client_id = request.query_params.get("client_id")
+    project_id = request.query_params.get("project_id")
+
     invoices = Invoice.objects.filter(user=user)
-    
-    if status_filter:
-        invoices = invoices.filter(status=status_filter)
-    
+
+    if status:
+        invoices = invoices.filter(status=status)
+
     if client_id:
         invoices = invoices.filter(client_id=client_id)
-    
+
     if project_id:
         invoices = invoices.filter(project_id=project_id)
-    
-    # Serialize and return
+
     from .serializers import InvoiceListSerializer
-    serializer = InvoiceListSerializer(invoices, many=True)
-    
-    return Response(serializer.data, status=status.HTTP_200_OK)
+
+    if request.query_params.get("paginate") == "false":
+        serializer = InvoiceListSerializer(invoices, many=True)
+        return Response({
+            "invoices": serializer.data,
+            "total": invoices.count()
+        })
+
+    paginator = InvoicePagination()  # page_size = 10
+    paginated_invoices = paginator.paginate_queryset(invoices, request)
+    serializer = InvoiceListSerializer(paginated_invoices, many=True)
+
+    return Response({
+        "invoices": serializer.data,
+        "total": invoices.count()
+    })
 
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
