@@ -20,7 +20,7 @@ import ProjectDetail from "./pages/projectDetail/ProjectDetailPage.js";
 import NotFound from "./pages/miscPages/NotFound.jsx";
 import { QueryClientProvider, QueryClient } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
-import Invoices from "./pages/invoices/Invoices.js";
+import Invoices from "./pages/InvoicesPage.js";
 import InvoiceCreate from "./pages/InvoiceCreate/InvoiceCreate.js";
 import InvoiceDetail from "./pages/invoiceDetail/InvoiceDetail.js";
 import { TimeTrackingPage } from "./pages/TimeTrackingPage.js";
