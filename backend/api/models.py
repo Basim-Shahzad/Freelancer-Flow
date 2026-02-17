@@ -12,4 +12,4 @@ class User(AbstractUser):
    revenue = models.DecimalField(max_digits=10, decimal_places=2, default=0)
 
    def __str__(self):
-      return self.email
+      return self.username
