@@ -3,7 +3,6 @@ from rest_framework.views import APIView
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from django.http import HttpResponse
 from .models import Invoice
 from django.contrib.auth import get_user_model
 from rest_framework.decorators import api_view
@@ -297,3 +296,28 @@ def delete_invoice(request, invoice_id):
             {'error': 'Invoice not found'},
             status=status.HTTP_404_NOT_FOUND
         )
+    
+
+class InvoiceListCreateView(APIView):
+    permission_classes= [IsAuthenticated]
+
+    def get(self, request):
+        return list_invoices(request._request)
+    
+    def post(self, request):
+        return create_invoice(request._request)
+    
+class InvoiceDetailView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, invoice_id):
+        return get_invoice(request._request, invoice_id)
+
+    def put(self, request, invoice_id):
+        return update_invoice(request._request, invoice_id)
+
+    def patch(self, request, invoice_id):
+        return update_invoice(request._request, invoice_id)
+
+    def delete(self, request, invoice_id):
+        return delete_invoice(request._request, invoice_id)

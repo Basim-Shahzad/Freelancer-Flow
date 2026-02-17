@@ -18,6 +18,7 @@ class CustomUserSerializer(serializers.ModelSerializer):
             "last_login",
             'revenue',
             'hourly_rate',
+            'created_at'
         )
 
     def get_full_name(self, obj):

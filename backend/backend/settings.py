@@ -104,7 +104,17 @@ CORS_PREFLIGHT_MAX_AGE = 86400
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'dj_rest_auth.jwt_auth.JWTCookieAuthentication',
-    )
+    ),
+    'DEFAULT_RENDERER_CLASSES': (
+        'djangorestframework_camel_case.render.CamelCaseJSONRenderer',
+        'djangorestframework_camel_case.render.CamelCaseBrowsableAPIRenderer',
+        # Any other renders
+    ),
+    'DEFAULT_PARSER_CLASSES': (
+        'djangorestframework_camel_case.parser.CamelCaseFormParser',
+        'djangorestframework_camel_case.parser.CamelCaseMultiPartParser',
+        'djangorestframework_camel_case.parser.CamelCaseJSONParser',
+    ),
 }
 
 from datetime import timedelta
@@ -137,6 +147,7 @@ AUTHENTICATION_BACKENDS = [
 MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",  # must be at the top
     'allauth.account.middleware.AccountMiddleware',
+    'djangorestframework_camel_case.middleware.CamelCaseMiddleWare',
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
