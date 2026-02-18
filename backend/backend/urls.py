@@ -24,8 +24,8 @@ def home_view(request):
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('', home_view, name='home'),
-    path('api/', include('api.urls')),
-    path('api/', include('clients.urls')),
-    path('api/', include('payments.urls')),
-    path('api/', include('projects.urls'))
+    path('api/', include('apps.api.urls')),
+    path('api/', include('apps.clients.urls')),
+    path('api/', include('apps.payments.urls')),
+    path('api/', include('apps.projects.urls'))
 ]

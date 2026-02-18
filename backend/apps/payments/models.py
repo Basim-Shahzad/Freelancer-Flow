@@ -1,6 +1,6 @@
 from django.db import models
-from clients.models import Client
-from projects.models import Project
+from apps.clients.models import Client
+from apps.projects.models import Project
 import re
 from django.db import transaction
 from django.core.exceptions import ValidationError

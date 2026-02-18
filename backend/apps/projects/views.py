@@ -8,7 +8,7 @@ from rest_framework.decorators import permission_classes
 from django.contrib.auth import get_user_model
 from django.shortcuts import get_object_or_404
 from rest_framework.pagination import PageNumberPagination
-from payments.models import InvoiceItem, Invoice
+from apps.payments.models import InvoiceItem, Invoice
 
 User = get_user_model()
 

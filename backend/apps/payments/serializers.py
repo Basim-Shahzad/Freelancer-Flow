@@ -1,9 +1,9 @@
 from rest_framework import serializers
 from .models import Invoice, InvoiceItem
-from clients.models import Client
-from projects.models import Project
+from apps.clients.models import Client
+from apps.projects.models import Project
 from django.db import transaction
-from api.models import User
+from apps.api.models import User
 from decimal import Decimal
 
 

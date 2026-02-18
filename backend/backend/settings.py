@@ -67,10 +67,10 @@ INSTALLED_APPS = [
     'dj_rest_auth.registration',
 
     # Custom apps
-    'api',
-    'clients',
-    'projects',
-    'payments',
+    'apps.api',
+    'apps.clients',
+    'apps.projects',
+    'apps.payments',
 ]
 
 
@@ -127,15 +127,15 @@ REST_AUTH = {
     'USE_JWT': True,
     'JWT_AUTH_COOKIE': 'access-token',
     'JWT_AUTH_REFRESH_COOKIE': 'refresh-token',
-    'USER_DETAILS_SERIALIZER': 'api.serializers.CustomUserSerializer',
+    'USER_DETAILS_SERIALIZER': 'apps.api.serializers.CustomUserSerializer',
     'JWT_AUTH_HTTPONLY': True,
     'JWT_AUTH_SECURE': True,  # Set to True in production (HTTPS)
     'JWT_AUTH_SAMESITE': 'Lax',
-    "REGISTER_SERIALIZER": "api.serializers.CustomRegisterSerializer",
+    "REGISTER_SERIALIZER": "apps.api.serializers.CustomRegisterSerializer",
 }
 
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
-REST_AUTH_REGISTER_SERIALIZER = "api.serializers.CustomRegisterSerializer"
+REST_AUTH_REGISTER_SERIALIZER = "apps.api.serializers.CustomRegisterSerializer"
 
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(minutes=15),

@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from .models import Project, TimeEntry
-from clients.serializers import ClientSerializer
+from apps.clients.serializers import ClientSerializer
 
 class ProjectSerializer(serializers.ModelSerializer):
     client = ClientSerializer(read_only=True)

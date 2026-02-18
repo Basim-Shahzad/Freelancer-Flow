@@ -9,9 +9,9 @@ from rest_framework.decorators import api_view
 from .serializers import InvoiceSerializer, InvoiceItemSerializer
 from rest_framework.decorators import permission_classes
 from .utils import render_pdf
-from projects.models import Project, TimeEntry
+from apps.projects.models import Project, TimeEntry
 from django.db.models import Sum
-from clients.models import Client
+from apps.clients.models import Client
 from django.db import transaction
 from rest_framework.pagination import PageNumberPagination
 
