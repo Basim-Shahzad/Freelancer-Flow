@@ -8,7 +8,6 @@ interface AuthState {
    isInitialized: boolean;
    setAuth: (user: User | null) => void;
    logout: () => void;
-   clearAuth: () => void;
    setInitialized: (initialized: boolean) => void;
 }
 
@@ -16,29 +15,18 @@ export const useAuthStore = create<AuthState>()(
    persist(
       (set) => ({
          user: null,
-         isAuthenticated: !!localStorage.getItem("access"),
+         isAuthenticated: false,
          isInitialized: false,
 
          setAuth: (user) => {
-            if (user) {
-               set({ user, isAuthenticated: true, isInitialized: true });
-            } else {
-               set({ user: null, isAuthenticated: false, isInitialized: true });
-            }
+            set({
+               user,
+               isAuthenticated: !!user,
+               isInitialized: true,
+            });
          },
 
          logout: () => {
-            try {
-               localStorage.removeItem("access");
-               localStorage.removeItem("refresh");
-            } catch (error) {
-               console.error("Error clearing localStorage:", error);
-            }
-
-            set({ user: null, isAuthenticated: false });
-         },
-
-         clearAuth: () => {
             set({ user: null, isAuthenticated: false });
          },
 
@@ -48,9 +36,13 @@ export const useAuthStore = create<AuthState>()(
       }),
       {
          name: "auth-storage",
-         partialize: (state) => ({
-            user: state.user,
-         }),
+         partialize: (state) => ({ user: state.user }),
+         onRehydrateStorage: () => (state) => {
+            if (state) {
+               state.isAuthenticated = !!state.user;
+               state.isInitialized = !!state.user;
+            }
+         },
       },
    ),
 );

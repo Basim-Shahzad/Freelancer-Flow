@@ -1,7 +1,7 @@
 import { createContext, useContext, type ReactNode } from "react";
 import axios, { type AxiosInstance, type AxiosError, type InternalAxiosRequestConfig } from "axios";
 
-const API_BASE = "http://localhost:8000/api";
+const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000/api";
 
 const api: AxiosInstance = axios.create({
    baseURL: API_BASE,
@@ -11,51 +11,54 @@ const api: AxiosInstance = axios.create({
    withCredentials: true,
 });
 
-api.interceptors.request.use(
-   (config: InternalAxiosRequestConfig) => {
-      const token = localStorage.getItem("access");
-      if (token) {
-         config.headers.Authorization = `Bearer ${token}`;
-      }
-      return config;
-   },
-   (error) => Promise.reject(error)
-);
+let isRefreshing = false;
+let failedQueue: {
+   resolve: (value?: unknown) => void;
+   reject: (reason?: unknown) => void;
+}[] = [];
+
+const processQueue = (error: unknown) => {
+   failedQueue.forEach(({ resolve, reject }) => {
+      if (error) reject(error);
+      else resolve();
+   });
+   failedQueue = [];
+};
 
 api.interceptors.response.use(
    (response) => response,
    async (error: AxiosError) => {
-      const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
+      const originalRequest = error.config as InternalAxiosRequestConfig & {
+         _retry?: boolean;
+      };
 
-      if (error.response?.status === 401 && !originalRequest._retry) {
-         originalRequest._retry = true;
-
-         const refreshToken = localStorage.getItem("refresh");
-         if (!refreshToken) {
-            localStorage.removeItem("access");
-            localStorage.removeItem("refresh");
-            window.location.href = "/login";
-            return Promise.reject(error);
-         }
-
-         try {
-            const res = await axios.post<{ access: string }>(`${API_BASE}/token/refresh/`, { refresh: refreshToken });
-
-            const { access } = res.data;
-            localStorage.setItem("access", access);
-            originalRequest.headers.Authorization = `Bearer ${access}`;
-
-            return api(originalRequest);
-         } catch {
-            localStorage.removeItem("access");
-            localStorage.removeItem("refresh");
-            window.location.href = "/login";
-            return Promise.reject(error);
-         }
+      if (error.response?.status !== 401 || originalRequest._retry) {
+         return Promise.reject(error);
       }
 
-      return Promise.reject(error);
-   }
+      if (isRefreshing) {
+         return new Promise((resolve, reject) => {
+            failedQueue.push({ resolve, reject });
+         })
+            .then(() => api(originalRequest))
+            .catch((err) => Promise.reject(err));
+      }
+
+      originalRequest._retry = true;
+      isRefreshing = true;
+
+      try {
+         await axios.post(`${API_BASE}/auth/token/refresh/`, {}, { withCredentials: true });
+         processQueue(null);
+         return api(originalRequest);
+      } catch (refreshError) {
+         processQueue(refreshError);
+         window.location.href = "/login";
+         return Promise.reject(refreshError);
+      } finally {
+         isRefreshing = false;
+      }
+   },
 );
 
 type ApiContextType = {

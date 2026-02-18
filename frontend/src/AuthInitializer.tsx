@@ -9,18 +9,8 @@ import { useAuthStore } from "@/features/auth/store.js";
  * It initializes the auth state on app load by checking for existing tokens
  * and fetching the current user if authenticated.
  *
- * Usage in App.tsx:
- * ```tsx
- * function App() {
- *   return (
- *     <QueryClientProvider client={queryClient}>
- *       <AuthInitializer />
- *       <RouterProvider router={router} />
- *     </QueryClientProvider>
- *   );
- * }
- * ```
  */
+
 export const AuthInitializer = () => {
    const { isLoading, isError } = useCurrentUser();
    const { setInitialized, isInitialized } = useAuthStore();

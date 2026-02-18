@@ -8,7 +8,6 @@ import { ApiProvider } from "./hooks/useApi.js";
 import { HeroUIProvider } from "@heroui/system";
 import { InvoicesProvider } from "./Contexts/InvoicesContext.js";
 // import { TimerProvider } from "./Contexts/TimerContext.js";
-import { AuthProvider } from "@/Contexts/AuthContext.js";
 
 import Dashboard from "./pages/dashboard/Dashboard.jsx";
 import Projects from "./pages/ProjectsPage.jsx";
@@ -21,8 +20,8 @@ import NotFound from "./pages/miscPages/NotFound.jsx";
 import { QueryClientProvider, QueryClient } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import Invoices from "./pages/InvoicesPage.js";
-import InvoiceCreate from "./pages/InvoiceCreate/InvoiceCreate.js";
 import InvoiceDetail from "./pages/invoiceDetail/InvoiceDetail.js";
+import InvoiceCreate from "./pages/InvoiceCreatePage.js";
 import { TimeTrackingPage } from "./pages/TimeTrackingPage.js";
 import { LoginPage } from "./pages/LoginPage.js";
 import { SignupPage } from "./pages/SignupPage.js";

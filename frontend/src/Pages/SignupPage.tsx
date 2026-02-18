@@ -25,7 +25,7 @@ export const SignupPage = () => {
       mode: "onBlur",
    });
 
-   const password = watch("password");
+   const password = watch("password1");
 
    const onSubmit = async (data) => {
       try {
@@ -155,21 +155,21 @@ export const SignupPage = () => {
                         )}
                      </div>
                      <div>
-                        <label htmlFor="password" className="block text-sm font-medium text-white/75">
+                        <label htmlFor="password1" className="block text-sm font-medium text-white/75">
                            Password
                         </label>
                         <input
                            type="password"
-                           id="password"
+                           id="password1"
                            disabled={isPending}
                            placeholder="••••••••"
                            autoComplete="new-password"
                            className={`w-full px-4 py-2 bg-transparent border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-white placeholder-gray-500 transition-all duration-200 ${
                               isPending ? "opacity-50 cursor-not-allowed" : ""
-                           } ${errors.password ? "border-red-500 focus:ring-red-500" : ""}`}
-                           aria-invalid={errors.password ? "true" : "false"}
-                           aria-describedby={errors.password ? "password-error" : undefined}
-                           {...register("password", {
+                           } ${errors.password1 ? "border-red-500 focus:ring-red-500" : ""}`}
+                           aria-invalid={errors.password1 ? "true" : "false"}
+                           aria-describedby={errors.password1 ? "password-error" : undefined}
+                           {...register("password1", {
                               required: "Password is required",
                               minLength: {
                                  value: 8,
@@ -181,12 +181,12 @@ export const SignupPage = () => {
                               },
                            })}
                         />
-                        {errors.password && (
+                        {errors.password1 && (
                            <span id="password-error" className="text-red-500 text-sm mt-1 block" role="alert">
-                              {errors.password.message as string}
+                              {errors.password1.message as string}
                            </span>
                         )}
-                        {password && password.length > 0 && !errors.password && (
+                        {password && password.length > 0 && !errors.password1 && (
                            <div className="mt-2 space-y-1">
                               <div className="flex items-center gap-2">
                                  <div
