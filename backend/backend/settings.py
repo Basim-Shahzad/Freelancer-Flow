@@ -76,9 +76,13 @@ INSTALLED_APPS = [
 
 SITE_ID = 1
 
+# Allauth configuration
+ACCOUNT_LOGIN_METHODS = {"email"}
+ACCOUNT_SIGNUP_FIELDS = ["email*", "password1*"]
+
 AUTHENTICATION_BACKENDS = (
-    'django.contrib.auth.backends.ModelBackend',
-    'allauth.account.auth_backends.AuthenticationBackend',
+    "django.contrib.auth.backends.ModelBackend",
+    "allauth.account.auth_backends.AuthenticationBackend",
 )
 
 # cors settings
@@ -127,22 +131,21 @@ REST_AUTH = {
     'JWT_AUTH_HTTPONLY': True,
     'JWT_AUTH_SECURE': True,  # Set to True in production (HTTPS)
     'JWT_AUTH_SAMESITE': 'Lax',
+    "REGISTER_SERIALIZER": "api.serializers.CustomRegisterSerializer",
 }
 
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+REST_AUTH_REGISTER_SERIALIZER = "api.serializers.CustomRegisterSerializer"
 
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(minutes=15),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
     'ROTATE_REFRESH_TOKENS': True,
-    'BLACKLIST_AFTER_ROTATION': True,
+    'BLACKLIST_AFTER_ROTATION': True,
     'USER_ID_FIELD': 'id',
     'USER_ID_CLAIM': 'user_id',
     'CHECK_USER_IS_ACTIVE': True
 }
-
-AUTHENTICATION_BACKENDS = [
-    "django.contrib.auth.backends.ModelBackend",
-]
 
 MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",  # must be at the top
