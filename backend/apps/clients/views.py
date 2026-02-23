@@ -1,78 +1,106 @@
 from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
-from .serializers import ClientSerializer
+from rest_framework import generics
+from .serializers import ClientSerializer, ClientListSerializer
 from .models import Client
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import permission_classes
 from django.contrib.auth import get_user_model
+from django.db import transaction
 from rest_framework.pagination import PageNumberPagination
 
 User = get_user_model()
 
+
 class ClientPagination(PageNumberPagination):
-   page_size = 10
-   page_size_query_param = 'page_size'
+    page_size = 10
+    page_size_query_param = "page_size"
 
-@api_view(["POST"])
-@permission_classes([IsAuthenticated])
-def create_client(request):
-    serializer = ClientSerializer(data=request.data)
-    if serializer.is_valid():
-      serializer.save(user=request.user)
-      return Response(serializer.data, status=status.HTTP_201_CREATED)
-    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-@api_view(["GET"])
-@permission_classes([IsAuthenticated])
-def get_client_list(request):
-    clients = Client.objects.filter(user=request.user)
-    
-    if request.query_params.get('paginate') == 'false':
-        serializer = ClientSerializer(clients, many=True)
-        return Response({'clients': serializer.data, 'total': clients.count()})
-    
-    paginator = ClientPagination()
-    paginated_clients = paginator.paginate_queryset(clients, request)
-    serializer = ClientSerializer(paginated_clients, many=True)
-    
-    return Response({'clients': serializer.data, 'total': clients.count()})
-        
-@api_view(["PUT", "PATCH"])
-@permission_classes([IsAuthenticated])
-def update_client(request, pk):
-    try:
-        client = Client.objects.get(pk=pk, user=request.user)
-    except Client.DoesNotExist:
-        return Response(status=status.HTTP_404_NOT_FOUND)
+class ClientsListCreateApiView(generics.ListCreateAPIView):
+    permission_classes = [IsAuthenticated]
+    pagination_class = ClientPagination
 
-    serializer = ClientSerializer(client, data=request.data, partial=(request.method == "PATCH"))
-    if serializer.is_valid():
-        serializer.save()
-        return Response(serializer.data)
+    def get_serializer_class(self):
+        """Use different serializers for list and create"""
+        if self.request.method == "GET":
+            return ClientListSerializer
+        return ClientSerializer
 
-    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    def get_queryset(self):
+        queryset = Client.objects.filter(user=self.request.user)
+        return queryset
 
-@api_view(["DELETE"])
-@permission_classes([IsAuthenticated])
-def delete_client(request, pk):
-    try:
-        client = Client.objects.get(pk=pk, user=request.user)
-    except Client.DoesNotExist:
-        return Response(status=status.HTTP_404_NOT_FOUND)
-    
-    client.delete()
-    return Response(status=status.HTTP_204_NO_CONTENT)
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
 
-@api_view(["GET"])
-@permission_classes([IsAuthenticated])
-def get_clients_total(request):
-    try:
-        user = User.objects.get(id=request.user.id)
-        return Response({'clientsTotal': len(user.clients.all()) })
-    
-    except User.DoesNotExist:
-        return Response({'detail': 'User not found'}, status=404)
-    
-    except Exception as e:
-        return Response({'detail': 'Error occurred'}, status=400)
+    def create(self, request, *args, **kwargs):
+        """Handle POST request to create client"""
+        # Add user_id to the data for validation
+        data = request.data.copy()
+        data["user_id"] = request.user.id
+
+        serializer = self.get_serializer(data=data)
+        serializer.is_valid(raise_exception=True)
+
+        with transaction.atomic():
+            self.perform_create(serializer)
+
+        # Return the created client with all related data prefetched
+        client = Client.objects.get(id=serializer.instance.id)
+
+        return Response(ClientSerializer(client).data, status=status.HTTP_201_CREATED)
+
+    def list(self, request, *args, **kwargs):
+        """Handle GET request to list clients"""
+        queryset = self.get_queryset()
+
+        # Handle pagination parameter
+        if request.query_params.get("paginate") == "false":
+            serializer = self.get_serializer(queryset, many=True)
+            return Response({"clients": serializer.data, "count": queryset.count()})
+
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response({"clients": serializer.data})
+
+        serializer = self.get_serializer(queryset, many=True)
+        return Response({"clients": serializer.data, "count": queryset.count()})
+
+
+class ClientRetrieveUpdateDestroyApiView(generics.RetrieveUpdateDestroyAPIView):
+    serializer_class = ClientSerializer
+    permission_classes = [IsAuthenticated]
+    lookup_url_kwarg = "id"
+    lookup_field = "id"
+
+    def get_queryset(self):
+        return Client.objects.filter(user=self.request.user)
+
+    def destroy(self, request, *args, **kwargs):
+        """Handle DELETE request to delete a Client"""
+        instance = self.get_object()
+        self.perform_destroy(instance)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    def update(self, request, *args, **kwargs):
+        """Handle PUT request to update a Client"""
+        partial = kwargs.pop("partial", False)
+        instance = self.get_object()
+
+        # Add user_id to the data for validation
+        data = request.data.copy()
+        data["user_id"] = request.user.id
+
+        serializer = self.get_serializer(instance, data=data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+
+        with transaction.atomic():
+            self.perform_update(serializer)
+
+        # Return the updated client with all related data prefetched
+        client = Client.objects.get(id=serializer.instance.id)
+
+        return Response(ClientSerializer(client).data)

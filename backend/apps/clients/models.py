@@ -1,7 +1,13 @@
 from django.db import models
 from django.conf import settings
+import uuid
 
 class Client(models.Model):
+    id = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        editable=False,
+    )
     user = models.ForeignKey('api.User', on_delete=models.CASCADE, related_name='clients')
     name = models.CharField(max_length=255)
     email = models.EmailField(blank=True)

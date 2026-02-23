@@ -1,10 +1,7 @@
 from django.urls import path, include
-from .views import create_client, get_client_list, update_client, delete_client, get_clients_total
+from . import views
 
 urlpatterns = [
-    path("create-client/", create_client, name="create-client"),
-    path("clients/", get_client_list, name="client-list"),
-    path("clients-total/", get_clients_total, name="client-total"),
-    path("clients/<int:pk>/update/", update_client, name="update-client"),
-    path("clients/<int:pk>/delete/", delete_client, name="delete-client"),
+    path("clients/", views.ClientsListCreateApiView.as_view(), name="client_create_list"),
+    path("clients/<uuid:id>/", views.ClientRetrieveUpdateDestroyApiView.as_view(), name="client_retrieve_update_destroy"),
 ]
