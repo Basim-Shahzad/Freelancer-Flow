@@ -38,7 +38,7 @@ class Project(models.Model):
     # Time Related Fields
     total_time_spent = models.PositiveIntegerField(default=0)  # total time in minutes
 
-    # Finance Related Fields ( Either Fixed or based on Hourly rate )
+    # Finance Related Fields
     hourly_rate = models.DecimalField(
         max_digits=10, decimal_places=2, null=True, blank=True
     )
@@ -52,32 +52,27 @@ class Project(models.Model):
 
     @property
     def is_hourly_basis(self):
-        """
-        Checks if the project is billed on an hourly basis.
-        Returns True if hourly_rate exists, False if fixed_rate exists.
-        """
-        # If hourly_rate is set, it's hourly.
-        # If hourly_rate is None but fixed_rate exists, it's fixed.
         return self.hourly_rate is not None
 
     @property
     def pricing_type(self):
-        """Returns a string representation of the pricing model."""
         return "Hourly" if self.is_hourly_basis else "Fixed Price"
 
     def get_time_total_spent(self):
-        return sum(
-            entry.duration_minutes
-            for entry in self.time_entries.all()
-            if entry.duration_minutes
+        """Sums duration from related time entries."""
+        # Using .aggregate is more efficient than a Python loop for large datasets
+        return (
+            self.time_entries.aggregate(total=models.Sum("duration_minutes"))["total"]
+            or 0
         )
 
     def get_hourly_rate(self, user):
         return self.hourly_rate if self.hourly_rate is not None else user.hourly_rate
 
     def update_total_time(self):
-        self.total_time = self.calculate_time_spent()
-        super().save(update_fields=["total_time"])
+        """Syncs the total_time_spent field with the actual sum of entries."""
+        self.total_time_spent = self.get_time_total_spent()
+        self.save(update_fields=["total_time_spent"])
 
     def __str__(self):
         return self.name
