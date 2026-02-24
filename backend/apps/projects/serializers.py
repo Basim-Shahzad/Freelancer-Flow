@@ -1,33 +1,51 @@
 from rest_framework import serializers
-from .models import Project, TimeEntry
+from .models import Project
 from apps.clients.serializers import ClientSerializer
+
 
 class ProjectSerializer(serializers.ModelSerializer):
     client = ClientSerializer(read_only=True)
     client_id = serializers.PrimaryKeyRelatedField(
-        queryset=Project._meta.get_field('client').remote_field.model.objects.all(),
-        source='client',
-        write_only=True
+        queryset=Project._meta.get_field("client").remote_field.model.objects.all(),
+        source="client",
+        write_only=True,
     )
 
     class Meta:
         model = Project
         fields = [
-            "id", "name", "description", "created_at", "due_date", "total_time", "status", "updated_at", "hourly_rate", 'client_id', 'client', 'time_tracking'
+            "id",
+            "name",
+            "description",
+            "due_date",
+            "status",
+            "total_time_spent",
+            "hourly_rate",
+            "fixed_rate",
+            "client_id",
+            "client",
+            "created_at",
+            "is_hourly_basis",
+            "pricing_type",
         ]
-        
-class TimeEntrySerializer(serializers.ModelSerializer):
-    project = ProjectSerializer(read_only=True)
-    project_id = serializers.PrimaryKeyRelatedField(
-        queryset=Project.objects.all(),
-        source='project',
-        write_only=True
-    )
+
+
+class ProjectListSerializer(serializers.ModelSerializer):
+    client_name = serializers.CharField(source="client.name", read_only=True)
 
     class Meta:
-        model = TimeEntry
+        model = Project
         fields = [
-            "id", "description", "created_at", "start_time", "end_time", 
-            "duration_minutes", "is_billable", "invoiced", 'invoice', 
-            'updated_at', 'project', 'project_id'
+            "id",
+            "name",
+            "description",
+            "due_date",
+            "status",
+            "total_time_spent",
+            "hourly_rate",
+            "fixed_rate",
+            "client_name",
+            "created_at",
+            "is_hourly_basis",
+            "pricing_type",
         ]

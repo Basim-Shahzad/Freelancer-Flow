@@ -1,154 +1,103 @@
 from rest_framework import status
-from rest_framework.decorators import api_view
 from rest_framework.response import Response
-from .serializers import ProjectSerializer, TimeEntrySerializer
-from .models import Project, TimeEntry
+from rest_framework import generics
+from .serializers import ProjectSerializer, ProjectListSerializer
+from .models import Project
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import permission_classes
 from django.contrib.auth import get_user_model
-from django.shortcuts import get_object_or_404
+from django.db import transaction
 from rest_framework.pagination import PageNumberPagination
-from apps.payments.models import InvoiceItem, Invoice
 
 User = get_user_model()
 
-class ProjectPagination(PageNumberPagination):
-   page_size = 12 # items per page
-   page_size_query_param = 'page_size'
+class ProjectsPagination(PageNumberPagination):
+    page_size = 12
+    page_size_query_param = "page_size"
 
-class TimeEntryPagination(PageNumberPagination):
-   page_size = 8 # items per page
-   page_size_query_param = 'page_size'
+class ProjectsListCreateApiView(generics.ListCreateAPIView):
+    permission_classes = [IsAuthenticated]
+    pagination_class = ProjectsPagination
 
-@api_view(["POST"])
-@permission_classes([IsAuthenticated])
-def create_project(request):
-    serializer = ProjectSerializer(data=request.data)
-    if serializer.is_valid():
-        serializer.save(user=request.user)
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
-    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    def get_serializer_class(self):
+        """Use different serializers for list and create"""
+        if self.request.method == "GET":
+            return ProjectListSerializer
+        return ProjectSerializer
 
-@api_view(["GET"])
-@permission_classes([IsAuthenticated])
-def get_project_list(request):
-  projects = Project.objects.filter(user=request.user).order_by('due_date')  
+    def get_queryset(self):
+        queryset = Project.objects.filter(user=self.request.user)
+        return queryset
 
-  if request.query_params.get('paginate') == 'false':
-        serializer = ProjectSerializer(projects, many=True)
-        return Response({'projects': serializer.data, 'total': projects.count()})
-  
-  paginator = ProjectPagination()
-  paginated_projects = paginator.paginate_queryset(projects, request)
-  serializer = ProjectSerializer(paginated_projects, many=True)
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
 
-  return Response({ 'projects' : serializer.data, 'total': projects.count()})
+    def create(self, request, *args, **kwargs):
+        """Handle POST request to create Project"""
+        # Add user_id to the data for validation
+        data = request.data.copy()
+        data["user_id"] = request.user.id
 
-@api_view(["GET"])
-@permission_classes([IsAuthenticated])
-def get_project(request, pk):
-    try:
-        project = get_object_or_404(Project, pk=pk)
-        serializer = ProjectSerializer(project)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        serializer = self.get_serializer(data=data)
+        serializer.is_valid(raise_exception=True)
 
-    except Exception as e:
-        return Response(
-            serializer.errors,
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR
-        )
-    
-@api_view(["PATCH"])
-@permission_classes([IsAuthenticated])
-def update_project_status(request, pk):
-    try :
-        project = Project.objects.get(pk=pk, user=request.user)
-    except Project.DoesNotExist:
-        return Response(
-            {"error": "Project not found or you don't have permission to update it"},
-            status=status.HTTP_404_NOT_FOUND
-        )
-    serializer = ProjectSerializer(project, data=request.data, partial=True)
-    if serializer.is_valid():
-        serializer.save()
-        return Response(serializer.data, status=status.HTTP_200_OK)
-    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        with transaction.atomic():
+            self.perform_create(serializer)
+
+        # Return the created project with all related data prefetched
+        project = Project.objects.get(id=serializer.instance.id)
+
+        return Response(ProjectSerializer(project).data, status=status.HTTP_201_CREATED)
+
+    def list(self, request, *args, **kwargs):
+        """Handle GET request to list projects"""
+        queryset = self.get_queryset()
+
+        # Handle pagination parameter
+        if request.query_params.get("paginate") == "false":
+            serializer = self.get_serializer(queryset, many=True)
+            return Response({"projects": serializer.data, "count": queryset.count()})
+
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response({"projects": serializer.data})
+
+        serializer = self.get_serializer(queryset, many=True)
+        return Response({"projects": serializer.data, "count": queryset.count()})
 
 
-@api_view([ "GET" ])
-@permission_classes([IsAuthenticated])
-def get_clients_project_list(request, pk):
-  projects = Project.objects.filter(user=request.user, client=pk)
-  serializer = ProjectSerializer(projects, many=True)
-  return Response({ 'projects' : serializer.data})
+class ProjectRetrieveUpdateDestroyApiView(generics.RetrieveUpdateDestroyAPIView):
+    serializer_class = ProjectSerializer
+    permission_classes = [IsAuthenticated]
+    lookup_url_kwarg = "id"
+    lookup_field = "id"
 
-@api_view(["PUT", "PATCH"])
-@permission_classes([IsAuthenticated])
-def update_project(request, pk):
-    try:
-        project = Project.objects.get(pk=pk, user=request.user)
-    except Project.DoesNotExist:
-        return Response(status=status.HTTP_404_NOT_FOUND)
+    def get_queryset(self):
+        return Project.objects.filter(user=self.request.user)
 
-    serializer = ProjectSerializer(project, data=request.data, partial=(request.method == "PATCH"))
-    if serializer.is_valid():
-        serializer.save()
-        return Response(serializer.data)
-    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    def destroy(self, request, *args, **kwargs):
+        """Handle DELETE request to delete a Project"""
+        instance = self.get_object()
+        self.perform_destroy(instance)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
-@api_view(["DELETE"])
-@permission_classes([IsAuthenticated])
-def delete_project(request, pk):
-    try:
-        project = Project.objects.get(pk=pk, user=request.user)
-    except Project.DoesNotExist:
-        return Response(status=status.HTTP_404_NOT_FOUND)
-    
-    project.delete()
-    return Response(status=status.HTTP_204_NO_CONTENT)
+    def update(self, request, *args, **kwargs):
+        """Handle PUT request to update a Project"""
+        partial = kwargs.pop("partial", False)
+        instance = self.get_object()
 
-@api_view(["GET"])
-@permission_classes([IsAuthenticated])
-def get_projects_total(request):
-   user = User.objects.get(id=request.user.id)
-   return Response({'projectsTotal': len(user.projects.all()) })
+        # Add user_id to the data for validation
+        data = request.data.copy()
+        data["user_id"] = request.user.id
 
-#  TIME TRACKING VIEWS
+        serializer = self.get_serializer(instance, data=data, partial=partial)
+        serializer.is_valid(raise_exception=True)
 
-@api_view(['POST'])
-@permission_classes([IsAuthenticated])
-def create_time_entry(request):
-    serializer = TimeEntrySerializer(data=request.data)
-    if serializer.is_valid():
-        serializer.save(user=request.user)
-        return Response(serializer.data, status=201)
-    return Response(serializer.errors, status=400)
+        with transaction.atomic():
+            self.perform_update(serializer)
 
-@api_view([ "GET" ])
-@permission_classes([IsAuthenticated])
-def get_time_entries(request):
-    time_entries = TimeEntry.objects.filter(user=request.user).order_by('-created_at')
+        # Return the updated project with all related data prefetched
+        project = Project.objects.get(id=serializer.instance.id)
 
-    if request.query_params.get('paginate') == 'false':
-        serializer = TimeEntrySerializer(time_entries, many=True)
-        return Response({'timeEntries' : serializer.data, 'total' : time_entries.count()}, status=status.HTTP_200_OK)
-    
-    paginator = TimeEntryPagination()
-    paginated_Time_entries = paginator.paginate_queryset(time_entries, request)
-    serializer = TimeEntrySerializer(paginated_Time_entries, many=True)
-
-    return Response({ 'timeEntries' : serializer.data, 'total': time_entries.count()}, status=status.HTTP_200_OK)
-
-@api_view(["PUT", "PATCH"])
-@permission_classes([IsAuthenticated])
-def update_time_entry(request, pk):
-    try:
-        entry = TimeEntry.objects.get(pk=pk, user=request.user)
-    except TimeEntry.DoesNotExist:
-        return Response(status=status.HTTP_404_NOT_FOUND)
-    
-    serializer = TimeEntrySerializer(entry, data=request.data, partial=(request.method == "PATCH"))
-    if serializer.is_valid():
-        serializer.save()
-        return Response(serializer.data)
-    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        return Response(ProjectSerializer(project).data)
