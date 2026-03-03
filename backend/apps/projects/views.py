@@ -1,7 +1,11 @@
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework import generics
-from .serializers import ProjectSerializer, ProjectListSerializer
+from .serializers import (
+    ProjectSerializer,
+    ProjectsListSerializer,
+    NonPaginatedProjectsListSerializer,
+)
 from .models import Project
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import permission_classes
@@ -11,9 +15,11 @@ from rest_framework.pagination import PageNumberPagination
 
 User = get_user_model()
 
+
 class ProjectsPagination(PageNumberPagination):
     page_size = 12
     page_size_query_param = "page_size"
+
 
 class ProjectsListCreateApiView(generics.ListCreateAPIView):
     permission_classes = [IsAuthenticated]
@@ -22,7 +28,7 @@ class ProjectsListCreateApiView(generics.ListCreateAPIView):
     def get_serializer_class(self):
         """Use different serializers for list and create"""
         if self.request.method == "GET":
-            return ProjectListSerializer
+            return ProjectsListSerializer
         return ProjectSerializer
 
     def get_queryset(self):
@@ -54,9 +60,11 @@ class ProjectsListCreateApiView(generics.ListCreateAPIView):
         queryset = self.get_queryset()
 
         # Handle pagination parameter
-        if request.query_params.get("paginate") == "false":
-            serializer = self.get_serializer(queryset, many=True)
-            return Response({"projects": serializer.data, "count": queryset.count()})
+        if request.query_params.get("paginate", "true").lower() == "false":
+            serializer = NonPaginatedProjectsListSerializer(queryset, many=True)
+            return Response(
+                {"projects": serializer.data, "count": queryset.count()}
+            )
 
         page = self.paginate_queryset(queryset)
         if page is not None:

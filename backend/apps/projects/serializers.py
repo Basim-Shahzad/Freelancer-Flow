@@ -14,23 +14,26 @@ class ProjectSerializer(serializers.ModelSerializer):
     class Meta:
         model = Project
         fields = [
+            # Model Fields
             "id",
+            "client",
+            "client_id",
             "name",
             "description",
-            "due_date",
             "status",
+            "due_date",
             "total_time_spent",
             "hourly_rate",
             "fixed_rate",
-            "client_id",
-            "client",
             "created_at",
+            "updated_at",
+            # Properties
             "is_hourly_basis",
             "pricing_type",
         ]
 
 
-class ProjectListSerializer(serializers.ModelSerializer):
+class ProjectsListSerializer(serializers.ModelSerializer):
     client_name = serializers.CharField(source="client.name", read_only=True)
 
     class Meta:
@@ -38,14 +41,23 @@ class ProjectListSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "name",
-            "description",
             "due_date",
             "status",
             "total_time_spent",
             "hourly_rate",
             "fixed_rate",
             "client_name",
-            "created_at",
             "is_hourly_basis",
             "pricing_type",
+            "created_at",
+        ]
+
+
+class NonPaginatedProjectsListSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Project
+        fields = [
+            "id",
+            "name",
+            "created_at",
         ]
