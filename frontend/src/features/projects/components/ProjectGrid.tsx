@@ -12,28 +12,9 @@ const ProjectGrid = () => {
       pageSize: 12,
    });
 
-   const { data: response, isLoading, isError } = useProjects(pagination.pageIndex + 1, pagination.pageSize);
-   
-   const projects = response?.items ?? [];
-   const totalCount = response?.total ?? 0;
-   const totalPages = Math.ceil(totalCount / pagination.pageSize);
+   const { data: projectsData, isLoading: projectsLoading, isError: projectsIsError, error: projectsError } = useProjects(true);
 
-   const canPrevious = pagination.pageIndex > 0;
-   const canNext = pagination.pageIndex < totalPages - 1;
-
-   const handlePrevious = () => {
-      if (canPrevious) {
-         setPagination(prev => ({ ...prev, pageIndex: prev.pageIndex - 1 }));
-      }
-   };
-
-   const handleNext = () => {
-      if (canNext) {
-         setPagination(prev => ({ ...prev, pageIndex: prev.pageIndex + 1 }));
-      }
-   };
-
-   if (isLoading) {
+   if (projectsLoading) {
       return (
          <div className="flex justify-center items-center py-20">
             <Spinner color="secondary" size="lg" />
@@ -41,7 +22,7 @@ const ProjectGrid = () => {
       );
    }
 
-   if (isError) {
+   if (projectsIsError) {
       return (
          <div className="text-center py-20">
             <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-red-500/10 dark:bg-red-500/20 mb-4">
@@ -49,13 +30,12 @@ const ProjectGrid = () => {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                </svg>
             </div>
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Failed to load projects</h3>
-            <p className="text-sm text-gray-600 dark:text-gray-400">Please try again later</p>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">{projectsError.message ?? `Failed to load projects`}</h3>
          </div>
       );
    }
 
-   if (projects.length === 0) {
+   if (projectsData?.count === 0) {
       return (
          <div className="text-center py-20">
             <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gray-100 dark:bg-gray-800 mb-4">
@@ -73,13 +53,13 @@ const ProjectGrid = () => {
       <div className="space-y-6">
          {/* Projects Grid */}
          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {projects.map((p: Project) => (
+            {projectsData?.results.projects.map((p) => (
                <ProjectCard key={p.id} project={p} />
             ))}
          </div>
 
          {/* Pagination */}
-         {totalPages > 1 && (
+         {/* {totalPages > 1 && (
             <div className="flex items-center justify-between px-4 py-4 bg-white dark:bg-gray-950 border border-gray-200 dark:border-white/10 rounded-xl">
                <div className="flex items-center gap-2">
                   <p className="text-sm text-gray-600 dark:text-gray-400">
@@ -109,7 +89,7 @@ const ProjectGrid = () => {
                   </button>
                </div>
             </div>
-         )}
+         )} */}
       </div>
    );
 };
