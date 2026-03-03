@@ -1,12 +1,10 @@
-import React from "react";
-import { IoIosAdd, IoMdSearch } from "react-icons/io";
+import { IoIosAdd } from "react-icons/io";
 import { MdFileDownload } from "react-icons/md";
 import ClientsAddModal from "./ClientsAddModal.js";
 import { useDisclosure } from "@heroui/react";
-import ClientsDataTable from "./ClientsDataTable.js";
 
 const ClientsHeader = () => {
-   const { isOpen , onOpen, onOpenChange } = useDisclosure();
+   const { isOpen, onOpen, onOpenChange } = useDisclosure();
 
    return (
       <div className="flex flex-col gap-5 px-4 lg:px-8">

@@ -1,18 +1,42 @@
 export interface Client {
-   id: number;
+   id: string;
    name: string;
    email?: string;
    phone?: string;
    company?: string;
    address?: string;
-   tax_id?: string;
+   taxId?: string;
    notes?: string;
-   created_at?: string;
-   updated_at?: string;
-   user?: number;
+   createdAt: string;
+   updatedAt?: string;
 }
 
-export interface PaginatedResponse<T> {
-   items: T[];
-   total: number;
+interface ClientInList {
+   id: string;
+   name: string;
+   createdAt: string;
+   email?: string;
+   phone?: string;
+   projects: {
+      id: string;
+      name: string;
+   }[];
 }
+
+export type nonPaginatedClientListResponse = {
+   count: number;
+   clients: {
+      id: string;
+      name: string;
+      createdAt: string;
+   }[];
+};
+
+export type PaginatedClientListResponse = {
+   count: number;
+   next: any;
+   previous: any;
+   results: {
+      clients: ClientInList[];
+   };
+};

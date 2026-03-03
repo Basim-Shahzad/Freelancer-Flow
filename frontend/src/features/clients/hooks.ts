@@ -1,16 +1,18 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { clientsApi } from "./api.js";
 import { useAuthStore } from "@/features/auth/store.js";
-import type { Client } from "./types.js";
-import toast from "react-hot-toast";
+import type { Client, PaginatedClientListResponse, nonPaginatedClientListResponse } from "./types.js";
+import { toast } from "react-hot-toast";
 
-export const useClients = (page?: number, size?: number) => {
+export const useClients = <T extends boolean>(paginate: T) => {
    const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
-   const params = page && size ? { page, size } : { paginate: 'false' };
 
    return useQuery({
-      queryKey: ["clients", page, size],
-      queryFn: () => clientsApi.getClients(params), 
+      queryKey: ["clients", paginate],
+      queryFn: () =>
+         clientsApi.getClients(paginate) as Promise<
+            T extends true ? PaginatedClientListResponse : nonPaginatedClientListResponse
+         >,
       enabled: isAuthenticated,
       staleTime: 1000 * 60 * 5,
    });
@@ -27,7 +29,7 @@ export const useCreateClient = () => {
       },
       onError: (error: any) => {
          toast.error(error?.response?.data?.message || "Failed to create client");
-      }
+      },
    });
 };
 
@@ -35,8 +37,7 @@ export const useUpdateClient = () => {
    const queryClient = useQueryClient();
 
    return useMutation({
-      mutationFn: ({ id, data }: { id: number | string; data: Partial<Client> }) => 
-         clientsApi.updateClient(id, data),
+      mutationFn: ({ id, data }: { id: number | string; data: Partial<Client> }) => clientsApi.updateClient(id, data),
       onSuccess: (updatedClient) => {
          queryClient.invalidateQueries({ queryKey: ["clients"] });
          queryClient.setQueryData(["client", updatedClient.id], updatedClient);
@@ -44,7 +45,7 @@ export const useUpdateClient = () => {
       },
       onError: (error: any) => {
          toast.error(error?.response?.data?.message || "Failed to update client");
-      }
+      },
    });
 };
 
@@ -59,6 +60,6 @@ export const useDeleteClient = () => {
       },
       onError: (error: any) => {
          toast.error(error?.response?.data?.message || "Could not delete client");
-      }
+      },
    });
 };

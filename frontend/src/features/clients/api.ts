@@ -1,34 +1,26 @@
-import type { Client } from "./types.js";
+import type { Client, PaginatedClientListResponse, nonPaginatedClientListResponse } from "./types.js";
 import { api } from "@/hooks/useApi.js";
 
 export const clientsApi = {
-   getClients: async (params?: { page: number; size: number } | { paginate: string }): Promise<{ items: Client[]; total: number }> => {
+   getClients: async (paginate: boolean): Promise<PaginatedClientListResponse | nonPaginatedClientListResponse> => {
       const { data } = await api.get("/clients/", {
-         params: params || { paginate: 'false' },
+         params: { paginate },
       });
-
-      return {
-         items: data.clients || [],
-         total: data.total || data.count || data.clients?.length || 0,
-      };
+      return paginate ? (data as PaginatedClientListResponse) : (data as nonPaginatedClientListResponse);
    },
-
    getClient: async (id: number | string): Promise<Client> => {
       const { data } = await api.get<Client>(`/clients/${id}/`);
       return data;
    },
-
-   createClient: async (clientData: Omit<Client, "id" | "created_at">): Promise<Client> => {
-      const { data } = await api.post<Client>("/create-client/", clientData);
+   createClient: async (clientData: Omit<Client, "id" | "createdAt" | "updatedAt">): Promise<Client> => {
+      const { data } = await api.post<Client>("/clients/", clientData);
       return data;
    },
-
    updateClient: async (id: number | string, clientData: Partial<Client>): Promise<Client> => {
-      const { data } = await api.patch<Client>(`/clients/${id}/update`, clientData);
+      const { data } = await api.patch<Client>(`/clients/${id}/`, clientData);
       return data;
    },
-
    deleteClient: async (id: number | string): Promise<void> => {
-      await api.delete(`/clients/${id}/delete`);
+      await api.delete(`/clients/${id}/`);
    },
 };
