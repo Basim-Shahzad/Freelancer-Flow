@@ -2,7 +2,11 @@ from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import generics
-from .serializers import ClientSerializer, ClientListSerializer
+from .serializers import (
+    ClientSerializer,
+    ClientListSerializer,
+    NonPaginatedClientListSerializer,
+)
 from .models import Client
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import permission_classes
@@ -29,8 +33,9 @@ class ClientsListCreateApiView(generics.ListCreateAPIView):
         return ClientSerializer
 
     def get_queryset(self):
-        queryset = Client.objects.filter(user=self.request.user)
-        return queryset
+        return Client.objects.filter(user=self.request.user).prefetch_related(
+            "projects"
+        )
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
@@ -48,7 +53,9 @@ class ClientsListCreateApiView(generics.ListCreateAPIView):
             self.perform_create(serializer)
 
         # Return the created client with all related data prefetched
-        client = Client.objects.get(id=serializer.instance.id)
+        client = Client.objects.prefetch_related("projects").get(
+            id=serializer.instance.id
+        )
 
         return Response(ClientSerializer(client).data, status=status.HTTP_201_CREATED)
 
@@ -57,8 +64,8 @@ class ClientsListCreateApiView(generics.ListCreateAPIView):
         queryset = self.get_queryset()
 
         # Handle pagination parameter
-        if request.query_params.get("paginate") == "false":
-            serializer = self.get_serializer(queryset, many=True)
+        if request.query_params.get("paginate", "true").lower() == "false":
+            serializer = NonPaginatedClientListSerializer(queryset, many=True)
             return Response({"clients": serializer.data, "count": queryset.count()})
 
         page = self.paginate_queryset(queryset)
