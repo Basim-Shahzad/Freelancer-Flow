@@ -4,28 +4,10 @@ from apps.clients.models import Client
 from apps.projects.models import Project
 from django.db import transaction
 from django.contrib.auth import get_user_model
-from django.shortcuts import get_list_or_404, get_object_or_404
+from apps.clients.serializers import ClientSerializer
+from apps.projects.serializers import ProjectSerializer
 
 User = get_user_model()
-
-
-class ClientSerializer(serializers.ModelSerializer):
-    """Serializer for full client details"""
-
-    class Meta:
-        model = Client
-        fields = "__all__"  # Or specify: ['id', 'name', 'email', 'phone', 'address', 'created_at', 'updated_at']
-        read_only_fields = ["id", "created_at", "updated_at"]
-
-
-class ProjectSerializer(serializers.ModelSerializer):
-    """Serializer for full project details"""
-
-    class Meta:
-        model = Project
-        fields = "__all__"  # Or specify: ['id', 'name', 'description', 'client', 'hourly_rate', 'status', 'created_at', 'updated_at']
-        read_only_fields = ["id", "created_at", "updated_at"]
-
 
 class InvoiceItemSerializer(serializers.ModelSerializer):
     """Serializer for invoice items"""
@@ -80,13 +62,17 @@ class InvoiceSerializer(serializers.ModelSerializer):
         model = Invoice
         fields = [
             "id",
+
             "user_id",
             "client_id",
             "project_id",
+
             "client",  # Full nested object of Client
             "project",  # Full nested object of Project
+
             "invoice_number",
             "is_overdue",
+            "is_hourly_basis",
             "issue_date",
             "due_date",
             "status",
@@ -96,9 +82,9 @@ class InvoiceSerializer(serializers.ModelSerializer):
             "total",
             "notes",
             "payment_date",
+            "items",
             "created_at",
             "updated_at",
-            "items",
         ]
         read_only_fields = [
             "id",

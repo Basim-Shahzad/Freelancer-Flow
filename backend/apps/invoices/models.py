@@ -1,4 +1,8 @@
 from django.db import models
+from django.db.models.signals import post_save, post_delete
+from django.dispatch import receiver
+from django.db.models import Sum
+from decimal import Decimal
 from apps.clients.models import Client
 from apps.projects.models import Project
 import re
@@ -20,6 +24,7 @@ class Invoice(models.Model):
         ("sent", "Sent"),
         ("paid", "Paid"),
         ("overdue", "Overdue"),
+        ("cancelled", "Cancelled"),
     ]
 
     user = models.ForeignKey(
@@ -39,10 +44,10 @@ class Invoice(models.Model):
     issue_date = models.DateField()
     due_date = models.DateField()
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="draft")
-    subtotal = models.DecimalField(max_digits=10, decimal_places=2)
+    subtotal = models.DecimalField(max_digits=10, decimal_places=2, editable=False, default=0)
     tax_rate = models.DecimalField(max_digits=5, decimal_places=2, default=0)
     tax_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
-    total = models.DecimalField(max_digits=10, decimal_places=2)
+    total = models.DecimalField(max_digits=10, decimal_places=2, editable=False, default=0)
     notes = models.TextField(blank=True)
     payment_date = models.DateField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -52,14 +57,11 @@ class Invoice(models.Model):
     def is_hourly_basis(self):
         """
         Checks if the associated project is billed on an hourly basis.
-        Returns True if hourly_rate exists, False if fixed_rate exists or no project.
         """
         if not self.project:
             return False
 
-        # If hourly_rate is set, it's hourly.
-        # If hourly_rate is None but fixed_rate exists, it's fixed.
-        return self.project.is_hourly_basis is not None
+        return self.project.is_hourly_basis
 
     @property
     def is_overdue(self):
@@ -88,15 +90,6 @@ class Invoice(models.Model):
             raise ValidationError("Payment date required for paid invoices")
 
     def save(self, *args, **kwargs):
-        from decimal import Decimal, ROUND_HALF_UP
-
-        # Calculate tax and total with proper rounding
-        self.tax_amount = (self.subtotal * (self.tax_rate / Decimal("100"))).quantize(
-            Decimal("0.01"), rounding=ROUND_HALF_UP
-        )
-        self.total = (self.subtotal + self.tax_amount).quantize(
-            Decimal("0.01"), rounding=ROUND_HALF_UP
-        )
 
         # Generate invoice number
         if not self.invoice_number:
@@ -132,8 +125,9 @@ class Invoice(models.Model):
     def __str__(self):
         return f"Invoice {self.invoice_number} - {self.client.name}"
 
+
 class InvoiceItem(models.Model):
-     
+
     id = models.UUIDField(
         primary_key=True,
         default=uuid.uuid4,
@@ -143,7 +137,7 @@ class InvoiceItem(models.Model):
     invoice = models.ForeignKey(Invoice, on_delete=models.CASCADE, related_name="items")
     description = models.TextField()
     quantity = models.DecimalField(max_digits=10, decimal_places=2)
-    unit_price = models.DecimalField(max_digits=10, decimal_places=2)
+    unit_price = models.DecimalField(max_digits=10, decimal_places=2, blank=True)
     amount = models.DecimalField(max_digits=10, decimal_places=2, editable=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -154,7 +148,7 @@ class InvoiceItem(models.Model):
         """Validate item data"""
         if self.quantity <= 0:
             raise ValidationError("Quantity must be greater than 0")
-        if self.unit_price < 0:
+        if self.unit_price and self.unit_price < 0:
             raise ValidationError("Unit price cannot be negative")
 
     def save(self, *args, **kwargs):
@@ -163,7 +157,11 @@ class InvoiceItem(models.Model):
         if self.invoice.is_hourly_basis:
             # Quantity is in minutes, so divide by 60 to get hours
             hours = self.quantity / Decimal("60")
-            calculated_amount = hours * self.unit_price
+            if self.invoice.project.hourly_rate:
+                unit_price = self.invoice.project.hourly_rate
+            else:
+                unit_price = self.invoice.user.hourly_rate
+            calculated_amount = hours * unit_price
         else:
             # Fixed price: treat quantity as a standard multiplier (e.g., 1 project)
             calculated_amount = self.quantity * self.unit_price
@@ -172,6 +170,7 @@ class InvoiceItem(models.Model):
         self.amount = calculated_amount.quantize(
             Decimal("0.01"), rounding=ROUND_HALF_UP
         )
+        self.unit_price = unit_price
 
         # Run full validation and save to database
         self.full_clean()
@@ -179,3 +178,21 @@ class InvoiceItem(models.Model):
 
     def __str__(self):
         return f"{self.description} - ${self.amount}"
+
+@receiver([post_save, post_delete], sender=InvoiceItem)
+def update_invoice_totals(sender, instance, **kwargs):
+    invoice = instance.invoice
+    # Sum up all items
+    aggregate = invoice.items.aggregate(total_sum=Sum("amount"))
+    subtotal = aggregate["total_sum"] or Decimal("0.00")
+
+    # Update the invoice directly
+    invoice.subtotal = subtotal
+    tax_rate = invoice.tax_rate or Decimal("0.00")
+    invoice.tax_amount = subtotal * (tax_rate / Decimal("100"))
+    invoice.total = subtotal + invoice.tax_amount
+
+    # Use update() to avoid re-triggering save loops
+    Invoice.objects.filter(pk=invoice.pk).update(
+        subtotal=invoice.subtotal, tax_amount=invoice.tax_amount, total=invoice.total
+    )

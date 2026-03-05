@@ -1,26 +1,18 @@
-from rest_framework.decorators import api_view
 from rest_framework import status
 from rest_framework import generics
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from .models import Invoice
 from django.contrib.auth import get_user_model
-from rest_framework.decorators import api_view
 from .serializers import InvoiceSerializer, InvoiceListSerializer
-from rest_framework.decorators import permission_classes
-from apps.projects.models import Project
-from apps.clients.models import Client
 from django.db import transaction
 from rest_framework.pagination import PageNumberPagination
-
 
 class InvoicePagination(PageNumberPagination):
     page_size = 10
     page_size_query_param = "size"
 
-
 User = get_user_model()
-
 
 class InvoiceListCreateApiView(generics.ListCreateAPIView):
     permission_classes = [IsAuthenticated]
@@ -84,7 +76,7 @@ class InvoiceListCreateApiView(generics.ListCreateAPIView):
         queryset = self.get_queryset()
 
         # Handle pagination parameter
-        if request.query_params.get("paginate") == "false":
+        if request.query_params.get("paginate", "true").lower() == "false":
             serializer = self.get_serializer(queryset, many=True)
             return Response({"invoices": serializer.data, "count": queryset.count()})
 
@@ -95,7 +87,6 @@ class InvoiceListCreateApiView(generics.ListCreateAPIView):
 
         serializer = self.get_serializer(queryset, many=True)
         return Response({"invoices": serializer.data, "count": queryset.count()})
-
 
 class InvoiceRetrieveUpdateDestroyApiView(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = InvoiceSerializer
