@@ -1,15 +1,15 @@
 import React, { useEffect } from "react";
-import MobileHeader from "../../layout/MobileHeader.jsx";
-import ProjectDetailHeader from "./ProjectDetailHeader.jsx";
+import MobileHeader from "../layout/MobileHeader.jsx";
+import ProjectDetailHeader from "@/features/projects/detail/components/ProjectDetailHeader.js";
+import ProjectDetailOverview from "@/features/projects/detail/components/ProjectDetailOverview.js";
 import { useParams, useNavigate } from "react-router-dom";
-import ProjectDetailMid from "./ProjectDetailMid.jsx";
 import { useProject } from "@/features/projects/hooks.js";
 
 const ProjectDetail = () => {
    const { id } = useParams();
    if (!id) return null;
 
-   const { data :project, error, isLoading : projectDetailLoading } = useProject(Number(id));
+   const { data : project, error, isLoading : projectDetailLoading } = useProject(id);
 
    if (projectDetailLoading) {
       return (
@@ -56,7 +56,7 @@ const ProjectDetail = () => {
                <ProjectDetailHeader project={project!} />
 
                <div className="flex flex-col gap-6 px-4 lg:px-8">
-                  <ProjectDetailMid project={project!} />  
+                  <ProjectDetailOverview project={project!} />  
                </div>
             </div>
          </main>

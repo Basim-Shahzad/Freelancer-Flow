@@ -3,11 +3,11 @@ import { Select, SelectItem } from "@heroui/react";
 import { useUpdateProject } from "@/features/projects/hooks.js";
 import type { Project } from "@/features/projects/types.js";
 
-interface ProjectDetailMidProps {
+interface ProjectDetailOverviewProps {
    project: Project;
 }
 
-const ProjectDetailMid: React.FC<ProjectDetailMidProps> = ({ project }) => {
+const ProjectDetailOverview: React.FC<ProjectDetailOverviewProps> = ({ project }) => {
    const { id, status: initialStatus, client, hourly_rate, time_tracking } = project;
    const { mutate: updateProjectStatus, isPending } = useUpdateProject();
 
@@ -92,4 +92,4 @@ const ProjectDetailMid: React.FC<ProjectDetailMidProps> = ({ project }) => {
    );
 };
 
-export default ProjectDetailMid;
+export default ProjectDetailOverview;

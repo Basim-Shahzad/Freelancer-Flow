@@ -35,6 +35,7 @@ export type nonPaginatedProjectListResponse = {
    count: number;
    projects: {
       id: string;
+      clientId: string;
       name: string;
       createdAt: string;
    }[];
