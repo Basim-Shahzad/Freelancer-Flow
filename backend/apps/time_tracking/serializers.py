@@ -32,7 +32,7 @@ class TimeEntryListSerializer(serializers.ModelSerializer):
     invoice_number = serializers.CharField(
         source="invoice.invoice_number", read_only=True
     )
-    project_name = serializers.CharField(source="project.name", read_only=True)
+    project_id = serializers.CharField(source="project.id", read_only=True)
 
     class Meta:
         model = TimeEntry
@@ -43,6 +43,6 @@ class TimeEntryListSerializer(serializers.ModelSerializer):
             "is_billable",
             "invoiced",
             "invoice_number",
-            "project_name",
+            "project_id",
             "created_at",
         ]

@@ -54,10 +54,14 @@ class ProjectsListSerializer(serializers.ModelSerializer):
 
 
 class NonPaginatedProjectsListSerializer(serializers.ModelSerializer):
+
+    client_id = serializers.UUIDField(source="client.id", read_only=True)
+
     class Meta:
         model = Project
         fields = [
             "id",
             "name",
+            "client_id",
             "created_at",
         ]
