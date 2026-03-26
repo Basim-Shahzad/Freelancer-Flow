@@ -46,13 +46,13 @@ ALLOWED_HOSTS = ["localhost", "127.0.0.1"]
 # Application definition
 
 INSTALLED_APPS = [
+    "corsheaders",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-    "corsheaders",
 
     # Allauth
     "allauth", 
@@ -75,7 +75,6 @@ INSTALLED_APPS = [
     "apps.invoices",
     "apps.time_tracking",
 ]
-
 
 SITE_ID = 1
 
@@ -111,7 +110,6 @@ CORS_PREFLIGHT_MAX_AGE = 86400
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "dj_rest_auth.jwt_auth.JWTCookieAuthentication",
-        "rest_framework.authentication.SessionAuthentication",
     ),
     "DEFAULT_RENDERER_CLASSES": (
         "djangorestframework_camel_case.render.CamelCaseJSONRenderer",
@@ -146,7 +144,7 @@ REST_AUTH = {
     "USER_DETAILS_SERIALIZER": "apps.api.serializers.CustomUserSerializer",
     "JWT_AUTH_HTTPONLY": True,
     "JWT_AUTH_SECURE": not DEBUG,  # Set to True in production (HTTPS)
-    "JWT_AUTH_SAMESITE": "Lax",
+    "JWT_AUTH_SAMESITE": "Strict",
     "REGISTER_SERIALIZER": "apps.api.serializers.CustomRegisterSerializer",
 }
 
