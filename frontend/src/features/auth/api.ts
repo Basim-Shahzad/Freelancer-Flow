@@ -1,4 +1,4 @@
-import { api } from "@/hooks/useApi.js";
+import { api } from "@/services/api.js";
 import type { User, AuthResponse, SignupCredentials, LoginCredentials } from "./types.js";
 
 export const authApi = {

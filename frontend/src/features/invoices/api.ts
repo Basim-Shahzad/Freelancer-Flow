@@ -1,5 +1,5 @@
 import type { Invoice, PaginatedInvoiceListResponse, InvoiceStatus } from "./types.js";
-import { api } from "@/hooks/useApi.js";
+import { api } from "@/services/api.js";
 
 export const invoicesApi = {
    getInvoices: async (paginate: boolean, status?: InvoiceStatus, clientId?: string, projectId?: string): Promise<PaginatedInvoiceListResponse> => {

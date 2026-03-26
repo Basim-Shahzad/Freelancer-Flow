@@ -1,5 +1,5 @@
 import type { Project, PaginatedProjectListResponse, nonPaginatedProjectListResponse } from "./types.js";
-import { api } from "@/hooks/useApi.js";
+import { api } from "@/services/api.js";
 
 export const projectsApi = {
    getProjects: async (paginate: boolean): Promise<PaginatedProjectListResponse | nonPaginatedProjectListResponse> => {

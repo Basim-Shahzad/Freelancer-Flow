@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { useApi } from "@/hooks/useApi.js";
+import { api } from "@/services/api.js";
 import MobileHeader from "@/layout/MobileHeader.jsx";
 import InvoiceDetailHeader from "./InvoiceDetailHeader.js";
 import InvoiceDetailPreview from "./InvoiceDetailPreview.js";

@@ -1,5 +1,5 @@
 import type { Client, PaginatedClientListResponse, nonPaginatedClientListResponse } from "./types.js";
-import { api } from "@/hooks/useApi.js";
+import { api } from "@/services/api.js";
 
 export const clientsApi = {
    getClients: async (paginate: boolean): Promise<PaginatedClientListResponse | nonPaginatedClientListResponse> => {

@@ -1,5 +1,6 @@
 import { createContext, useContext, type ReactNode } from "react";
 import axios, { type AxiosInstance, type AxiosError, type InternalAxiosRequestConfig } from "axios";
+import { useAuthStore } from "@/features/auth/store.js";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000/api";
 
@@ -24,6 +25,12 @@ const processQueue = (error: unknown) => {
    });
    failedQueue = [];
 };
+
+api.interceptors.request.use((config) => {
+   const token = useAuthStore.getState().accessToken;
+   if (token) config.headers.Authorization = `Bearer ${token}`;
+   return config;
+});
 
 api.interceptors.response.use(
    (response) => response,
@@ -60,21 +67,5 @@ api.interceptors.response.use(
       }
    },
 );
-
-type ApiContextType = {
-   api: AxiosInstance;
-};
-
-const ApiContext = createContext<ApiContextType | null>(null);
-
-export const useApi = (): ApiContextType => {
-   const ctx = useContext(ApiContext);
-   if (!ctx) throw new Error("useApi must be used within ApiProvider");
-   return ctx;
-};
-
-export const ApiProvider = ({ children }: { children: ReactNode }) => {
-   return <ApiContext.Provider value={{ api }}>{children}</ApiContext.Provider>;
-};
 
 export { api };
