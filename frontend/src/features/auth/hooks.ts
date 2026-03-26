@@ -15,16 +15,14 @@ export const useCurrentUser = () => {
             const user = await authApi.getCurrentUser();
             setAuth(user);
             return user;
-         } catch (error) {
+         } catch {
             setAuth(null);
-            throw error;
          } finally {
-            setInitialized(true);
+            setInitialized(true); // always fires — success or fail
          }
       },
       retry: false,
       staleTime: 5 * 60 * 1000,
-      gcTime: 10 * 60 * 1000,
    });
 };
 

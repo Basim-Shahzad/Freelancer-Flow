@@ -50,8 +50,8 @@ export const useAuthStore = create<AuthState>()(
          partialize: (state) => ({ user: state.user }),
          
          onRehydrateStorage: () => (state) => {
-            if (state && state.user) {
-               state.isInitialized = false; 
+            if (state) {
+               state.isInitialized = !state.user;
             }
          },
       },

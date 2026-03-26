@@ -12,10 +12,11 @@ export interface SignupCredentials {
 export interface AuthResponse {
    access: string;
    refresh: string;
+   user: User
 }
 
 export interface User {
-   id: number;
+   id: string;
    username: string;
    email: string;
    dateJoined?: string;

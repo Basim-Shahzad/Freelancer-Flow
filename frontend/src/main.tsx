@@ -23,7 +23,7 @@ import InvoiceCreate from "./pages/InvoiceCreatePage.js";
 import { TimeTrackingPage } from "./pages/TimeTrackingPage.js";
 import { LoginPage } from "./pages/LoginPage.js";
 import { SignupPage } from "./pages/SignupPage.js";
-import { useAuthStore } from "./features/auth/store.js";
+import { useCurrentUser } from "./features/auth/hooks.js";
 
 const router = createBrowserRouter([
    {
@@ -110,26 +110,29 @@ const router = createBrowserRouter([
    { path: "/not-found", element: <NotFound /> },
 ]);
 
-function Main() {
-   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
-
-   const queryClient = new QueryClient({
-      defaultOptions: {
-         queries: {
-            enabled: isAuthenticated,
-            staleTime: 5 * 60 * 1000, // 5 minutes
-            refetchOnWindowFocus: false,
-            refetchOnMount: false,
-         },
+const queryClient = new QueryClient({
+   defaultOptions: {
+      queries: {
+         staleTime: 5 * 60 * 1000, // 5 minutes
+         refetchOnWindowFocus: false,
+         refetchOnMount: false,
       },
-   });
+   },
+});
 
+function AuthInitializer() {
+   useCurrentUser();
+   return null;
+}
+
+function Main() {
    return (
       <StrictMode>
          <QueryClientProvider client={queryClient}>
             <HeroUIProvider>
                <App>
                   <RouterProvider router={router} />
+                  <AuthInitializer />
                   <ReactQueryDevtools initialIsOpen={false} />
                </App>
             </HeroUIProvider>
