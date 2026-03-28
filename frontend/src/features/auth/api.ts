@@ -17,7 +17,7 @@ export const authApi = {
    },
 
    getCurrentUser: async (): Promise<User> => {
-      const { data } = await api.get<User>("/auth/user/");
+      const { data } = await api.get<User>("/auth/user/", { _skipRefresh: true } as any);
       return data;
    },
 };

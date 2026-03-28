@@ -37,9 +37,10 @@ api.interceptors.response.use(
    async (error: AxiosError) => {
       const originalRequest = error.config as InternalAxiosRequestConfig & {
          _retry?: boolean;
+         _skipRefresh?: boolean;
       };
 
-      if (error.response?.status !== 401 || originalRequest._retry) {
+      if (error.response?.status !== 401 || originalRequest._retry || originalRequest._skipRefresh) {
          return Promise.reject(error);
       }
 
@@ -60,7 +61,7 @@ api.interceptors.response.use(
          return api(originalRequest);
       } catch (refreshError) {
          processQueue(refreshError);
-         window.location.href = "/login";
+         // window.location.href = "/login";
          return Promise.reject(refreshError);
       } finally {
          isRefreshing = false;

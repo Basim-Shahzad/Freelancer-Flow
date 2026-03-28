@@ -15,8 +15,9 @@ export const useCurrentUser = () => {
             const user = await authApi.getCurrentUser();
             setAuth(user);
             return user;
-         } catch {
+         } catch (error) {
             setAuth(null);
+            throw error
          } finally {
             setInitialized(true); // always fires — success or fail
          }
