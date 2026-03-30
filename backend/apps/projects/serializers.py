@@ -63,6 +63,6 @@ class NonPaginatedProjectsListSerializer(serializers.ModelSerializer):
             "id",
             "name",
             "client_id",
-            "status"
+            "status",
             "created_at",
         ]
