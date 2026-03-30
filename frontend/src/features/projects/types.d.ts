@@ -37,6 +37,7 @@ export type nonPaginatedProjectListResponse = {
       id: string;
       clientId: string;
       name: string;
+      status: "active" | "completed" | "archived";
       createdAt: string;
    }[];
 };
