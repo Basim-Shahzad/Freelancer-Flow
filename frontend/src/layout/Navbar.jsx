@@ -1,4 +1,3 @@
-import React from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "@/features/auth/store.js";
 import { useLogout } from "@/features/auth/hooks.js";

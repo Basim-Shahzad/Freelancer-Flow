@@ -1,4 +1,3 @@
-import { createContext, useContext, type ReactNode } from "react";
 import axios, { type AxiosInstance, type AxiosError, type InternalAxiosRequestConfig } from "axios";
 import { useAuthStore } from "@/features/auth/store.js";
 
@@ -6,9 +5,7 @@ const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000/api
 
 const api: AxiosInstance = axios.create({
    baseURL: API_BASE,
-   headers: {
-      "Content-Type": "application/json",
-   },
+   headers: { "Content-Type": "application/json" },
    withCredentials: true,
 });
 
@@ -19,19 +16,18 @@ let failedQueue: {
 }[] = [];
 
 const processQueue = (error: unknown) => {
-   failedQueue.forEach(({ resolve, reject }) => {
-      if (error) reject(error);
-      else resolve();
-   });
+   failedQueue.forEach(({ resolve, reject }) => (error ? reject(error) : resolve()));
    failedQueue = [];
 };
 
+// Request interceptor — attach access token
 api.interceptors.request.use((config) => {
    const token = useAuthStore.getState().accessToken;
    if (token) config.headers.Authorization = `Bearer ${token}`;
    return config;
 });
 
+// Response interceptor — handle 401s and token refresh
 api.interceptors.response.use(
    (response) => response,
    async (error: AxiosError) => {
@@ -56,12 +52,15 @@ api.interceptors.response.use(
       isRefreshing = true;
 
       try {
-         await axios.post(`${API_BASE}/auth/token/refresh/`, {}, { withCredentials: true });
+         const { data } = await axios.post(`${API_BASE}/auth/token/refresh/`, {}, { withCredentials: true });
+         useAuthStore.getState().setAccessToken(data.access);
+
          processQueue(null);
          return api(originalRequest);
       } catch (refreshError) {
          processQueue(refreshError);
-         // window.location.href = "/login";
+         useAuthStore.getState().logout();
+         window.location.href = "/login";
          return Promise.reject(refreshError);
       } finally {
          isRefreshing = false;

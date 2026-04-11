@@ -7,9 +7,9 @@ import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import { HeroUIProvider } from "@heroui/system";
 import { InvoicesProvider } from "./Contexts/InvoicesContext.js";
 
-import Dashboard from "./pages/dashboard/Dashboard.jsx";
+import Dashboard from "./features/dashboard/components/Dashboard.js";
 import Projects from "./pages/ProjectsPage.jsx";
-import Layout from "./pages/Layout.jsx";
+import Layout from '@/layout/Layout.js'
 import Clients from "./pages/ClientsPage.js";
 import Hero from "./pages/homepage/Hero.jsx";
 import { ProtectedRoute } from "./Contexts/ProtectedRoute.jsx";
@@ -24,6 +24,7 @@ import { TimeTrackingPage } from "./pages/TimeTrackingPage.js";
 import { LoginPage } from "./pages/LoginPage.js";
 import { SignupPage } from "./pages/SignupPage.js";
 import { useCurrentUser } from "./features/auth/hooks.js";
+import { useAuthStore } from "./features/auth/store.js";
 
 const router = createBrowserRouter([
    {
@@ -131,8 +132,8 @@ function Main() {
          <QueryClientProvider client={queryClient}>
             <HeroUIProvider>
                <App>
-                  <RouterProvider router={router} />
                   <AuthInitializer />
+                  <RouterProvider router={router} />
                   <ReactQueryDevtools initialIsOpen={false} />
                </App>
             </HeroUIProvider>

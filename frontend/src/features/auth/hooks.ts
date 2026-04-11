@@ -31,17 +31,21 @@ export const useLogin = () => {
    const queryClient = useQueryClient();
    const navigate = useNavigate();
    const setAuth = useAuthStore((state) => state.setAuth);
+   const setAccessToken = useAuthStore((state) => state.setAccessToken);
 
    return useMutation({
       mutationFn: authApi.login,
-      onSuccess: async () => {
+      onSuccess: async (data) => {
          try {
             const user = await queryClient.fetchQuery({
                queryKey: ["currentUser"],
                queryFn: authApi.getCurrentUser,
             });
             setAuth(user);
-            toast.success("Welcome back!");
+            setAccessToken(data.access)
+            toast.success("Welcome back!", {
+               duration: 1000, 
+            });
             navigate("/dashboard", { replace: true });
          } catch {
             toast.error("Login succeeded but failed to load user data. Please refresh.");
@@ -63,16 +67,18 @@ export const useSignup = () => {
    const queryClient = useQueryClient();
    const navigate = useNavigate();
    const setAuth = useAuthStore((state) => state.setAuth);
+   const setAccessToken = useAuthStore((state) => state.setAccessToken);
 
    return useMutation({
       mutationFn: authApi.signup,
-      onSuccess: async () => {
+      onSuccess: async (data) => {
          try {
             const user = await queryClient.fetchQuery({
                queryKey: ["currentUser"],
                queryFn: authApi.getCurrentUser,
             });
             setAuth(user);
+            setAccessToken(data.access)
             toast.success("Account created successfully!");
             navigate("/dashboard", { replace: true });
          } catch {

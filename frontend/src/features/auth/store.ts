@@ -31,9 +31,9 @@ export const useAuthStore = create<AuthState>()(
          },
 
          setAccessToken: (token) => {
-            set({ 
-               accessToken: token, 
-               isAuthenticated: !!token 
+            set({
+               accessToken: token,
+               isAuthenticated: !!token,
             });
          },
 
@@ -48,10 +48,11 @@ export const useAuthStore = create<AuthState>()(
       {
          name: "auth-storage",
          partialize: (state) => ({ user: state.user }),
-         
+
          onRehydrateStorage: () => (state) => {
             if (state) {
-               state.isInitialized = !state.user;
+               state.isAuthenticated = !!state.user;
+               state.isInitialized = !!state.user;
             }
          },
       },
