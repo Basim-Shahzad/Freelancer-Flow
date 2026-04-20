@@ -1,11 +1,13 @@
 from rest_framework import serializers
 from .models import Invoice, InvoiceItem
+from .services import mark_invoice_paid, mark_invoice_unpaid
 from apps.clients.models import Client
 from apps.projects.models import Project
 from django.db import transaction
 from django.contrib.auth import get_user_model
 from apps.clients.serializers import ClientSerializer
 from apps.projects.serializers import ProjectSerializer
+from decimal import Decimal, ROUND_HALF_UP
 
 User = get_user_model()
 
@@ -62,14 +64,11 @@ class InvoiceSerializer(serializers.ModelSerializer):
         model = Invoice
         fields = [
             "id",
-
             "user_id",
             "client_id",
             "project_id",
-
             "client",  # Full nested object of Client
             "project",  # Full nested object of Project
-
             "invoice_number",
             "is_overdue",
             "is_hourly_basis",
@@ -99,29 +98,38 @@ class InvoiceSerializer(serializers.ModelSerializer):
 
     def validate(self, data):
         """Validate invoice data"""
-        # Check if this is a partial update (PATCH)
         is_partial = self.partial if hasattr(self, "partial") else False
 
-        invoice_items = data.get("items", [])
+        invoice_items_data = data.get("items", [])
 
         # For creation (not partial update and not updating existing), require items
         if not is_partial and not self.instance:
-            if not invoice_items:
+            if not invoice_items_data:
                 raise serializers.ValidationError(
                     {"items": "Invoice must have at least one item"}
                 )
 
         # Only validate subtotal if items are provided
-        if invoice_items:
-            # Calculate expected subtotal (quantity is in MINUTES, convert to hours)
-            from decimal import Decimal, ROUND_HALF_UP
+        if invoice_items_data:
+            # Determine if this is an hourly project
+            project = data.get("project") or (
+                self.instance.project if self.instance else None
+            )
+            is_hourly = project.is_hourly_basis if project else False
 
             calculated_subtotal = sum(
                 (
-                    (Decimal(str(item["quantity"])) / Decimal("60"))
-                    * Decimal(str(item["unit_price"]))
-                ).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-                for item in invoice_items
+                    (
+                        (Decimal(str(item["quantity"])) / Decimal("60"))
+                        * Decimal(str(item.get("unit_price") or project.hourly_rate))
+                    ).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+                    if is_hourly
+                    else (
+                        Decimal(str(item["quantity"]))
+                        * Decimal(str(item["unit_price"]))
+                    ).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+                )
+                for item in invoice_items_data
             )
 
             provided_subtotal = data.get("subtotal", Decimal("0"))
@@ -176,31 +184,54 @@ class InvoiceSerializer(serializers.ModelSerializer):
         invoice_items_data = validated_data.pop("items", [])
 
         with transaction.atomic():
-            # Create invoice
             invoice = Invoice.objects.create(**validated_data)
 
-            # Create invoice items
             for item_data in invoice_items_data:
                 InvoiceItem.objects.create(invoice=invoice, **item_data)
 
         return invoice
 
     def update(self, instance, validated_data):
-        """Update invoice and optionally items"""
+        """Update invoice and optionally replace items"""
         invoice_items_data = validated_data.pop("items", None)
+        new_status = validated_data.get("status")
 
         with transaction.atomic():
-            # Update invoice fields
-            for attr, value in validated_data.items():
-                setattr(instance, attr, value)
-            instance.save()
+            if new_status == "paid" and instance.status != "paid":
+                # Pop fields the service will handle
+                payment_date = validated_data.pop("payment_date", None)
+                validated_data.pop("status", None)
 
-            # Update items if provided
+                # Apply any other field changes first
+                for attr, value in validated_data.items():
+                    setattr(instance, attr, value)
+                instance.save()
+
+                instance = mark_invoice_paid(instance, payment_date=payment_date)
+
+            elif (
+                new_status is not None
+                and new_status != "paid"
+                and instance.status == "paid"
+            ):
+                # Transitioning away from paid — reverse the revenue effect
+                validated_data.pop("status", None)
+
+                for attr, value in validated_data.items():
+                    setattr(instance, attr, value)
+                instance.save()
+
+                instance = mark_invoice_unpaid(instance)
+
+            else:
+                # Normal update, no paid status transition
+                for attr, value in validated_data.items():
+                    setattr(instance, attr, value)
+                instance.save()
+
+            # Replace items if provided
             if invoice_items_data is not None:
-                # Delete existing items
                 instance.items.all().delete()
-
-                # Create new items
                 for item_data in invoice_items_data:
                     InvoiceItem.objects.create(invoice=instance, **item_data)
 

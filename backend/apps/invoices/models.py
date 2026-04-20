@@ -10,6 +10,13 @@ from django.db import transaction
 from django.core.exceptions import ValidationError
 import uuid
 
+STATUS_CHOICES = [
+    ("draft", "Draft"),
+    ("sent", "Sent"),
+    ("paid", "Paid"),
+    ("overdue", "Overdue"),
+    ("cancelled", "Cancelled"),
+]
 
 class Invoice(models.Model):
 
@@ -18,14 +25,6 @@ class Invoice(models.Model):
         default=uuid.uuid4,
         editable=False,
     )
-
-    STATUS_CHOICES = [
-        ("draft", "Draft"),
-        ("sent", "Sent"),
-        ("paid", "Paid"),
-        ("overdue", "Overdue"),
-        ("cancelled", "Cancelled"),
-    ]
 
     user = models.ForeignKey(
         "api.User", on_delete=models.CASCADE, related_name="invoices"
