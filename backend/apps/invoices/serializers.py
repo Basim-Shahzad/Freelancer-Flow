@@ -261,4 +261,5 @@ class InvoiceListSerializer(serializers.ModelSerializer):
             "total",
             "items_count",
             "created_at",
+            "payment_date"
         ]

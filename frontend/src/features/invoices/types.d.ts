@@ -54,6 +54,7 @@ export interface InvoiceInList {
    total: string;
    itemsCount: number;
    createdAt: string;
+   paymentDate: string;
 }
 
 export type PaginatedInvoiceListResponse = {
@@ -63,4 +64,9 @@ export type PaginatedInvoiceListResponse = {
    results: {
       invoices: InvoiceInList[];
    };
+};
+
+export type nonPaginatedInvoiceListResponse = {
+   count: number;
+   invoices: InvoiceInList[];
 };
