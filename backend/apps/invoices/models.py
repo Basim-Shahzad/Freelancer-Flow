@@ -154,24 +154,18 @@ class InvoiceItem(models.Model):
         from decimal import Decimal, ROUND_HALF_UP
 
         if self.invoice.is_hourly_basis:
-            # Quantity is in minutes, so divide by 60 to get hours
             hours = self.quantity / Decimal("60")
-            if self.invoice.project.hourly_rate:
-                unit_price = self.invoice.project.hourly_rate
-            else:
-                unit_price = self.invoice.user.hourly_rate
+            unit_price = (
+                self.invoice.project.hourly_rate
+                if self.invoice.project.hourly_rate
+                else self.invoice.user.hourly_rate
+            )
+            self.unit_price = unit_price  # ✅ only set here for hourly
             calculated_amount = hours * unit_price
         else:
-            # Fixed price: treat quantity as a standard multiplier (e.g., 1 project)
-            calculated_amount = self.quantity * self.unit_price
+            calculated_amount = self.quantity * self.unit_price  # unit_price already on the instance
 
-        # Apply rounding (quantize to 2 decimal places)
-        self.amount = calculated_amount.quantize(
-            Decimal("0.01"), rounding=ROUND_HALF_UP
-        )
-        self.unit_price = unit_price
-
-        # Run full validation and save to database
+        self.amount = calculated_amount.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
         self.full_clean()
         super().save(*args, **kwargs)
 
