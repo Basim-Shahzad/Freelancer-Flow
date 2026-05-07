@@ -1,0 +1,7 @@
+@import "tailwindcss";
+@import "@heroui/styles";
+
+.custom-dark-mode {
+   background-color: black;
+   color: white;
+}
