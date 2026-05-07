@@ -7,11 +7,11 @@ import { FaMinus, FaPlus } from "react-icons/fa6";
 import { TiTick } from "react-icons/ti";
 import { useFormatters } from "@/hooks/useFormatters.js";
 import type { InvoiceItemWithMeta } from "@/types/models.js";
-import { toast, Toaster } from 'react-hot-toast';
+import { toast, Toaster } from "react-hot-toast";
 
 const InvoicePreview = () => {
    const { formatDuration } = useFormatters();
-   const { user } = useAuth();
+   const user = useAuthStore((state) => state.user);
    const {
       createInvoice,
       createInvoiceLoading,
@@ -25,7 +25,6 @@ const InvoicePreview = () => {
       roundInvoice,
    } = useInvoices();
 
-   if (!user) return null;
    if (!invoice) return null;
 
    const statusColorClasses: Record<string, { bg: string; dot: string }> = {
@@ -48,7 +47,7 @@ const InvoicePreview = () => {
                     project_id: selectedProject.id,
                     client_id: selectedProject.client.id,
                  }
-               : prev
+               : prev,
          );
       }
    }, [selectedProject, setInvoice]);

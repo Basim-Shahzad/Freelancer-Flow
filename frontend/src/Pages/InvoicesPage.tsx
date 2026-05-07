@@ -1,7 +1,7 @@
 import React, { useEffect } from "react";
-import MobileHeader from "../../layout/MobileHeader.jsx";
-import InvoiceHeader from "./InvoiceHeader.js";
-import InvoicesTable from "./InvoicesTable.js";
+import MobileHeader from "../layout/MobileHeader.jsx";
+import InvoiceHeader from "../features/invoices/list/components/InvoiceHeader.js";
+import InvoicesTable from "../features/invoices/list/components/InvoicesTable.js";
 
 const Invoices = () => {
 
@@ -17,7 +17,7 @@ const Invoices = () => {
             <div className="flex flex-col gap-8">
                <InvoiceHeader />
                
-               <div className="flex flex-col gap-6 p-4">
+               <div className="flex flex-col gap-6 px-8">
                   <InvoicesTable />
                </div>
             </div>

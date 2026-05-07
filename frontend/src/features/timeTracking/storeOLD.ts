@@ -1,8 +1,9 @@
 import { create } from "zustand";
 import type { TimerState } from "./type.js";
 
-const STORAGE_KEY: string = "timeState";
+const STORAGE_KEY = "timer_state";
 
+// Load from localStorage
 const loadTimerState = (): TimerState => {
    try {
       const stored = localStorage.getItem(STORAGE_KEY);
@@ -14,15 +15,16 @@ const loadTimerState = (): TimerState => {
    }
 
    return {
-      selectedProjectId: null,
+      active_project_id: null,
       description: "",
       status: "idle",
-      elapsedMs: 0,
-      startTime: null,
-      isBillable: true,
+      elapsed_ms: 0,
+      start_time: null,
+      is_billable: true,
    };
 };
 
+// Save to localStorage
 const saveTimerState = (state: TimerState) => {
    try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
@@ -32,10 +34,8 @@ const saveTimerState = (state: TimerState) => {
 };
 
 interface TimerStore extends TimerState {
-   selectedProjectId: string | null;
-   setSelectedProjectId: (selectedProjectId: string) => void;
-
-   startTimer: (projectId: string, description?: string) => void;
+   // Actions
+   startTimer: (projectId: number, description?: string) => void;
    pauseTimer: () => void;
    resumeTimer: () => void;
    stopTimer: () => TimerState | null;
@@ -43,29 +43,28 @@ interface TimerStore extends TimerState {
    toggleBillable: () => void;
    tick: () => void;
 
+   // Internal
    resetTimer: () => void;
 }
 
-export const useTimerStore = create<TimerStore>()((set, get) => ({
+const useTimerStore = create<TimerStore>((set, get) => ({
    ...loadTimerState(),
 
-   selectedProjectId: null,
-   setSelectedProjectId: (selectedProjectId) => set({ selectedProjectId }),
-
-   startTimer(projectId, description = "") {
+   startTimer: (projectId: number, description = "") => {
       const state: TimerState = {
-         selectedProjectId: projectId,
+         active_project_id: projectId,
          description,
          status: "running",
-         elapsedMs: 0,
-         startTime: Date.now(),
-         isBillable: true,
+         elapsed_ms: 0,
+         start_time: Date.now(),
+         is_billable: true,
       };
+
       set(state);
       saveTimerState(state);
    },
 
-   pauseTimer() {
+   pauseTimer: () => {
       set((state) => {
          const newState = { ...state, status: "paused" as const };
          saveTimerState(newState);
@@ -73,7 +72,7 @@ export const useTimerStore = create<TimerStore>()((set, get) => ({
       });
    },
 
-   resumeTimer() {
+   resumeTimer: () => {
       set((state) => {
          const newState = { ...state, status: "running" as const };
          saveTimerState(newState);
@@ -81,24 +80,28 @@ export const useTimerStore = create<TimerStore>()((set, get) => ({
       });
    },
 
-   stopTimer() {
+   stopTimer: () => {
       const state = get();
-      if (!state.selectedProjectId || !state.startTime) return null;
+
+      if (!state.active_project_id || !state.start_time) {
+         return null;
+      }
 
       const timerData: TimerState = {
-         selectedProjectId: state.selectedProjectId,
+         active_project_id: state.active_project_id,
          description: state.description,
          status: state.status,
-         elapsedMs: state.elapsedMs,
-         startTime: state.startTime,
-         isBillable: state.isBillable,
+         elapsed_ms: state.elapsed_ms,
+         start_time: state.start_time,
+         is_billable: state.is_billable,
       };
 
       get().resetTimer();
+
       return timerData;
    },
 
-   updateDescription(description: string) {
+   updateDescription: (description: string) => {
       set((state) => {
          const newState = { ...state, description };
          saveTimerState(newState);
@@ -106,36 +109,35 @@ export const useTimerStore = create<TimerStore>()((set, get) => ({
       });
    },
 
-   toggleBillable() {
+   toggleBillable: () => {
       set((state) => {
-         const newState = { ...state, isBillable: !state.isBillable };
+         const newState = { ...state, is_billable: !state.is_billable };
          saveTimerState(newState);
          return newState;
       });
    },
 
-   tick() {
+   tick: () => {
       set((state) => {
-         const newState = { ...state, elapsedMs: state.elapsedMs + 1000 };
+         const newState = {
+            ...state,
+            elapsed_ms: state.elapsed_ms + 1000,
+         };
          saveTimerState(newState);
          return newState;
       });
    },
 
-   resetTimer() {
-      // FIX: was typed as TimerState and passed to set() — but selectedProjectId
-      // lives on TimerStore (not TimerState), so Zustand's merge never cleared it.
-      // Stop button appeared broken because selectedProjectId stayed set,
-      // selectedProject stayed truthy, ActiveTimer never unmounted.
-      // Now typed inline so ALL keys including selectedProjectId are explicitly reset.
-      const resetState = {
-         selectedProjectId: null as string | null,
+   resetTimer: () => {
+      const resetState: TimerState = {
+         active_project_id: null,
          description: "",
-         status: "idle" as const,
-         elapsedMs: 0,
-         startTime: null as number | null,
-         isBillable: true,
+         status: "idle",
+         elapsed_ms: 0,
+         start_time: null,
+         is_billable: true,
       };
+
       set(resetState);
       saveTimerState(resetState);
    },

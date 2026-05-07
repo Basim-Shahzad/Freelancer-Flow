@@ -1,22 +1,28 @@
 import React from "react";
-import { useTimer, useTimerInterval } from "@/features/timeTracking/hooks.js";
-import type { Project } from "@/types/models.js";
 import { ActiveTimer } from "@/features/timeTracking/components/ActiveTimer.js";
 import { ProjectSelector } from "@/features/timeTracking/components/ProjectSelector.js";
 import { TimeEntriesList } from "@/features/timeTracking/components/TimeEntriesList.js";
 import { TimeTrackingHeader } from "@/features/timeTracking/components/TimeTrackingHeader.js";
 import { useProjects } from "@/features/projects/hooks.js";
 import MobileHeader from "@/layout/MobileHeader.jsx";
+import { useTimerStore } from "@/features/timeTracking/store.js";
+import type { ProjectInList } from "@/features/projects/types.js";
 
 export const TimeTrackingPage: React.FC = () => {
-   useTimerInterval(); // Initialize timer interval
+   const { data: projectsData } = useProjects(true);
 
-   const { state } = useTimer();
-   const { data: projects } = useProjects();
+   const selectedProjectId = useTimerStore((s) => s.selectedProjectId);
+   const status = useTimerStore((s) => s.status);
 
-   const activeProject = state.active_project_id
-      ? projects.items.find((p: Project) => p.id === state.active_project_id)
+   const selectedProject = selectedProjectId
+      ? projectsData?.results.projects.find((p: ProjectInList) => p.id == selectedProjectId)
       : null;
+
+   // BUG WAS HERE: condition was `selectedProject ? <ActiveTimer> : <ProjectSelector>`
+   // Selecting a project sets selectedProjectId immediately → selectedProject becomes truthy
+   // → ActiveTimer mounted before user clicked Start. Timer auto-started visually on dropdown pick.
+   // Fix: gate on status. Only show ActiveTimer if timer is actually running or paused.
+   const timerIsActive = status === "running" || status === "paused";
 
    return (
       <div className="w-full flex flex-col lg:flex-row bg-white text-black dark:bg-[#000000] dark:text-white transition-colors duration-300">
@@ -33,7 +39,11 @@ export const TimeTrackingPage: React.FC = () => {
 
             <section className="grid grid-cols-5 px-2 lg:px-6">
                <div className="col-start-1 col-end-3">
-                  {activeProject ? <ActiveTimer project={activeProject} /> : <ProjectSelector projects={projects.items} />}
+                  {timerIsActive && selectedProject ? (
+                     <ActiveTimer project={selectedProject} />
+                  ) : (
+                     <ProjectSelector projects={projectsData?.results.projects} />
+                  )}
                </div>
 
                <div className="col-start-4 col-end-6 max-h-full">

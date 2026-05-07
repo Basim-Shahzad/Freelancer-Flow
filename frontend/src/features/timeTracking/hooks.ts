@@ -1,28 +1,24 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { timeTrackingApi } from "./api.js";
 import { useAuthStore } from "@/features/auth/store.js";
-import toast from "react-hot-toast";
-import type { TimeEntry } from "./type.js";
+import { toast } from "react-hot-toast";
+import type { nonPaginatedTimeEntryListResponse, PaginatedTimeEntryListResponse, TimeEntry } from "./type.js";
 import { useTimerStore } from "./store.js";
 import { useEffect } from "react";
 
 // Fetch time entries
-export const useTimeEntries = (page?: number, size?: number) => {
+export const useTimeEntries = <T extends boolean>(paginate: T) => {
    const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
-   const params = page && size ? { page, size } : { paginate: "false" };
 
-   const query = useQuery({
-      queryKey: ["timeEntries"],
-      queryFn: () => timeTrackingApi.getTimeEntries(params),
+   return useQuery({
+      queryKey: ["timeEntries", paginate],
+      queryFn: () =>
+         timeTrackingApi.getTimeEntries(paginate) as Promise<
+            T extends true ? PaginatedTimeEntryListResponse : nonPaginatedTimeEntryListResponse
+         >,
       enabled: isAuthenticated,
       staleTime: 1000 * 60 * 5,
-      placeholderData: { items: [], total: 0 },
    });
-
-   return {
-      ...query,
-      data: query.data ?? { items: [], total: 0 },
-   };
 };
 
 // Create time entry
@@ -46,7 +42,7 @@ export const useUpdateTimeEntry = () => {
    const queryClient = useQueryClient();
 
    return useMutation({
-      mutationFn: ({ id, data }: { id: number; data: Partial<TimeEntry> }) => timeTrackingApi.updateTimeEntry(id, data),
+      mutationFn: ({ id, data }: { id: string; data: Partial<TimeEntry> }) => timeTrackingApi.updateTimeEntry(id, data),
       onSuccess: () => {
          queryClient.invalidateQueries({ queryKey: ["timeEntries"] });
          toast.success("Time Entry updated");
@@ -83,17 +79,17 @@ export const useTimer = () => {
    const stopTimerAndSave = () => {
       const timerData = timerStore.stopTimer();
 
-      if (!timerData || !timerData.active_project_id || !timerData.start_time) {
+      if (!timerData || !timerData.selectedProjectId || !timerData.startTime) {
          return;
       }
 
       const entryData = {
-         project_id: timerData.active_project_id,
+         projectId: timerData.selectedProjectId,
          description: timerData.description,
-         start_time: new Date(timerData.start_time).toISOString(),
-         end_time: new Date().toISOString(),
-         duration_minutes: Math.floor(timerData.elapsed_ms / 60000),
-         is_billable: timerData.is_billable,
+         startTime: new Date(timerData.startTime).toISOString(),
+         endTime: new Date().toISOString(),
+         durationMinutes: Math.floor(timerData.elapsedMs / 60000),
+         isBillable: timerData.isBillable,
          invoiced: false,
       };
 
@@ -101,23 +97,21 @@ export const useTimer = () => {
    };
 
    return {
-      // State
       state: {
-         active_project_id: timerStore.active_project_id,
+         selectedProjectId: timerStore.selectedProjectId,
          description: timerStore.description,
          status: timerStore.status,
-         elapsed_ms: timerStore.elapsed_ms,
-         start_time: timerStore.start_time,
-         is_billable: timerStore.is_billable,
+         elapsedMs: timerStore.elapsedMs,
+         startTime: timerStore.startTime,
+         isBillable: timerStore.isBillable,
       },
-      // Actions
       startTimer: timerStore.startTimer,
       pauseTimer: timerStore.pauseTimer,
       resumeTimer: timerStore.resumeTimer,
       stopTimer: stopTimerAndSave,
+
       updateDescription: timerStore.updateDescription,
       toggleBillable: timerStore.toggleBillable,
-      // Status
       isSaving: createMutation.isPending,
    };
 };

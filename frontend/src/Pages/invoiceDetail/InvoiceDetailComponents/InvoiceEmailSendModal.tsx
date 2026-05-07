@@ -22,7 +22,7 @@ type Props = {
 
 export default function InvoiceEmailSendModal({ isOpen, onClose, invoice }: Props) {
    const { handleSendEmail } = useInvoices();
-   const { user } = useAuth();
+   const user = useAuthStore((state) => state.user);
    const [clientEmail, setClientEmail] = useState(invoice.client?.email);
 
    // Better default subject

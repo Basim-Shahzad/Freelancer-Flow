@@ -22,7 +22,6 @@ type RouteParams = {
 
 export default function InvoiceDetail() {
    const { id } = useParams<RouteParams>();
-   const { api } = useApi();
    const { handleMarkAsPaid, handleSendEmail } = useInvoices();
    const [isEmailModalOpen, setIsEmailModalOpen] = useState<boolean>(false);
 

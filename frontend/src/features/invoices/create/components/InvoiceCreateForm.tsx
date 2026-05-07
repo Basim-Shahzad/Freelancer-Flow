@@ -16,10 +16,14 @@ import { useTimeEntries } from "@/features/timeTracking/hooks.js";
 
 const InvoiceCreateForm = () => {
    const user = useAuthStore((state) => state.user);
-   const { data: projects, isLoading : projectsLoading } = useProjects();
-   const { data: response, isLoading: clientsLoading } = useClients();
-   const clients = response?.items ?? [];
-   const { data : timeEntries, isLoading :timeEntriesLoading } = useTimeEntries();
+
+   const { data: projectsResponse, isLoading: projectsLoading } = useProjects();
+   const { data: clientsResponse, isLoading: clientsLoading } = useClients();
+   const { data: timeEntriesResponse, isLoading: timeEntriesLoading } = useTimeEntries();
+
+   const clients = clientsResponse?.items ?? [];
+   const timeEntries = timeEntriesResponse?.items ?? [];
+   const projects = projectsResponse?.items ?? [];
 
    // Separate state for client and project
    const [selectedClientId, setSelectedClientId] = useState<Selection>(new Set());

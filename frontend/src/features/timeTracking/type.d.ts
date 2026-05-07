@@ -1,21 +1,48 @@
+import type { Project } from "../projects/types.js";
+
 export interface TimeEntry {
-   id: number;
+   id: string;
    description: string;
-   project: Project;
-   invoice: Invoice | null;
-   is_billable: boolean;
+   startTime: string;
+   endTime: string;
+   durationMinutes: number;
+   isBillable: boolean;
    invoiced: boolean;
-   duration_minutes: number;
-   created_at: string;
-   start_time: string;
-   end_time: string;
+   invoice?: Invoice | null;
+   updatedAt: string;
+   project: Project;
+   createdAt: string;
 }
 
 export interface TimerState {
-   active_project_id: number | null;
+   selectedProjectId: string | null;
    description: string;
    status: "idle" | "running" | "paused";
-   elapsed_ms: number;
-   start_time: number | null;
-   is_billable: boolean;
+   elapsedMs: number;
+   startTime: number | null;
+   isBillable: boolean;
 }
+
+interface TimeEntryInList {
+   id: string;
+   description: string;
+   durationMinutes: number;
+   isBillable: boolean;
+   invoiced: boolean;
+   projectId: string;
+   createdAt: string;
+}
+
+export type PaginatedTimeEntryListResponse = {
+   count: number;
+   next: any;
+   previous: any;
+   results: {
+      timeEntries: TimeEntryInList[];
+   };
+};
+
+export type nonPaginatedTimeEntryListResponse = {
+   count: number;
+   timeEntries: TimeEntryInList[];
+};

@@ -2,7 +2,7 @@ import React, { createContext, type ReactNode, useState, useEffect } from "react
 import type { Invoice, Project, Client, TimeEntry, InvoiceItem, InvoiceItemWithMeta } from "../types/models.js";
 import { useMutation, useQuery, useQueryClient, type UseMutationResult } from "@tanstack/react-query";
 import type { AxiosInstance } from "axios";
-import { useApi } from "@/hooks/useApi.js";
+import { api } from "@/services/api.js";
 import { useAuthStore } from "@/features/auth/store.js";
 import { toast } from "react-hot-toast";
 import { useTimeEntries } from "@/features/timeTracking/hooks.js";
@@ -44,7 +44,6 @@ interface InvoicesContextValue {
 export const InvoicesContext = createContext<InvoicesContextValue | null>(null);
 
 export const InvoicesProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-   const { api } = useApi() as { api: AxiosInstance };
    const queryClient = useQueryClient();
    const user = useAuthStore((state) => state.user);
    const isInitialized = useAuthStore((state) => state.isInitialized)
@@ -90,7 +89,7 @@ export const InvoicesProvider: React.FC<{ children: ReactNode }> = ({ children }
       const invoiceItems = invoice.items?.length ? invoice.items : invoice.InvoiceItems || [];
 
       return {
-         client_id: invoice.client?.id || invoice.client_id, // maybe panga prevously invoice.project?.client?.id
+         client_id: invoice.client?.id || invoice.client_id,
          project_id: invoice.project?.id || invoice.project_id,
          issue_date: invoice.issue_date,
          due_date: invoice.due_date,
@@ -148,7 +147,7 @@ export const InvoicesProvider: React.FC<{ children: ReactNode }> = ({ children }
             throw new Error("Invoice must have at least one item");
          }
 
-         const response = await api.post<Invoice>("/invoices/create/", cleanPayload);
+         const response = await api.post<Invoice>("/invoices/", cleanPayload);
          return response.data;
       },
       onSuccess: (data) => {

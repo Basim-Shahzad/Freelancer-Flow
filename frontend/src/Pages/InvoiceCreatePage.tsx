@@ -1,8 +1,11 @@
 import React, { useEffect, useState } from "react";
-import InvoiceCreateHeader from "./InvoiceCreateHeader.js";
-import InvoiceCreateForm from "./InvoiceCreateForm.js";
-import InvoicePreview from "./InvoicePreview.js";
+import InvoiceCreateHeader from "../features/invoices/create/components/InvoiceCreateHeader.js";
+import InvoiceCreateForm from "../features/invoices/create/components/InvoiceCreateForm.js";
+import InvoicePreview from "../features/invoices/create/components/InvoicePreview.js";
 import MobileHeader from "@/layout/MobileHeader.jsx";
+import InvoiceMetadataCard from "@/features/invoices/create/components/InvoiceMetadataCard.js";
+import InvoiceItemsSection from "@/features/invoices/create/components/InvoiceItemsSection.js";
+// import InvoicePreview from "@/features/invoices/create/components/InvoicePreviewOLD.js";
 
 const InvoiceCreate = () => {
    return (
@@ -17,12 +20,12 @@ const InvoiceCreate = () => {
             <div className="flex flex-col gap-8">
                <InvoiceCreateHeader />
 
-               <div className="grid grid-cols-2 px-4 lg:px-8">
-                  <InvoiceCreateForm />
+               <div className="px-4 lg:px-8">
                   <InvoicePreview />
                </div>
             </div>
          </main>
+         
       </div>
    );
 };

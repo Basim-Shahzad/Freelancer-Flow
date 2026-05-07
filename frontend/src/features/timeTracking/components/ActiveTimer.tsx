@@ -1,16 +1,18 @@
-import type { Project } from "@/types/models.js";
+import type { ProjectInList } from "@/features/projects/types.js";
 import { formatTime } from "@/utils/time.utils.js";
-import { useTimer } from "@/features/timeTracking/hooks.js";
 import { Checkbox } from "@heroui/checkbox";
 import { FaPlay, FaPause, FaSquare } from "react-icons/fa";
+import { useTimer, useTimerInterval } from "@/features/timeTracking/hooks.js";
 
 interface Props {
-   project: Project;
+   project: ProjectInList;
 }
 
 export const ActiveTimer: React.FC<Props> = ({ project }) => {
+   // FIX: useTimerInterval was commented out everywhere — timer never ticked. Moved here since this component owns the running UI.
+   useTimerInterval();
+
    const { state, pauseTimer, resumeTimer, stopTimer, updateDescription, toggleBillable } = useTimer();
-   const isSelected = !state.is_billable;
 
    return (
       <div className="rounded-lg shadow-lg py-4 px-3 border dark:border-white/20 border-black/20">
@@ -19,15 +21,16 @@ export const ActiveTimer: React.FC<Props> = ({ project }) => {
                <div className="w-3 h-3 rounded-full animate-pulse" style={{ backgroundColor: "#10b981" }} />
                <div>
                   <h3 className="font-semibold text-2xl">{project.name}</h3>
-                  <p className="text-sm text-gray-500">{project.client.name}</p>
+                  <p className="text-sm text-gray-500">{project.clientName}</p>
                </div>
             </div>
          </div>
 
          <div className="text-3xl lg:text-5xl flex justify-center py-6 font-mono font-bold text-black dark:text-white">
-            {formatTime(state.elapsed_ms)}
+            {formatTime(state.elapsedMs)}
          </div>
 
+         {/* FIX: value and onChange were commented out — description was never read or updated */}
          <input
             type="text"
             placeholder="What are you working on?"
@@ -38,12 +41,19 @@ export const ActiveTimer: React.FC<Props> = ({ project }) => {
          />
 
          <div className="my-4 mx-1 flex items-center">
-            <Checkbox color="secondary" size="lg" isSelected={isSelected} onValueChange={toggleBillable}>
+            {/* FIX: isSelected and onValueChange were commented out — checkbox was a dead prop */}
+            <Checkbox
+               color="secondary"
+               size="lg"
+               isSelected={!state.isBillable}
+               onValueChange={toggleBillable}
+            >
                Exclude from invoice
             </Checkbox>
          </div>
 
          <div className="flex gap-2">
+            {/* FIX: bare `status` was undefined — now uses state.status */}
             {state.status === "running" ? (
                <button
                   onClick={pauseTimer}

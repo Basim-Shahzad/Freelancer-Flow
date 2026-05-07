@@ -4,9 +4,10 @@ import { MdAvTimer } from "react-icons/md";
 
 interface ProjectDetailHeaderProps {
    project: Project;
+   isLoading: boolean
 }
 
-const ProjectDetailHeader: React.FC<ProjectDetailHeaderProps> = ({ project }) => {
+const ProjectDetailHeader: React.FC<ProjectDetailHeaderProps> = ({ project, isLoading }) => {
    return (
       <div className="flex flex-col gap-5 px-4 lg:px-8 lg:gap-1">
          <div className="flex gap-0.5 lg:gap-1 items-center justify-between">
@@ -33,13 +34,13 @@ const ProjectDetailHeader: React.FC<ProjectDetailHeaderProps> = ({ project }) =>
                   </span>
                </button>
 
-               <button
+               {/* <button
                   type="button"
                   className="group relative inline-flex items-center gap-1 rounded-lg px-3.5 py-2.5 text-sm font-semibold text-white/80 shadow-xs-skeumorphic ring-1 ring-white/20 ring-inset cursor-pointer">
                   <MdAvTimer className="text-xl text-[#85888E] " />
 
                   <span className="px-0.5">Track Time</span>
-               </button>
+               </button> */}
             </div>
          </div>
       </div>

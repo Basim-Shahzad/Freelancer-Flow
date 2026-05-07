@@ -8,10 +8,9 @@ import { useProject } from "@/features/projects/hooks.js";
 const ProjectDetail = () => {
    const { id } = useParams();
    if (!id) return null;
+   const { data: project, error, isLoading: projectDetailLoading } = useProject(id);
 
-   const { data : project, error, isLoading : projectDetailLoading } = useProject(id);
-
-   if (projectDetailLoading) {
+   if (projectDetailLoading || !project) {
       return (
          <div className="flex flex-col lg:flex-row bg-white text-black dark:bg-[#000000] dark:text-white transition-colors duration-300">
             <header>
@@ -44,7 +43,7 @@ const ProjectDetail = () => {
    }
 
    return (
-      <div className="flex flex-col lg:flex-row bg-white text-black dark:bg-[#000000] dark:text-white transition-colors duration-300"> 
+      <div className="flex flex-col lg:flex-row bg-white text-black dark:bg-[#000000] dark:text-white transition-colors duration-300">
          <header>
             <MobileHeader />
          </header>
@@ -53,10 +52,10 @@ const ProjectDetail = () => {
 
          <main className="min-w-0 flex-1 pt-8 pb-12">
             <div className="flex flex-col gap-8">
-               <ProjectDetailHeader project={project!} />
+               <ProjectDetailHeader project={project} isLoading={projectDetailLoading} />
 
                <div className="flex flex-col gap-6 px-4 lg:px-8">
-                  <ProjectDetailOverview project={project!} />  
+                  <ProjectDetailOverview project={project} isLoading={projectDetailLoading} />
                </div>
             </div>
          </main>
