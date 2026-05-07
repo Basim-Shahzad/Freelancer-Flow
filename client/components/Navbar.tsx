@@ -3,6 +3,8 @@
 import { useState } from "react";
 import Image from "next/image";
 import { Button, Separator } from "@heroui/react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 const NAV_LINKS = [
    { name: "Product", link: "#" },
@@ -13,6 +15,7 @@ const NAV_LINKS = [
 
 const Navbar = () => {
    const [isDark] = useState(true);
+   const router = useRouter();
 
    return (
       <div
@@ -26,9 +29,9 @@ const Navbar = () => {
          <div className="flex items-center mr-8">
             <div className="flex gap-8">
                {NAV_LINKS.map((link) => (
-                  <a key={link.name} href={link.link} className="">
+                  <Link key={link.name} href={link.link} className="">
                      {link.name}
-                  </a>
+                  </Link>
                ))}
             </div>
 
@@ -36,11 +39,14 @@ const Navbar = () => {
 
             <div className="flex gap-2">
                <Button
+                  onClick={() => router.push("/login")}
                   className={`${isDark ? "text-white bg-black border border-white/10 hover:bg-white/10 " : "text-black bg-white border border-black/10 hover:bg-black/10"}  rounded-full`}>
                   Log in
                </Button>
 
-               <Button className="rounded-full bg-purple-700">Sign Up</Button>
+               <Button onClick={() => router.push("/signup")} className="rounded-full bg-purple-700">
+                  Sign Up
+               </Button>
             </div>
          </div>
       </div>
