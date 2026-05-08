@@ -11,7 +11,7 @@ export const useAuth = () => ({
       login(data.user, data.access);
       return data;
    },
-   login: async (loginData: { username: string; password: string }) => {
+   login: async (loginData: { email: string; password: string }) => {
       const { data } = await api.post<LoginResponse>("/auth/login/", loginData);
       const login = useAuthStore.getState().login;
       const useAuth = useAuthStore.getState().setAuth;

@@ -23,7 +23,7 @@ const Navbar = () => {
          <div className="flex items-center">
             <Image src="/logo.png" alt="Paylancer" width={50} height={50} className={isDark ? "invert" : ""} />
 
-            <a className="text-xl font-semibold font-mono">Paylancer</a>
+            <a className="text-xl font-semibold font-mono">Paylancr</a>
          </div>
 
          <div className="flex items-center mr-8">

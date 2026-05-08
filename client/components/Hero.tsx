@@ -28,7 +28,7 @@ const Hero = () => {
 
          {/* Subheading */}
          <p className="max-w-xl text-center text-lg md:text-xl text-black/60 dark:text-white/60 mb-10 leading-relaxed">
-            Paylancer handles the global invoicing, tax compliance, and instant payouts, so you can focus on the craft.
+            Paylancr handles the global invoicing, tax compliance, and instant payouts, so you can focus on the craft.
             No more chasing clients.
          </p>
 
@@ -55,7 +55,7 @@ const Hero = () => {
             <div className="relative rounded-xl border border-black/10 dark:border-white/10 bg-white/50 dark:bg-zinc-900/50 backdrop-blur-sm overflow-hidden shadow-2xl">
                {/* Replace this with your actual Dashboard Screenshot later */}
                <div className="aspect-[16/9] flex items-center justify-center bg-neutral-100 dark:bg-zinc-950/50">
-                  <p className="text-sm text-neutral-400 font-mono tracking-widest">PAYLANCER_DASHBOARD_PREVIEW.PNG</p>
+                  <p className="text-sm text-neutral-400 font-mono tracking-widest">PAYLANCR_DASHBOARD_PREVIEW.PNG</p>
                </div>
             </div>
          </div>

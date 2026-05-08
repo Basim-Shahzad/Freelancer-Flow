@@ -7,24 +7,23 @@ import { useAuth } from "@/hooks/auth/useAuth";
 import Image from "next/image";
 import { Button, Input, FieldError, TextField, Label, Text } from "@heroui/react";
 import Link from "next/link";
-import { validateEmail } from "./helpers";
+import { validateEmail } from "../signup/helpers";
 
 const page = () => {
    const [isSigninEmailPress, setIsSigninEmailPress] = useState<boolean>(false);
    const [email, setEmail] = useState<string>("");
-   const [username, setUsername] = useState<string>("");
    const [password, setPassword] = useState<string>("");
    const [isEmailValid, setIsEmailValid] = useState<boolean>(false);
 
    const router = useRouter();
 
    const {
-      mutate: signup,
+      mutate: login,
       isPending,
       isError,
       error,
    } = useMutation({
-      mutationFn: useAuth().signup,
+      mutationFn: useAuth().login,
       onSuccess() {
          router.push("/dashboard");
       },
@@ -36,21 +35,9 @@ const page = () => {
             <div className="flex flex-col items-center w-1/5  gap-4">
                <Image src="/logo.png" className="invert" alt="Paylancer" width={50} height={50} />
 
-               <h1 className="text-3xl font-semibold text-white mb-2">Track and Earn</h1>
+               <h1 className="text-3xl font-semibold text-white mb-2">Log in to Paylancr</h1>
 
                <Text className="w-full text-white/75 text-center text-[14px]">{email}</Text>
-
-               <TextField className="w-full" name="username" isRequired>
-                  <Label className="text-white/50">Username</Label>
-                  <Input
-                     placeholder="Enter username"
-                     autoFocus
-                     value={username}
-                     onChange={(e) => setUsername(e.target.value)}
-                     className="w-full bg-black border border-white/10 focus:ring-purple-700/50 text-white"
-                  />
-                  <FieldError>Please enter a valid username</FieldError>
-               </TextField>
 
                <TextField className="w-full" name="password" type="password" isRequired>
                   <Label className="text-white/50">Password</Label>
@@ -67,16 +54,15 @@ const page = () => {
                   size="lg"
                   type="submit"
                   onClick={() =>
-                     signup({
+                     login({
                         email: email,
-                        username: username,
-                        password1: password,
+                        password: password,
                      })
                   }
                   isPending={isPending}
-                  isDisabled={!username || !password}
+                  isDisabled={!password}
                   className="w-full bg-white/10 text-[14px] text-white flex items-center justify-center">
-                  Sign up
+                  Log in
                </Button>
             </div>
          </div>
@@ -87,7 +73,7 @@ const page = () => {
          <div className="flex flex-col items-center w-1/5  gap-4">
             <Image src="/logo.png" className="invert" alt="Paylancer" width={50} height={50} />
 
-            <h1 className="text-3xl font-semibold text-white mb-4">Track and Earn</h1>
+            <h1 className="text-3xl font-semibold text-white mb-4">Log in to Paylancr</h1>
 
             <Button
                size="lg"
@@ -134,14 +120,10 @@ const page = () => {
                </div>
             ) : null}
 
-            <p className="text-sm text-white/70 mt-4 text-center">
-               By signing up, you agree to our <b>Terms of Service</b> and <b>Data Processing Agreement</b>.
-            </p>
-
-            <p className="text-sm text-white/70">
-               Already have an account?{" "}
-               <Link href="/login" className="cursor-pointer">
-                  Log in
+            <p className="text-sm text-white/70 mt-4">
+               Don't have an account?{" "}
+               <Link href="/signup" className="cursor-pointer">
+                  Sign up
                </Link>
             </p>
          </div>
