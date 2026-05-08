@@ -5,6 +5,7 @@ import Image from "next/image";
 import { Button, Separator } from "@heroui/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { appName } from "@/config";
 
 const NAV_LINKS = [
    { name: "Product", link: "#" },
@@ -23,7 +24,7 @@ const Navbar = () => {
          <div className="flex items-center">
             <Image src="/logo.png" alt="Paylancer" width={50} height={50} className={isDark ? "invert" : ""} />
 
-            <a className="text-xl font-semibold font-mono">Paylancr</a>
+            <a className="text-xl font-semibold font-mono">{appName}</a>
          </div>
 
          <div className="flex items-center mr-8">
