@@ -32,6 +32,7 @@ export const useAuth = () => ({
       if (res.status !== 200) {
          const useAuth = useAuthStore.getState().setAuth;
          useAuth(res.data);
+         window.location.href = "/dashboard";
          return res.data;
       }
       return null;
