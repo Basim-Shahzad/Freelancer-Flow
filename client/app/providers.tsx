@@ -6,7 +6,6 @@ import { useAuth } from "@/hooks/auth/useAuth";
 import { useAuthStore } from "@/stores/useAuthStore";
 
 function AuthInitializer() {
-   const setInitialized = useAuthStore((s) => s.setInitialized);
    const hasFetched = useRef(false);
    const auth = useRef(useAuth());
 
@@ -14,14 +13,10 @@ function AuthInitializer() {
       if (hasFetched.current) return;
       hasFetched.current = true;
 
-      auth.current
-         .user()
-         .catch(() => {
-            useAuthStore.getState().logout();
-         })
-         .finally(() => {
-            setInitialized(true);
-         });
+      auth.current.user().catch(() => {
+         // fetch failed — set user to null and mark initialized, one atomic update
+         useAuthStore.getState().setAuthInitialized(null);
+      });
    }, []);
 
    return null;
