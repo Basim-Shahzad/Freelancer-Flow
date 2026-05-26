@@ -1,18 +1,24 @@
+import uuid
 from django.db import models
 from apps.clients.models import Client
 from django.utils import timezone
-import uuid
 from datetime import timedelta
+
+
+class ProjectStatus(models.TextChoices):
+    DRAFT = "draft", "Draft"
+    IN_PROGRESS = "in_progress", "In Progress"
+    IN_REVIEW = "in_review", "In Review"
+    INVOICED = "invoiced", "Invoiced"
+    COMPLETED = "completed", "Completed"
+    ARCHIVED = "archived", "Archived"
+
 
 def default_due_date():
     return timezone.now().date() + timedelta(days=30)
 
+
 class Project(models.Model):
-    STATUS_CHOICES = [
-        ("active", "Active"),
-        ("completed", "Completed"),
-        ("archived", "Archived"),
-    ]
 
     id = models.UUIDField(
         primary_key=True,
@@ -32,7 +38,9 @@ class Project(models.Model):
     )
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True)
-    status = models.CharField(max_length=50, choices=STATUS_CHOICES, default="active")
+    status = models.CharField(
+        max_length=20, choices=ProjectStatus.choices, default=ProjectStatus.DRAFT
+    )
     due_date = models.DateField(default=default_due_date)
 
     # Time Related Fields
@@ -40,9 +48,18 @@ class Project(models.Model):
 
     # Finance Related Fields
     hourly_rate = models.DecimalField(
-        max_digits=10, decimal_places=2, null=True, blank=True
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
     )
-    fixed_rate = models.PositiveIntegerField(null=True, blank=True)
+
+    fixed_rate = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+    )
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -53,10 +70,6 @@ class Project(models.Model):
     @property
     def is_hourly_basis(self):
         return self.hourly_rate is not None
-
-    @property
-    def pricing_type(self):
-        return "Hourly" if self.is_hourly_basis else "Fixed Price"
 
     def get_time_total_spent(self):
         """Sums duration from related time entries."""

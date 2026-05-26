@@ -3,8 +3,7 @@ from .models import Project
 from apps.clients.serializers import ClientSerializer
 
 
-class ProjectSerializer(serializers.ModelSerializer):
-    client = ClientSerializer(read_only=True)
+class ProjectCreateSerializer(serializers.ModelSerializer):
     client_id = serializers.PrimaryKeyRelatedField(
         queryset=Project._meta.get_field("client").remote_field.model.objects.all(),
         source="client",
@@ -14,10 +13,23 @@ class ProjectSerializer(serializers.ModelSerializer):
     class Meta:
         model = Project
         fields = [
-            # Model Fields
-            "id",
-            "client",
+            "name",
+            "description",
+            "status",
+            "due_date",
+            "hourly_rate",
+            "fixed_rate",
             "client_id",
+        ]
+
+
+class ProjectSerializer(serializers.ModelSerializer):
+    client = ClientSerializer(read_only=True)
+
+    class Meta:
+        model = Project
+        fields = [
+            "id",
             "name",
             "description",
             "status",
@@ -25,11 +37,9 @@ class ProjectSerializer(serializers.ModelSerializer):
             "total_time_spent",
             "hourly_rate",
             "fixed_rate",
+            "client",
             "created_at",
             "updated_at",
-            # Properties
-            "is_hourly_basis",
-            "pricing_type",
         ]
 
 
@@ -41,14 +51,13 @@ class ProjectsListSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "name",
+            "description",
             "due_date",
             "status",
             "total_time_spent",
             "hourly_rate",
             "fixed_rate",
             "client_name",
-            "is_hourly_basis",
-            "pricing_type",
             "created_at",
         ]
 

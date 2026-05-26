@@ -5,10 +5,10 @@ from .serializers import (
     ProjectSerializer,
     ProjectsListSerializer,
     NonPaginatedProjectsListSerializer,
+    ProjectCreateSerializer,
 )
 from .models import Project
 from rest_framework.permissions import IsAuthenticated
-from rest_framework.decorators import permission_classes
 from django.contrib.auth import get_user_model
 from django.db import transaction
 from rest_framework.pagination import PageNumberPagination
@@ -29,7 +29,7 @@ class ProjectsListCreateApiView(generics.ListCreateAPIView):
         """Use different serializers for list and create"""
         if self.request.method == "GET":
             return ProjectsListSerializer
-        return ProjectSerializer
+        return ProjectCreateSerializer
 
     def get_queryset(self):
         queryset = Project.objects.filter(user=self.request.user)
@@ -53,7 +53,7 @@ class ProjectsListCreateApiView(generics.ListCreateAPIView):
         # Return the created project with all related data prefetched
         project = Project.objects.get(id=serializer.instance.id)
 
-        return Response(ProjectSerializer(project).data, status=status.HTTP_201_CREATED)
+        return Response(project, status=status.HTTP_201_CREATED)
 
     def list(self, request, *args, **kwargs):
         """Handle GET request to list projects"""
@@ -62,9 +62,7 @@ class ProjectsListCreateApiView(generics.ListCreateAPIView):
         # Handle pagination parameter
         if request.query_params.get("paginate", "true").lower() == "false":
             serializer = NonPaginatedProjectsListSerializer(queryset, many=True)
-            return Response(
-                {"projects": serializer.data, "count": queryset.count()}
-            )
+            return Response({"projects": serializer.data, "count": queryset.count()})
 
         page = self.paginate_queryset(queryset)
         if page is not None:
