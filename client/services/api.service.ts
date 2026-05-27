@@ -2,7 +2,7 @@ import axios, { AxiosError, create, type AxiosInstance, InternalAxiosRequestConf
 import { useAuthStore } from "@/stores/useAuthStore";
 import { Tokens } from "@/types/auth.types";
 
-const API_BASE = "http://localhost:8000/api";
+const API_BASE = "http://localhost:8000/api/v1";
 
 const api: AxiosInstance = create({
    baseURL: API_BASE,
@@ -10,7 +10,11 @@ const api: AxiosInstance = create({
    withCredentials: true,
 });
 
+const isRefreshFailed = () => sessionStorage.getItem("refreshFailed") === "true";
+const setRefreshFailed = () => sessionStorage.setItem("refreshFailed", "true");
+
 let isRefreshing = false;
+let refreshFailed = false;
 let failedQueue: {
    resolve: (value?: unknown) => void;
    reject: (reason?: unknown) => void;
@@ -37,7 +41,12 @@ api.interceptors.response.use(
          _skipRefresh?: boolean;
       };
 
-      if (error.response?.status !== 401 || originalRequest._retry || originalRequest._skipRefresh) {
+      if (
+         error.response?.status !== 401 ||
+         originalRequest._retry ||
+         originalRequest._skipRefresh ||
+         isRefreshFailed()
+      ) {
          return Promise.reject(error);
       }
 
@@ -53,11 +62,16 @@ api.interceptors.response.use(
       isRefreshing = true;
 
       try {
-         const { data } = await axios.post<Tokens>(`${API_BASE}/auth/token/refresh/`, {}, { withCredentials: true });
-         useAuthStore.getState().setAccessToken(data.access);
+         const { data } = await axios.post<{ accessToken: string }>(
+            `${API_BASE}/auth/refresh`,
+            {}, // empty body, cookie is sent automatically
+            { withCredentials: true, _skipRefresh: true } as any,
+         );
+         useAuthStore.getState().setAccessToken(data.accessToken);
          processQueue(null);
          return api(originalRequest);
       } catch (refreshError) {
+         setRefreshFailed(); // persists across the page reload
          processQueue(refreshError);
          useAuthStore.getState().logout();
          window.location.href = "/login";

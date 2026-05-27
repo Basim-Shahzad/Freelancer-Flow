@@ -88,8 +88,8 @@ function TopBar() {
       <div className="px-3 pt-3 pb-2 flex items-center justify-between border-b border-white/[0.05]">
          {isInitialized ? (
             <button className="flex items-center gap-1.5 px-2 py-1 rounded-[6px] hover:bg-white/5 transition-colors duration-100 max-w-[140px]">
-               <ProfilePictureFromName name={user?.username ?? ""} scale={0.55} />
-               <span className="text-[13px] text-white/90 truncate">{user?.username}</span>
+               <ProfilePictureFromName name={user?.fullName ?? ""} scale={0.55} />
+               <span className="text-[13px] text-white/90 truncate">{user?.fullName}</span>
                <ChevronDown size={12} className="text-white/40 shrink-0" />
             </button>
          ) : (

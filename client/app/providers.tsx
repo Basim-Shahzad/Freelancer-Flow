@@ -1,20 +1,23 @@
 "use client";
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { ReactNode, useEffect, useRef } from "react";
+import { ReactNode, useEffect } from "react";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useAuthStore } from "@/stores/useAuthStore";
+import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
+import { ThemeProvider } from "next-themes";
+import { ToastProvider } from "@heroui/react";
+
+let authInitialized = false;
 
 function AuthInitializer() {
-   const hasFetched = useRef(false);
-   const auth = useRef(useAuth());
+   const auth = useAuth();
 
    useEffect(() => {
-      if (hasFetched.current) return;
-      hasFetched.current = true;
+      if (authInitialized) return;
+      authInitialized = true;
 
-      auth.current.user().catch(() => {
-         // fetch failed — set user to null and mark initialized, one atomic update
+      auth.user().catch(() => {
          useAuthStore.getState().setAuthInitialized(null);
       });
    }, []);
@@ -36,7 +39,11 @@ export default function Providers({ children }: { children: ReactNode }) {
    return (
       <QueryClientProvider client={queryClient}>
          <AuthInitializer />
-         {children}
+         <ReactQueryDevtools initialIsOpen={false} />
+         <ThemeProvider attribute="class" defaultTheme="dark">
+            <ToastProvider />
+            {children}
+         </ThemeProvider>
       </QueryClientProvider>
    );
 }

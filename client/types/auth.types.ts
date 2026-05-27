@@ -1,27 +1,21 @@
 export interface User {
    id: string;
-   username: string;
+   fullName: string;
    email: string;
-   dateJoined?: string;
-   logo: string;
-   phone: string;
-   taxId: string;
-   businessName: string;
-   lastLogin: string;
-   revenue: number;
-   hourlyRate?: number;
-   createdAt?: string;
+   role: string;
+   isActive: boolean;
+   isVerified: boolean;
+   createdAt: string;
+   lastLoginAt: string | null;
 }
 
 export interface Tokens {
-   access: string;
-   refresh: string;
+   accessToken: string;
+   refreshToken: string;
 }
 
-export interface LoginResponse extends Tokens {
-   user: User
-}
+export type LoginResponse = Tokens;
 
-export interface SignupResponse extends Tokens {
-   user: User
-}
+export type SignupResponse = User;
+
+export type LogoutResponse = { message: string };

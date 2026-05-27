@@ -5,7 +5,7 @@ import { useMutation } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/auth/useAuth";
 import Image from "next/image";
-import { Button, Input, FieldError, TextField, Label, Text } from "@heroui/react";
+import { Button, Input, FieldError, TextField, Label, Text, toast } from "@heroui/react";
 import Link from "next/link";
 import { validateEmail } from "./helpers";
 
@@ -18,15 +18,15 @@ const page = () => {
 
    const router = useRouter();
 
-   const {
-      mutate: signup,
-      isPending,
-      isError,
-      error,
-   } = useMutation({
+   const { mutate: signup, isPending } = useMutation({
       mutationFn: useAuth().signup,
       onSuccess() {
          router.push("/dashboard");
+      },
+      onError(err) {
+         toast(`Sign up failed. ${err?.message || "Something went wrong."}`, {
+            variant: "danger",
+         });
       },
    });
 
@@ -69,13 +69,14 @@ const page = () => {
                   onClick={() =>
                      signup({
                         email: email,
-                        username: username,
-                        password1: password,
+                        fullName: username,
+                        password: password,
                      })
                   }
                   isPending={isPending}
                   isDisabled={!username || !password}
-                  className="w-full bg-white/10 text-[14px] text-white flex items-center justify-center">
+                  className="w-full bg-white/10 text-[14px] text-white flex items-center justify-center"
+               >
                   Sign up
                </Button>
             </div>
@@ -91,14 +92,16 @@ const page = () => {
 
             <Button
                size="lg"
-               className="w-full text-[14px] bg-purple-700/75 text-white flex items-center justify-center">
+               className="w-full text-[14px] bg-purple-700/75 text-white flex items-center justify-center"
+            >
                Continue with Google
             </Button>
 
             <Button
                onClick={() => setIsSigninEmailPress((state) => !state)}
                size="lg"
-               className="w-full bg-white/10 text-[14px] text-white flex items-center justify-center">
+               className="w-full bg-white/10 text-[14px] text-white flex items-center justify-center"
+            >
                Continue with email
             </Button>
 
@@ -128,7 +131,8 @@ const page = () => {
                         }
                      }}
                      isDisabled={!email}
-                     className="w-full text-[14px] flex items-center justify-center bg-white/10 text-white">
+                     className="w-full text-[14px] flex items-center justify-center bg-white/10 text-white"
+                  >
                      Continue with email
                   </Button>
                </div>
