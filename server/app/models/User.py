@@ -8,6 +8,10 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.database import Base
 from app.models.RefreshToken import RefreshToken
+from typing import List, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from app.models.Client import Client
 
 
 class UserRole(str, enum.Enum):
@@ -50,6 +54,9 @@ class User(Base):
     # Relationships
     refresh_tokens: Mapped[list["RefreshToken"]] = relationship(
         back_populates="user", cascade="all, delete-orphan", lazy="select"
+    )
+    clients: Mapped[List["Client"]] = relationship(
+        back_populates="user", cascade="all, delete-orphan"
     )
 
     def __repr__(self) -> str:
