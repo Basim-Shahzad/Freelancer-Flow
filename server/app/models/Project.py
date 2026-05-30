@@ -2,6 +2,7 @@ from __future__ import annotations
 import uuid
 from typing import TYPE_CHECKING
 from datetime import datetime, timezone
+from decimal import Decimal
 import enum
 
 
@@ -43,7 +44,9 @@ class Project(Base):
     status: Mapped[ProjectStatus] = mapped_column(
         Enum(ProjectStatus), default=ProjectStatus.DRAFT
     )
-    budget: Mapped[float] = mapped_column(Numeric(precision=10, scale=2), nullable=True)
+    budget: Mapped[Decimal] = mapped_column(
+        Numeric(precision=10, scale=2), nullable=True
+    )
     budget_type: Mapped[BudgetType] = mapped_column(
         Enum(BudgetType), default=BudgetType.FIXED
     )
@@ -55,6 +58,9 @@ class Project(Base):
     # foriegn keys
     client_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("clients.id", ondelete="CASCADE"), nullable=False
+    )
+    created_by: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
 
     created_at: Mapped[datetime] = mapped_column(
