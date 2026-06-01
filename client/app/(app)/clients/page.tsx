@@ -51,7 +51,6 @@ export default function ProjectsPage() {
          <DashboardHeader title="Clients" />
          <FiltersHeader
             chips={[]}
-            count={`${res?.data.total} Clients`}
             displayStore={clientStore}
          />
          {display === "table" && <ClientsTable clients={res?.data?.clients || []} />}
