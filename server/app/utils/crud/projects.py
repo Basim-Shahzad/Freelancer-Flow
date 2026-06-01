@@ -40,7 +40,11 @@ async def get_projects(
     status: Optional[ProjectStatus] = None,
     search: Optional[str] = None,
 ) -> tuple[list[Project], int]:
-    query = select(Project).where(Project.created_by == user_id)
+    query = (
+        select(Project)
+        .options(selectinload(Project.client))
+        .where(Project.created_by == user_id)
+    )
 
     if client_id:
         query = query.where(Project.client_id == client_id)

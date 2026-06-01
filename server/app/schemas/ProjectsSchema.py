@@ -29,6 +29,9 @@ class ProjectUpdate(Base):
     due_date: Optional[datetime] = None
     client_id: Optional[uuid.UUID] = None
 
+class ClientInProjectList(Base):
+    id: uuid.UUID
+    name: str
 
 class ProjectResponse(Base):
     id: uuid.UUID
@@ -39,8 +42,7 @@ class ProjectResponse(Base):
     budget: Optional[Decimal] = None
     budget_type: BudgetType
     due_date: Optional[datetime] = None
-    client_id: uuid.UUID
-    created_by: uuid.UUID
+    client: ClientInProjectList
     created_at: datetime
     updated_at: datetime
 
