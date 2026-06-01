@@ -6,12 +6,11 @@ import type { DisplayStoreState } from "@/stores/useDisplayStore";
 
 interface HeaderProps<T extends string> {
    chips: string[];
-   count: string;
    displayStore: DisplayStoreState<T>;
    actions?: unknown;
 }
 
-export default function FiltersHeader<T extends string>({ chips, count, displayStore, actions }: HeaderProps<T>) {
+export default function FiltersHeader<T extends string>({ chips, displayStore, actions }: HeaderProps<T>) {
    const { display: displayLayout, options, setDisplay: setDisplayLayout } = displayStore;
 
    return (
