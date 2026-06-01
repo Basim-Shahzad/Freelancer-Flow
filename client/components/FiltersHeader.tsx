@@ -16,18 +16,14 @@ export default function FiltersHeader<T extends string>({ chips, count, displayS
 
    return (
       <header className="flex items-center justify-between h-11 px-5 border-b rounded-t-3xl border-white/6 bg-[#0d0d0d]/95 backdrop-blur-sm">
-         <div className="flex px-3 py-1 bg-white/5 rounded-full border border-white/5 text-[12px]" >
-            <h1 className="text-white/90 select-none">{count}</h1>
-         </div>
+         {chips.map((chip, i) => (
+            <Chip className="select-none" key={i}>
+               {chip}
+            </Chip>
+         ))}
 
          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-3">
-               {chips.map((chip, i) => (
-                  <Chip className="select-none" key={i}>
-                     {chip}
-                  </Chip>
-               ))}
-            </div>
+            <div className="flex items-center gap-3"></div>
             <Tooltip>
                <Tooltip.Trigger>
                   <button className="p-1 rounded-md text-white/40 hover:text-white/70 bg-white/5 transition-colors duration-100">
