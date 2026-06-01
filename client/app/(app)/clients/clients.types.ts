@@ -1,19 +1,23 @@
+type ProjectInClientList = {
+   id: string;
+   name: string;
+   createdAt: string;
+}
+
 export type ClientInList = {
    id: string;
    name: string;
    email: string;
    phone: string;
+   company: string;
+   taxId: string;
    createdAt: string;
-   projects: { id: string; name: string }[];
+   projects: ProjectInClientList[]
 };
 
 export interface ClientListResponse {
-   count: number;
-   next: any;
-   previous: any;
-   results: {
-      clients: ClientInList[];
-   };
+   clients: ClientInList[];
+   total: number;
 }
 
 export interface Client {

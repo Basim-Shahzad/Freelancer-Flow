@@ -7,8 +7,12 @@ import { useQuery } from "@tanstack/react-query";
 import { User } from "lucide-react";
 import { Spinner } from "@heroui/react";
 import { useClients } from "./useClients";
+import FiltersHeader from "@/components/FiltersHeader";
+import { useClientsStore } from "@/stores/useDisplayStore";
 
 export default function ProjectsPage() {
+   const clientStore = useClientsStore();
+   const { display } = clientStore;
    const {
       data: res,
       isLoading,
@@ -27,7 +31,7 @@ export default function ProjectsPage() {
 
    if (isError) return <div>Error</div>;
 
-   if (res?.data.results.clients.length === 0)
+   if (res?.data.total === 0)
       return (
          <EmptyState
             icon={<User />}
@@ -45,9 +49,13 @@ export default function ProjectsPage() {
    return (
       <div className="flex flex-col min-h-screen">
          <DashboardHeader title="Clients" />
-         <DashboardHeader title="Clients" />
-
-         <ClientsTable clients={res?.data?.results?.clients || []} />
+         <FiltersHeader
+            chips={[]}
+            count={`${res?.data.total} Clients`}
+            displayStore={clientStore}
+         />
+         {display === "table" && <ClientsTable clients={res?.data?.clients || []} />}
+         {display === "cards" && <div>TODO</div>}
       </div>
    );
 }
