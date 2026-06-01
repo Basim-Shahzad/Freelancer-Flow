@@ -5,6 +5,7 @@ from typing import Optional
 
 from fastapi import HTTPException, status
 from sqlalchemy import select, func
+from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.Client import Client
@@ -35,7 +36,11 @@ async def get_clients(
     limit: int = 20,
     search: Optional[str] = None,
 ) -> tuple[list[Client], int]:
-    query = select(Client).where(Client.user_id == user_id)
+    query = (
+        select(Client)
+        .options(selectinload(Client.projects))
+        .where(Client.user_id == user_id)
+    )
 
     if search:
         search_filter = f"%{search}%"
