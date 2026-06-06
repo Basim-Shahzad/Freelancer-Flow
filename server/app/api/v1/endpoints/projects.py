@@ -49,7 +49,7 @@ async def list_projects(
     return ProjectListResponse(projects=projects, total=total)
 
 
-@router.get("/{project_id}")
+@router.get("/{project_id}", response_model=ProjectResponse)
 async def get_project(
     project_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
@@ -58,7 +58,8 @@ async def get_project(
     project = await get_project_by_id(
         db=db, project_id=project_id, user_id=current_user.id
     )
-    return ProjectResponse(project=project)
+    return project
+
 
 
 @router.post("", response_model=ProjectResponse, status_code=status.HTTP_201_CREATED)
@@ -68,7 +69,7 @@ async def create_new_project(
     current_user: User = Depends(get_current_user),
 ):
     project = await create_project(db=db, data=data, user_id=current_user.id)
-    return ProjectResponse(project=project)
+    return project
 
 
 @router.patch("/{project_id}", response_model=ProjectResponse)
@@ -84,7 +85,7 @@ async def update_existing_project(
         data=data,
         user_id=current_user.id,
     )
-    return ProjectResponse(project=project)
+    return project
 
 
 @router.delete("/{project_id}", status_code=status.HTTP_204_NO_CONTENT)

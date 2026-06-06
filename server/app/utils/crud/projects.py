@@ -5,7 +5,7 @@ from typing import Optional
 
 from fastapi import HTTPException, status
 from sqlalchemy import select, func
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import selectinload, joinedload
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.Project import Project, ProjectStatus
@@ -76,7 +76,12 @@ async def create_project(
     project = Project(**data.model_dump(), created_by=user_id)
     db.add(project)
     await db.commit()
-    await db.refresh(project)
+    result = await db.execute(
+        select(Project)
+        .options(joinedload(Project.client))
+        .where(Project.id == project.id)
+    )
+    project = result.scalar_one()
     return project
 
 
