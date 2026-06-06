@@ -2,8 +2,8 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 from uuid import UUID
 
-from jose import JWTError, jwt
-import bcrypt
+import jwt
+from pwdlib import PasswordHash
 
 from app.core.config import settings
 
@@ -11,14 +11,16 @@ from app.core.config import settings
 # Password hashing
 # ---------------------------------------------------------------------------
 
+password_hash = PasswordHash.recommended()
+
 
 def hash_password(password: str) -> str:
-    return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
-
+    return password_hash.hash(password)
 
 
 def verify_password(plain: str, hashed: str) -> bool:
-    return bcrypt.checkpw(plain.encode("utf-8"), hashed.encode("utf-8"))
+    return password_hash.verify(plain, hashed)
+
 
 # ---------------------------------------------------------------------------
 # JWT helpers

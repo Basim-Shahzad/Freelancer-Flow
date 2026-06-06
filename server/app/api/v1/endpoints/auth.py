@@ -28,7 +28,7 @@ from app.utils.crud.auth import (
     revoke_refresh_token,
     update_last_login,
 )
-from jose import JWTError
+from jwt.exceptions import PyJWTError
 
 router = APIRouter()
 
@@ -146,7 +146,7 @@ async def refresh_tokens(
     # 2. Validate JWT signature + expiry
     try:
         token_data = decode_token(refresh_token)
-    except JWTError:
+    except PyJWTError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Refresh token is invalid or expired",

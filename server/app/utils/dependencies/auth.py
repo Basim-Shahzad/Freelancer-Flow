@@ -12,7 +12,7 @@ from uuid import UUID
 
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from jose import JWTError
+from jwt.exceptions import PyJWTError
 from sqlalchemy.orm import Session
 from app.db.database import get_db
 from app.core.security import decode_token
@@ -38,7 +38,7 @@ async def _extract_user(
 
     try:
         payload = decode_token(credentials.credentials)
-    except JWTError:
+    except PyJWTError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token is invalid or expired",
