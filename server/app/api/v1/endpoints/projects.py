@@ -55,9 +55,10 @@ async def get_project(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return await get_project_by_id(
+    project = await get_project_by_id(
         db=db, project_id=project_id, user_id=current_user.id
     )
+    return ProjectResponse(project=project)
 
 
 @router.post("", response_model=ProjectResponse, status_code=status.HTTP_201_CREATED)
@@ -66,7 +67,8 @@ async def create_new_project(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return await create_project(db=db, data=data, user_id=current_user.id)
+    project = await create_project(db=db, data=data, user_id=current_user.id)
+    return ProjectResponse(project=project)
 
 
 @router.patch("/{project_id}", response_model=ProjectResponse)
@@ -76,12 +78,13 @@ async def update_existing_project(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return await update_project(
+    project = await update_project(
         db=db,
         project_id=project_id,
         data=data,
         user_id=current_user.id,
     )
+    return ProjectResponse(project=project)
 
 
 @router.delete("/{project_id}", status_code=status.HTTP_204_NO_CONTENT)
