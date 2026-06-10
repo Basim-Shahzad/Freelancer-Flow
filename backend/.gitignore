@@ -1,8 +1,0 @@
-.gitignore
-db.sqlite3
-__pycache__/
-.env
-.env.development
-apps/payments/
-test_data.py
-management/
