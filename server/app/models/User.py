@@ -1,8 +1,9 @@
 import enum
 import uuid
+from decimal import Decimal
 from datetime import datetime, timezone
 
-from sqlalchemy import Boolean, DateTime, Enum, String
+from sqlalchemy import Boolean, DateTime, Enum, String, Numeric
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -12,7 +13,6 @@ from typing import List, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from app.models.Client import Client
-
 
 class UserRole(str, enum.Enum):
     USER = "user"
@@ -31,6 +31,11 @@ class User(Base):
     )
     hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
     full_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+
+    hourly_rate: Mapped[Decimal] = mapped_column(
+        Numeric(precision=13, scale=2), nullable=True
+    )
+    type: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
     role: Mapped[UserRole] = mapped_column(
         Enum(UserRole), default=UserRole.USER, nullable=False
@@ -58,6 +63,6 @@ class User(Base):
     clients: Mapped[List["Client"]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
     )
-
+    
     def __repr__(self) -> str:
         return f"<User {self.email} [{self.role}]>"

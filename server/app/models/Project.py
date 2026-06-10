@@ -6,7 +6,7 @@ from decimal import Decimal
 import enum
 
 
-from sqlalchemy import DateTime, ForeignKey, String, Text, Enum
+from sqlalchemy import DateTime, ForeignKey, String, Text, Enum, Integer
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy import Numeric
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -15,6 +15,7 @@ from app.db.database import Base
 
 if TYPE_CHECKING:
     from app.models.Client import Client
+    from app.models.TimeEntry import TimeEntry
 
 
 class ProjectStatus(enum.Enum):
@@ -43,7 +44,7 @@ class Project(Base):
     type: Mapped[str] = mapped_column(String(255), nullable=True)
     status: Mapped[ProjectStatus] = mapped_column(
         Enum(ProjectStatus), default=ProjectStatus.DRAFT
-    )
+    ) 
     budget: Mapped[Decimal] = mapped_column(
         Numeric(precision=10, scale=2), nullable=True
     )
@@ -52,8 +53,13 @@ class Project(Base):
     )
     due_date: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=True)
 
+    total_time_spent: Mapped[int] = mapped_column(Integer, nullable=True)
+
     # relationships
     client: Mapped["Client"] = relationship(back_populates="projects")
+    time_entries: Mapped[list["TimeEntry"]] = relationship(
+        back_populates="project", cascade="all, delete-orphan"
+    )
 
     # foriegn keys
     client_id: Mapped[uuid.UUID] = mapped_column(
