@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+   <head>
+      <meta charset="utf-8" />
+      <title>Invoice {{ invoice.invoice_number }}</title>
+      <link rel="stylesheet" href="invoice.css" />
+   </head>
+   <body>
+      <!-- HEADER -->
+      <div class="header">
+         <div>
+            <h1>INVOICE</h1>
+            <p class="invoice-number">{{ invoice.invoice_number }}</p>
+         </div>
+         <div class="meta">
+            <p><strong>Issue Date:</strong> {{ invoice.issue_date }}</p>
+            <p><strong>Due Date:</strong> {{ invoice.due_date }}</p>
+            <p><strong>Status:</strong> {{ invoice.status|upper }}</p>
+         </div>
+      </div>
+
+      <!-- CLIENT / PROJECT -->
+      <div class="billing">
+         <div>
+            <h3>Billed To</h3>
+            <p>{{ invoice.client.name }}</p>
+            {% if invoice.project %}
+            <p class="muted">Project: {{ invoice.project.name }}</p>
+            {% endif %}
+         </div>
+      </div>
+
+      <!-- ITEMS TABLE -->
+      <table class="items">
+         <thead>
+            <tr>
+               <th>Description</th>
+               <th class="right">Qty</th>
+               <th class="right">Unit Price</th>
+               <th class="right">Amount</th>
+            </tr>
+         </thead>
+         <tbody>
+            {% for item in invoice.items.all %}
+            <tr>
+               <td>{{ item.description }}</td>
+               <td class="right">{{ item.quantity }}</td>
+               <td class="right">{{ item.unit_price }}</td>
+               <td class="right">{{ item.amount }}</td>
+            </tr>
+            {% endfor %}
+         </tbody>
+      </table>
+
+      <!-- TOTALS -->
+      <div class="totals">
+         <table>
+            <tr>
+               <td>Subtotal</td>
+               <td class="right">{{ invoice.subtotal }}</td>
+            </tr>
+            <tr>
+               <td>Tax ({{ invoice.tax_rate }}%)</td>
+               <td class="right">{{ invoice.tax_amount }}</td>
+            </tr>
+            <tr class="total">
+               <td>Total</td>
+               <td class="right">{{ invoice.total }}</td>
+            </tr>
+         </table>
+      </div>
+
+      <!-- NOTES -->
+      {% if invoice.notes %}
+      <div class="notes">
+         <h4>Notes</h4>
+         <p>{{ invoice.notes }}</p>
+      </div>
+      {% endif %}
+
+      <!-- FOOTER -->
+      <div class="footer">
+         {% if invoice.payment_date %}
+         <p>Paid on {{ invoice.payment_date }}</p>
+         {% else %}
+         <p>Thank you for your business.</p>
+         {% endif %}
+      </div>
+   </body>
+</html>
