@@ -11,7 +11,7 @@ from app.db.database import Base
 
 if TYPE_CHECKING:
     from app.models.Project import Project
-    from app.models.User import User
+    from app.models.Milestone import Milestone
 
 
 class TimeEntry(Base):
@@ -35,8 +35,12 @@ class TimeEntry(Base):
     project_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("projects.id", ondelete="CASCADE"), nullable=False
     )
+    milestone_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("milestones.id", ondelete="CASCADE"), nullable=True
+    )
     # Relationships
     project: Mapped["Project"] = relationship(back_populates="time_entries")
+    milestone: Mapped["Milestone"] = relationship("Milestone", back_populates="time_entries")
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)

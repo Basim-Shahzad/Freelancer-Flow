@@ -16,17 +16,16 @@ from app.db.database import Base
 if TYPE_CHECKING:
     from app.models.Client import Client
     from app.models.TimeEntry import TimeEntry
+    from app.models.Milestone import Milestone
 
 
 class ProjectStatus(enum.Enum):
     DRAFT = "DRAFT"
-    IN_PROGRESS = "IN_PROGRESS"
-    IN_REVIEW = "IN_REVIEW"
-    INVOICED = "INVOICED"
+    ACTIVE = "ACTIVE"
+    PAUSED = "PAUSED"
     COMPLETED = "COMPLETED"
     ARCHIVED = "ARCHIVED"
     CANCELLED = "CANCELLED"
-
 
 class BudgetType(enum.Enum):
     FIXED = "FIXED"
@@ -60,6 +59,9 @@ class Project(Base):
     time_entries: Mapped[list["TimeEntry"]] = relationship(
         back_populates="project", cascade="all, delete-orphan"
     )
+    milestones: Mapped[list["Milestone"]] = relationship(
+        back_populates="project", cascade="all, delete-orphan"
+    )
 
     # foriegn keys
     client_id: Mapped[uuid.UUID] = mapped_column(
@@ -77,6 +79,4 @@ class Project(Base):
         default=lambda: datetime.now(timezone.utc),
         onupdate=lambda: datetime.now(timezone.utc),
     )
-
-
-# TODO: add milestones to project
+    

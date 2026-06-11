@@ -7,7 +7,13 @@ from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from app.db.database import Base
-import app.models
+
+from app.models.Client import Client
+from app.models.Project import Project
+from app.models.Milestone import Milestone
+from app.models.TimeEntry import TimeEntry
+from app.models.User import User
+from app.models.RefreshToken import RefreshToken
 
 from alembic import context
 
