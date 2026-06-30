@@ -2,3 +2,5 @@ from .User import User
 from .Client import Client
 from .Project import Project
 from .RefreshToken import RefreshToken
+from .TimeEntry import TimeEntry
+from .Milestone import Milestone
