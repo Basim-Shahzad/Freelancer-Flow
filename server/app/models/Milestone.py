@@ -47,7 +47,7 @@ class Milestone(Base):
     approval_required: Mapped[bool] = mapped_column(
         Boolean, default=False, nullable=False
     )
-    approved_by: Mapped[uuid.UUID] = mapped_column(
+    approved_by_client_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("clients.id", ondelete="CASCADE"), nullable=True
     )
     approved_at: Mapped[datetime] = mapped_column(

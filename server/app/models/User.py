@@ -9,14 +9,15 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.database import Base
 from app.models.RefreshToken import RefreshToken
-from typing import List, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from app.models.Client import Client
+    from app.models.Freelancer import Freelancer
+
 
 class UserRole(str, enum.Enum):
     USER = "user"
-    MODERATOR = "moderator"
     ADMIN = "admin"
 
 
@@ -31,11 +32,6 @@ class User(Base):
     )
     hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
     full_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
-
-    hourly_rate: Mapped[Decimal] = mapped_column(
-        Numeric(precision=13, scale=2), nullable=True
-    )
-    type: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
     role: Mapped[UserRole] = mapped_column(
         Enum(UserRole), default=UserRole.USER, nullable=False
@@ -60,9 +56,16 @@ class User(Base):
     refresh_tokens: Mapped[list["RefreshToken"]] = relationship(
         back_populates="user", cascade="all, delete-orphan", lazy="select"
     )
-    clients: Mapped[List["Client"]] = relationship(
-        back_populates="user", cascade="all, delete-orphan"
+
+    # One-to-one: a user has at most one freelancer profile.
+    # uselist=False makes this a scalar attribute instead of a list.
+    freelancer: Mapped["Freelancer | None"] = relationship(
+        back_populates="user", uselist=False, cascade="all, delete-orphan"
     )
-    
+
+    # Direct, denormalized access to a user's clients (bypassing freelancer).
+    # Kept intentionally alongside Freelancer.clients for query convenience.
+    clients: Mapped[list["Client"]] = relationship(back_populates="user", lazy="select")
+
     def __repr__(self) -> str:
         return f"<User {self.email} [{self.role}]>"

@@ -1,8 +1,8 @@
-"""initial_schema
+"""init 1.0
 
-Revision ID: 53d27ccb3c85
+Revision ID: aa5996767027
 Revises: 
-Create Date: 2026-06-30 14:51:20.305996
+Create Date: 2026-07-19 14:41:48.288866
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = '53d27ccb3c85'
+revision: str = 'aa5996767027'
 down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -26,9 +26,7 @@ def upgrade() -> None:
     sa.Column('email', sa.String(length=255), nullable=False),
     sa.Column('hashed_password', sa.String(length=255), nullable=False),
     sa.Column('full_name', sa.String(length=255), nullable=True),
-    sa.Column('hourly_rate', sa.Numeric(precision=13, scale=2), nullable=True),
-    sa.Column('type', sa.String(length=255), nullable=True),
-    sa.Column('role', sa.Enum('USER', 'MODERATOR', 'ADMIN', name='userrole'), nullable=False),
+    sa.Column('role', sa.Enum('USER', 'ADMIN', name='userrole'), nullable=False),
     sa.Column('is_active', sa.Boolean(), nullable=False),
     sa.Column('is_verified', sa.Boolean(), nullable=False),
     sa.Column('created_at', sa.DateTime(timezone=True), nullable=False),
@@ -37,20 +35,17 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('id')
     )
     op.create_index(op.f('ix_users_email'), 'users', ['email'], unique=True)
-    op.create_table('clients',
+    op.create_table('freelancers',
     sa.Column('id', sa.UUID(), nullable=False),
-    sa.Column('name', sa.String(length=255), nullable=False),
-    sa.Column('email', sa.String(length=255), nullable=True),
-    sa.Column('company_name', sa.String(length=255), nullable=True),
-    sa.Column('phone', sa.String(length=255), nullable=True),
-    sa.Column('address', sa.String(length=255), nullable=True),
-    sa.Column('tax_id', sa.String(length=255), nullable=True),
-    sa.Column('notes', sa.Text(), nullable=True),
+    sa.Column('hourly_rate', sa.Numeric(precision=13, scale=2), nullable=True),
+    sa.Column('type', sa.String(length=255), nullable=True),
+    sa.Column('email_verified_at', sa.DateTime(timezone=True), nullable=True),
     sa.Column('user_id', sa.UUID(), nullable=False),
     sa.Column('created_at', sa.DateTime(timezone=True), nullable=False),
     sa.Column('updated_at', sa.DateTime(timezone=True), nullable=False),
     sa.ForeignKeyConstraint(['user_id'], ['users.id'], ondelete='CASCADE'),
-    sa.PrimaryKeyConstraint('id')
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('user_id')
     )
     op.create_table('refresh_tokens',
     sa.Column('id', sa.UUID(), nullable=False),
@@ -68,6 +63,39 @@ def upgrade() -> None:
     )
     op.create_index('ix_refresh_tokens_token', 'refresh_tokens', ['token'], unique=False)
     op.create_index('ix_refresh_tokens_user_id', 'refresh_tokens', ['user_id'], unique=False)
+    op.create_table('clients',
+    sa.Column('id', sa.UUID(), nullable=False),
+    sa.Column('name', sa.String(length=255), nullable=False),
+    sa.Column('email', sa.String(length=255), nullable=False),
+    sa.Column('company_name', sa.String(length=255), nullable=True),
+    sa.Column('phone', sa.String(length=255), nullable=True),
+    sa.Column('address', sa.String(length=255), nullable=True),
+    sa.Column('tax_id', sa.String(length=255), nullable=True),
+    sa.Column('notes', sa.Text(), nullable=True),
+    sa.Column('email_verified_at', sa.DateTime(timezone=True), nullable=True),
+    sa.Column('user_id', sa.UUID(), nullable=True),
+    sa.Column('freelancer_id', sa.UUID(), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), nullable=False),
+    sa.Column('updated_at', sa.DateTime(timezone=True), nullable=False),
+    sa.ForeignKeyConstraint(['freelancer_id'], ['freelancers.id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['user_id'], ['users.id'], ondelete='SET NULL'),
+    sa.PrimaryKeyConstraint('id')
+    )
+    op.create_table('portal_tokens',
+    sa.Column('id', sa.UUID(), nullable=False),
+    sa.Column('jti', sa.String(length=255), nullable=False),
+    sa.Column('client_id', sa.UUID(), nullable=False),
+    sa.Column('scope_type', sa.Enum('PROJECT', 'MILESTONE', name='scopetype'), nullable=False),
+    sa.Column('scope', sa.UUID(), nullable=True),
+    sa.Column('issued_at', sa.DateTime(timezone=True), nullable=False),
+    sa.Column('expires_at', sa.DateTime(timezone=True), nullable=False),
+    sa.Column('revoked_at', sa.DateTime(timezone=True), nullable=True),
+    sa.Column('created_at', sa.DateTime(timezone=True), nullable=False),
+    sa.Column('updated_at', sa.DateTime(timezone=True), nullable=False),
+    sa.ForeignKeyConstraint(['client_id'], ['clients.id'], ondelete='CASCADE'),
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('jti')
+    )
     op.create_table('projects',
     sa.Column('id', sa.UUID(), nullable=False),
     sa.Column('name', sa.String(length=255), nullable=False),
@@ -94,12 +122,28 @@ def upgrade() -> None:
     sa.Column('status', sa.Enum('PENDING', 'IN_PROGRESS', 'SUBMITTED', 'APPROVED', 'REJECTED', name='milestonestatus'), nullable=False),
     sa.Column('due_date', sa.DateTime(timezone=True), nullable=True),
     sa.Column('approval_required', sa.Boolean(), nullable=False),
-    sa.Column('approved_by', sa.UUID(), nullable=True),
+    sa.Column('approved_by_client_id', sa.UUID(), nullable=True),
     sa.Column('approved_at', sa.DateTime(timezone=True), nullable=True),
     sa.Column('created_at', sa.DateTime(timezone=True), nullable=False),
     sa.Column('updated_at', sa.DateTime(timezone=True), nullable=False),
-    sa.ForeignKeyConstraint(['approved_by'], ['clients.id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['approved_by_client_id'], ['clients.id'], ondelete='CASCADE'),
     sa.ForeignKeyConstraint(['project_id'], ['projects.id'], ondelete='CASCADE'),
+    sa.PrimaryKeyConstraint('id')
+    )
+    op.create_table('milestone_approvals',
+    sa.Column('id', sa.UUID(), nullable=False),
+    sa.Column('milestone_id', sa.UUID(), nullable=False),
+    sa.Column('client_id', sa.UUID(), nullable=False),
+    sa.Column('decision', sa.Enum('APPROVED', 'REJECTED', name='milestoneapprovaldecision'), nullable=False),
+    sa.Column('decided_at', sa.DateTime(timezone=True), nullable=False),
+    sa.Column('ip_address', sa.String(length=255), nullable=True),
+    sa.Column('user_agent', sa.String(length=255), nullable=True),
+    sa.Column('access_token_id', sa.UUID(), nullable=True),
+    sa.Column('created_at', sa.DateTime(timezone=True), nullable=False),
+    sa.Column('updated_at', sa.DateTime(timezone=True), nullable=False),
+    sa.ForeignKeyConstraint(['access_token_id'], ['portal_tokens.id'], ondelete='SET NULL'),
+    sa.ForeignKeyConstraint(['client_id'], ['clients.id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['milestone_id'], ['milestones.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_table('time_entries',
@@ -125,12 +169,15 @@ def downgrade() -> None:
     """Downgrade schema."""
     # ### commands auto generated by Alembic - please adjust! ###
     op.drop_table('time_entries')
+    op.drop_table('milestone_approvals')
     op.drop_table('milestones')
     op.drop_table('projects')
+    op.drop_table('portal_tokens')
+    op.drop_table('clients')
     op.drop_index('ix_refresh_tokens_user_id', table_name='refresh_tokens')
     op.drop_index('ix_refresh_tokens_token', table_name='refresh_tokens')
     op.drop_table('refresh_tokens')
-    op.drop_table('clients')
+    op.drop_table('freelancers')
     op.drop_index(op.f('ix_users_email'), table_name='users')
     op.drop_table('users')
     # ### end Alembic commands ###

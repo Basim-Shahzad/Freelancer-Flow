@@ -4,3 +4,6 @@ from .Project import Project
 from .RefreshToken import RefreshToken
 from .TimeEntry import TimeEntry
 from .Milestone import Milestone
+from .MilestoneApproval import MilestoneApproval
+from .Freelancer import Freelancer
+from .PortalAccessToken import PortalAccessToken
