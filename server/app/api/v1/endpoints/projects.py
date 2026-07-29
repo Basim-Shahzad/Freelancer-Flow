@@ -5,6 +5,7 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
+from pydantic import TypeAdapter
 
 from app.db.database import get_db
 from app.utils.crud.projects import (
@@ -14,12 +15,14 @@ from app.utils.crud.projects import (
     update_project,
     delete_project,
 )
+from app.utils.crud.milestones import get_milestones
 from app.schemas.ProjectsSchema import (
     ProjectCreate,
     ProjectUpdate,
     ProjectResponse,
     ProjectListResponse,
 )
+from app.schemas.MilestoneSchema import MilestoneListResponse, MilestoneResponse
 from app.models.Project import ProjectStatus
 from app.utils.dependencies.auth import get_current_user
 from app.models.User import User
@@ -95,3 +98,19 @@ async def delete_existing_project(
     current_user: User = Depends(get_current_user),
 ):
     await delete_project(db=db, project_id=project_id, user_id=current_user.id)
+
+@router.get("/{project_id}/milestones/", response_model=MilestoneListResponse)
+async def list_milestones(
+    project_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    
+    milestone_list_adapter = TypeAdapter(list[MilestoneResponse])
+    milestones, total = await get_milestones(
+        db=db,
+        project_id=project_id,
+    )
+    validated_milestones = milestone_list_adapter.validate_python(milestones)
+
+    return MilestoneListResponse(milestones=validated_milestones, total=total)

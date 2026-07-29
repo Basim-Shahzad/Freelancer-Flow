@@ -14,7 +14,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.database import Base
 
 if TYPE_CHECKING:
-    from app.models.Client import Client
+    from app.models.ClientProfile import ClientProfile
     from app.models.TimeEntry import TimeEntry
     from app.models.Milestone import Milestone
 
@@ -55,7 +55,7 @@ class Project(Base):
     total_time_spent: Mapped[int] = mapped_column(Integer, nullable=True)
 
     # relationships
-    client: Mapped["Client"] = relationship(back_populates="projects")
+    client: Mapped["ClientProfile"] = relationship(back_populates="projects")
     time_entries: Mapped[list["TimeEntry"]] = relationship(
         back_populates="project", cascade="all, delete-orphan"
     )
