@@ -5,10 +5,11 @@ from typing import Optional
 
 from fastapi import HTTPException, status
 from sqlalchemy import select, func
+
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.Client import Client
+from app.models.ClientProfile import ClientProfile
 from app.schemas.ClientsSchema import ClientCreate, ClientUpdate
 
 
@@ -16,9 +17,9 @@ async def get_client_by_id(
     db: AsyncSession,
     client_id: uuid.UUID,
     user_id: uuid.UUID,
-) -> Client:
+) -> ClientProfile:
     result = await db.execute(
-        select(Client).where(Client.id == client_id, Client.user_id == user_id)
+        select(ClientProfile).where(ClientProfile.id == client_id, ClientProfile.user_id == user_id)
     )
     client = result.scalar_one_or_none()
     if not client:
@@ -35,25 +36,25 @@ async def get_clients(
     skip: int = 0,
     limit: int = 20,
     search: Optional[str] = None,
-) -> tuple[list[Client], int]:
+) -> tuple[list[ClientProfile], int]:
     query = (
-        select(Client)
-        .options(selectinload(Client.projects))
-        .where(Client.user_id == user_id)
+        select(ClientProfile)
+        .options(selectinload(ClientProfile.projects))
+        .where(ClientProfile.user_id == user_id)
     )
 
     if search:
         search_filter = f"%{search}%"
         query = query.where(
-            Client.name.ilike(search_filter)
-            | Client.email.ilike(search_filter)
-            | Client.company_name.ilike(search_filter)
+            ClientProfile.name.ilike(search_filter)
+            | ClientProfile.email.ilike(search_filter)
+            | ClientProfile.company_name.ilike(search_filter)
         )
 
     count_result = await db.execute(select(func.count()).select_from(query.subquery()))
     total = count_result.scalar_one()
 
-    query = query.order_by(Client.created_at.desc()).offset(skip).limit(limit)
+    query = query.order_by(ClientProfile.created_at.desc()).offset(skip).limit(limit)
     result = await db.execute(query)
     clients = result.scalars().all()
 
@@ -63,9 +64,9 @@ async def get_clients(
 async def create_client(
     db: AsyncSession,
     data: ClientCreate,
-    user_id: uuid.UUID,
-) -> Client:
-    client = Client(**data.model_dump(), user_id=user_id)
+    freelancer_id: uuid.UUID,
+) -> ClientProfile:
+    client = ClientProfile(**data.model_dump(), freelancer_id=freelancer_id)
     db.add(client)
     await db.commit()
     await db.refresh(client)
@@ -77,7 +78,7 @@ async def update_client(
     client_id: uuid.UUID,
     data: ClientUpdate,
     user_id: uuid.UUID,
-) -> Client:
+) -> ClientProfile:
     client = await get_client_by_id(db, client_id, user_id)
 
     update_data = data.model_dump(exclude_unset=True)

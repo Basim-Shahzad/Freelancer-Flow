@@ -37,7 +37,7 @@ class ClientResponse(Base):
     address: Optional[str] = None
     tax_id: Optional[str] = None
     notes: Optional[str] = None
-    user_id: uuid.UUID
+    user_id: uuid.UUID | None = None
     created_at: datetime
     updated_at: datetime
 

@@ -59,7 +59,7 @@ async def create_new_client(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return await create_client(db=db, data=data, user_id=current_user.id)
+    return await create_client(db=db, data=data, freelancer_id=current_user.freelancer.id)
 
 
 @router.patch("/{client_id}", response_model=ClientResponse)
