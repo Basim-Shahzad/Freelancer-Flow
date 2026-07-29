@@ -11,9 +11,9 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import Depends, HTTPException, Request, status
+from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jwt.exceptions import PyJWTError
-from sqlalchemy.orm import Session
 from app.db.database import get_db
 from app.core.security import decode_token
 from app.models.User import User, UserRole
@@ -26,7 +26,7 @@ _bearer = HTTPBearer(auto_error=False)
 
 async def _extract_user(
     credentials: HTTPAuthorizationCredentials | None,
-    db: Session,
+    db: AsyncSession,
 ) -> User:
     """Core extraction logic shared by all auth dependencies."""
     if not credentials:
@@ -73,7 +73,7 @@ async def _extract_user(
 
 async def get_current_user(
     credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(_bearer)],
-    db: Annotated[Session, Depends(get_db)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ) -> User:
     return await _extract_user(credentials, db)
 
@@ -103,7 +103,7 @@ def get_admin_user(
 def get_moderator_or_admin(
     user: Annotated[User, Depends(get_current_user)],
 ) -> User:
-    if user.role not in (UserRole.MODERATOR, UserRole.ADMIN):
+    if user.role not in (UserRole.ADMIN):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions",
@@ -119,4 +119,4 @@ CurrentUser = Annotated[User, Depends(get_current_user)]
 VerifiedUser = Annotated[User, Depends(get_verified_user)]
 AdminUser = Annotated[User, Depends(get_admin_user)]
 ModeratorUser = Annotated[User, Depends(get_moderator_or_admin)]
-DBSession = Annotated[Session, Depends(get_db)]
+DBSession = Annotated[AsyncSession, Depends(get_db)]

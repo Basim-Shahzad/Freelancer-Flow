@@ -7,12 +7,14 @@ from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.security import hash_password
 from app.models.User import User, UserRole
 from app.models.RefreshToken import RefreshToken
+from app.models.FreelancerProfile import FreelancerProfile
 from app.schemas.AuthSchema import UserCreate
 
 # ---------------------------------------------------------------------------
@@ -21,7 +23,14 @@ from app.schemas.AuthSchema import UserCreate
 
 
 async def get_user_by_id(db: AsyncSession, user_id: UUID) -> User | None:
-    return await db.get(User, user_id)
+    result = await db.execute(
+        select(User)
+        .options(selectinload(User.freelancer))
+        .where(User.id == user_id)
+    )
+    current_user = result.scalar_one()
+    return current_user
+
 
 
 async def get_user_by_email(db: AsyncSession, email: str) -> User | None:
@@ -44,6 +53,13 @@ async def create_user(
     )
     db.add(user)
     await db.flush()
+
+    freelancer_profile = FreelancerProfile(user_id=user.id)
+
+    db.add(freelancer_profile)
+
+    await db.commit()
+    await db.refresh(user)
     return user
 
 
