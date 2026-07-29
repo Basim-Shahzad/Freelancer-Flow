@@ -1,9 +1,8 @@
 import enum
 import uuid
-from decimal import Decimal
 from datetime import datetime, timezone
 
-from sqlalchemy import Boolean, DateTime, Enum, String, Numeric
+from sqlalchemy import Boolean, DateTime, Enum, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -12,8 +11,8 @@ from app.models.RefreshToken import RefreshToken
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from app.models.Client import Client
-    from app.models.Freelancer import Freelancer
+    from app.models.ClientProfile import ClientProfile
+    from app.models.FreelancerProfile import FreelancerProfile
 
 
 class UserRole(str, enum.Enum):
@@ -57,15 +56,18 @@ class User(Base):
         back_populates="user", cascade="all, delete-orphan", lazy="select"
     )
 
-    # One-to-one: a user has at most one freelancer profile.
-    # uselist=False makes this a scalar attribute instead of a list.
-    freelancer: Mapped["Freelancer | None"] = relationship(
-        back_populates="user", uselist=False, cascade="all, delete-orphan"
+    freelancer: Mapped["FreelancerProfile | None"] = relationship(
+        back_populates="user",
+        uselist=False,
+        cascade="all, delete-orphan",
+        lazy="select",
     )
 
-    # Direct, denormalized access to a user's clients (bypassing freelancer).
-    # Kept intentionally alongside Freelancer.clients for query convenience.
-    clients: Mapped[list["Client"]] = relationship(back_populates="user", lazy="select")
+    client_account: Mapped["ClientProfile | None"] = relationship(
+        back_populates="user",
+        uselist=False,
+        lazy="select",
+    )
 
     def __repr__(self) -> str:
         return f"<User {self.email} [{self.role}]>"
