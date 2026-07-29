@@ -8,7 +8,8 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from app.db.database import Base
 
-from app.models.Client import Client
+from app.models.ClientProfile import ClientProfile
+from app.models.FreelancerProfile import FreelancerProfile
 from app.models.Project import Project
 from app.models.Milestone import Milestone
 from app.models.TimeEntry import TimeEntry
