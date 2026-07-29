@@ -1,5 +1,5 @@
 from fastapi.routing import APIRouter
-from app.api.v1.endpoints import auth, clients, projects, time_entries, milestones
+from app.api.v1.endpoints import auth, clients, projects, time_entries, milestones, client_portal 
 
 api_router = APIRouter()
 
@@ -8,3 +8,4 @@ api_router.include_router(clients.router)
 api_router.include_router(projects.router)
 api_router.include_router(time_entries.router)
 api_router.include_router(milestones.router)
+api_router.include_router(client_portal.router)
