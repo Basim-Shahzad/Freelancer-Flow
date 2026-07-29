@@ -3,7 +3,8 @@ from __future__ import annotations
 import uuid
 from typing import Optional
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Query, status, HTTPException
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import TypeAdapter
 
@@ -26,6 +27,7 @@ from app.schemas.MilestoneSchema import MilestoneListResponse, MilestoneResponse
 from app.models.Project import ProjectStatus
 from app.utils.dependencies.auth import get_current_user
 from app.models.User import User
+from app.models.Project import Project
 
 router = APIRouter(prefix="/projects", tags=["Projects"])
 
@@ -105,12 +107,31 @@ async def list_milestones(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    
+
+    if current_user.freelancer is None:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only freelancers can view project milestones",
+        )
+ 
+    project_result = await db.execute(
+        select(Project).where(
+            Project.id == project_id,
+            Project.client.has(freelancer_id=current_user.freelancer.id),
+        )
+    )
+    project = project_result.scalar_one_or_none()
+    if project is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Project not found"
+        )
+ 
     milestone_list_adapter = TypeAdapter(list[MilestoneResponse])
     milestones, total = await get_milestones(
         db=db,
         project_id=project_id,
     )
     validated_milestones = milestone_list_adapter.validate_python(milestones)
-
+ 
     return MilestoneListResponse(milestones=validated_milestones, total=total)
+ 
