@@ -1,6 +1,6 @@
 from __future__ import annotations
 import uuid
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, List
 from datetime import datetime, timezone
 from sqlalchemy import Boolean, DateTime, ForeignKey, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID
@@ -11,6 +11,7 @@ if TYPE_CHECKING:
     from app.models.User import User
     from app.models.Project import Project
     from app.models.FreelancerProfile import FreelancerProfile
+    from app.models.Invoice import Invoice
 
 
 class ClientProfile(Base):
@@ -26,6 +27,10 @@ class ClientProfile(Base):
     )
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     email: Mapped[str] = mapped_column(String(255), nullable=False)
+
+    invoices: Mapped[List["Invoice"]] = relationship(
+        back_populates="client"
+    )
 
     company_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     phone: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)

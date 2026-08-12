@@ -7,14 +7,7 @@ from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from app.db.database import Base
-
-from app.models.ClientProfile import ClientProfile
-from app.models.FreelancerProfile import FreelancerProfile
-from app.models.Project import Project
-from app.models.Milestone import Milestone
-from app.models.TimeEntry import TimeEntry
-from app.models.User import User
-from app.models.RefreshToken import RefreshToken
+from app import models  # noqa: F401 - registers all models on Base.metadata
 
 from alembic import context
 

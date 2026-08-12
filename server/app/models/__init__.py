@@ -7,3 +7,5 @@ from .Milestone import Milestone
 from .MilestoneApproval import MilestoneApproval
 from .FreelancerProfile import FreelancerProfile
 from .PortalAccessToken import PortalAccessToken
+from .Invoice import Invoice
+from .invoice_item import InvoiceItem

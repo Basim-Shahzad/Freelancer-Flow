@@ -17,6 +17,7 @@ if TYPE_CHECKING:
     from app.models.ClientProfile import ClientProfile
     from app.models.TimeEntry import TimeEntry
     from app.models.Milestone import Milestone
+    from app.models.Invoice import Invoice
 
 
 class ProjectStatus(enum.Enum):
@@ -62,6 +63,7 @@ class Project(Base):
     milestones: Mapped[list["Milestone"]] = relationship(
         back_populates="project", cascade="all, delete-orphan"
     )
+    invoices: Mapped[list["Invoice"]] = relationship(back_populates="project")
 
     # foriegn keys
     client_id: Mapped[uuid.UUID] = mapped_column(

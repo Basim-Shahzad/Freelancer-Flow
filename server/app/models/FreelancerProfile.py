@@ -13,6 +13,7 @@ from app.db.database import Base
 if TYPE_CHECKING:
     from app.models.User import User
     from app.models.ClientProfile import ClientProfile
+    from app.models.Invoice import Invoice
 
 
 class FreelancerProfile(Base):
@@ -37,6 +38,9 @@ class FreelancerProfile(Base):
         back_populates="freelancer",
         cascade="all, delete-orphan",
         lazy="select",
+    )
+    invoices: Mapped[List["Invoice"]] = relationship(
+        back_populates="freelancer"
     )
     user: Mapped["User"] = relationship(back_populates="freelancer")
 

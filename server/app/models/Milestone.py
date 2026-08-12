@@ -13,6 +13,7 @@ from app.db.database import Base
 if TYPE_CHECKING:
     from app.models.Project import Project
     from app.models.TimeEntry import TimeEntry
+    from app.models.MilestoneApproval import MilestoneApproval
 
 
 class MilestoneStatus(enum.Enum):
@@ -39,6 +40,9 @@ class Milestone(Base):
     time_entries: Mapped[list["TimeEntry"]] = relationship(
         back_populates="milestone", cascade="all, delete-orphan"
     )
+    approvals: Mapped[list["MilestoneApproval"]] = relationship(
+        back_populates="milestone", cascade="all, delete-orphan"
+    )
 
     status: Mapped[MilestoneStatus] = mapped_column(
         Enum(MilestoneStatus), default=MilestoneStatus.PENDING
@@ -47,6 +51,9 @@ class Milestone(Base):
     approval_required: Mapped[bool] = mapped_column(
         Boolean, default=False, nullable=False
     )
+    # Cache of the latest decision, denormalized from `approvals` (the
+    # MilestoneApproval history/audit table) for cheap reads. Always write
+    # both a new MilestoneApproval row and these two fields together.
     approved_by_client_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("clients.id", ondelete="CASCADE"), nullable=True
     )
