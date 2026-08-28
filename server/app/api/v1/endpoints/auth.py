@@ -7,7 +7,7 @@ from app.core.security import (
     decode_token,
     verify_password,
 )
-from app.utils.dependencies.auth import CurrentUser, DBSession
+from server.app.api.dependencies.auth import CurrentUser, DBSession
 from app.schemas.AuthSchema import (
     ChangePasswordRequest,
     LoginRequest,

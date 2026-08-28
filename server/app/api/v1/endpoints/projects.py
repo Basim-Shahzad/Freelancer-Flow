@@ -25,7 +25,7 @@ from app.schemas.ProjectsSchema import (
 )
 from app.schemas.MilestoneSchema import MilestoneListResponse, MilestoneResponse
 from app.models.Project import ProjectStatus
-from app.utils.dependencies.auth import get_current_user
+from server.app.api.dependencies.auth import get_current_user
 from app.models.User import User
 from app.models.Project import Project
 

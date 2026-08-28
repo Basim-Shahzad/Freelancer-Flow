@@ -19,7 +19,7 @@ from app.schemas.MilestoneSchema import (
 )
 from app.models.Milestone import MilestoneStatus
 from app.models.Project import Project
-from app.utils.dependencies.auth import get_current_user
+from server.app.api.dependencies.auth import get_current_user
 from app.models.User import User
 
 router = APIRouter(prefix="/milestones", tags=["Milestones"])

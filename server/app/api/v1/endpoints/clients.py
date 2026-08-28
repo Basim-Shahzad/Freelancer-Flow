@@ -20,7 +20,7 @@ from app.schemas.ClientsSchema import (
     ClientResponse,
     ClientListResponse,
 )
-from app.utils.dependencies.auth import get_current_user
+from server.app.api.dependencies.auth import get_current_user
 from app.models.User import User
 
 router = APIRouter(prefix="/clients", tags=["Clients"])

@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
 from app.db.database import get_db
-from app.utils.dependencies.client_portal import validate_portal_token
+from server.app.api.dependencies.client_portal import validate_portal_token
 from app.core.security import hash_password
 from app.models.User import User
 from app.models.ClientProfile import ClientProfile
