@@ -44,6 +44,20 @@ class Settings(BaseSettings):
             return json.loads(raw)
         return [o.strip() for o in raw.split(",") if o.strip()]
 
+    # Trusted Hosts — for TrustedHostMiddleware in production
+    ALLOWED_HOSTS: str = ""
+
+    @property
+    def allowed_hosts_list(self) -> list[str]:
+        if not self.ALLOWED_HOSTS:
+            return []
+        raw = self.ALLOWED_HOSTS.strip()
+        if raw.startswith("["):
+            import json
+
+            return json.loads(raw)
+        return [o.strip() for o in raw.split(",") if o.strip()]
+
     # First superuser (seeded on first run)
     FIRST_SUPERUSER_EMAIL: EmailStr
     FIRST_SUPERUSER_PASSWORD: str
