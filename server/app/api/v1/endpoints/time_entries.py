@@ -7,8 +7,8 @@ from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.database import get_db
-from app.utils.crud.time_entries import create_time_entry, get_time_entries
-from app.utils.crud.projects import get_project_by_id
+from server.app.db.crud.time_entries import create_time_entry, get_time_entries
+from server.app.db.crud.projects import get_project_by_id
 from app.schemas.TimeEntrySchema import (
     TimeEntryCreate,
     TimeEntryList,
