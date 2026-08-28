@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.database import get_db
-from app.utils.crud.clients import (
+from server.app.db.crud.clients import (
     get_client_by_id,
     get_clients,
     create_client,

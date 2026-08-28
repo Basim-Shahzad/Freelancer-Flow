@@ -18,7 +18,7 @@ from app.db.database import get_db
 from app.core.security import decode_token
 from app.models.User import User, UserRole
 
-from app.utils.crud.auth import get_user_by_id
+from server.app.db.crud.auth import get_user_by_id
 
 # Re-usable bearer extractor (auto_error=False so we can give nicer messages)
 _bearer = HTTPBearer(auto_error=False)

@@ -9,14 +9,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import TypeAdapter
 
 from app.db.database import get_db
-from app.utils.crud.projects import (
+from server.app.db.crud.projects import (
     get_project_by_id,
     get_projects,
     create_project,
     update_project,
     delete_project,
 )
-from app.utils.crud.milestones import get_milestones
+from server.app.db.crud.milestones import get_milestones
 from app.schemas.ProjectsSchema import (
     ProjectCreate,
     ProjectUpdate,

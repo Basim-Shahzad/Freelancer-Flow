@@ -18,7 +18,7 @@ from app.schemas.AuthSchema import (
     UserResponse,
     AccessTokenResponse,
 )
-from app.utils.crud.auth import (
+from server.app.db.crud.auth import (
     change_user_password,
     create_refresh_token_record,
     create_user,
