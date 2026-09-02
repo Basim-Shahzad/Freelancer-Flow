@@ -1,7 +1,41 @@
 @import "tailwindcss";
 @import "@heroui/styles";
 
-.custom-dark-mode {
-   background-color: black;
-   color: white;
+@theme {
+  /* Brand */
+  --color-primary: #3D7A75;        /* dusty teal — main brand color, buttons/links/active states */
+  --color-accent: #D4A94B;         /* gold — use sparingly, only for "paid/completed" reward moments */
+
+  /* Semantic status colors */
+  --color-success: #4A8B5C;        /* paid / completed */
+  --color-warning: #D4A94B;        /* pending — shares the reward gold */
+  --color-error: #C1503D;          /* overdue / failed */
+
+  /* Base surfaces */
+  --color-background: #FAF8F4;     /* page background — warm off-white, not stark white */
+  --color-surface: #FFFFFF;        /* cards, modals, elevated panels */
+
+  /* Text */
+  --color-text: #2B2A26;           /* primary text */
+  --color-text-muted: #6B675F;     /* secondary/helper text */
+
+  /* Borders */
+  --color-border: #E8E4DC;         /* dividers, card borders, input outlines */
+}
+
+.dark {
+  /* Base surfaces (dark mode) */
+  --color-background: #1C1B18;     /* page background */
+  --color-surface: #2A2925;        /* cards, modals, elevated panels */
+
+  /* Text (dark mode) */
+  --color-text: #F0EDE6;           /* primary text */
+  --color-text-muted: #A8A49B;     /* secondary/helper text */
+
+  /* Borders (dark mode) */
+  --color-border: #3A3833;         /* dividers, card borders, input outlines */
+
+  /* Brand and semantic colors stay the same in dark mode — 
+     they already have enough contrast/saturation to work on a dark background.
+     Only touch these below if a specific one looks wrong on dark surfaces. */
 }
