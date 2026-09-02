@@ -10,7 +10,7 @@ from app.core.config import settings
 from app.db.database import init_db, async_session
 from app.models.User import UserRole
 from app.schemas.AuthSchema import UserCreate
-from app.utils.crud.auth import create_user, get_user_by_email
+from app.db.crud.auth import create_user, get_user_by_email
 
 # ---------------------------------------------------------------------------
 # Startup — create tables + seed superuser

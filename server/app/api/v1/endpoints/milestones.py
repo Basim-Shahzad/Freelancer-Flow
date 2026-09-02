@@ -7,7 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.database import get_db
-from server.app.db.crud.milestones import (
+from app.db.crud.milestones import (
     get_milestones,
     create_milestone,
     update_milestone_status
@@ -19,7 +19,7 @@ from app.schemas.MilestoneSchema import (
 )
 from app.models.Milestone import MilestoneStatus
 from app.models.Project import Project
-from server.app.api.dependencies.auth import get_current_user
+from app.api.dependencies.auth import get_current_user
 from app.models.User import User
 
 router = APIRouter(prefix="/milestones", tags=["Milestones"])

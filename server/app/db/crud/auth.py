@@ -28,8 +28,7 @@ async def get_user_by_id(db: AsyncSession, user_id: UUID) -> User | None:
         .options(selectinload(User.freelancer))
         .where(User.id == user_id)
     )
-    current_user = result.scalar_one()
-    return current_user
+    return result.scalar_one_or_none()
 
 
 

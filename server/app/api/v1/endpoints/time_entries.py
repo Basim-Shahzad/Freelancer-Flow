@@ -7,14 +7,14 @@ from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.database import get_db
-from server.app.db.crud.time_entries import create_time_entry, get_time_entries
-from server.app.db.crud.projects import get_project_by_id
+from app.db.crud.time_entries import create_time_entry, get_time_entries
+from app.db.crud.projects import get_project_by_id
 from app.schemas.TimeEntrySchema import (
     TimeEntryCreate,
     TimeEntryList,
     TimeEntryResponse,
 )
-from server.app.api.dependencies.auth import get_current_user
+from app.api.dependencies.auth import get_current_user
 from app.models.User import User
 
 router = APIRouter(prefix="/time-entries", tags=["Time Entries"])

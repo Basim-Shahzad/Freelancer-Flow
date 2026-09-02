@@ -15,7 +15,7 @@ from sqlalchemy import func, select
 
 from app.models.Project import Project
 from app.models.PortalAccessToken import ScopeType
-from app.utils.dependencies.client_portal import issue_portal_token
+from app.api.dependencies.client_portal import issue_portal_token
 from app.services.email_service import send_portal_approval_email
 
 

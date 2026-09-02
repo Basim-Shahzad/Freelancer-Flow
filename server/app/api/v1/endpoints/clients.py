@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.database import get_db
-from server.app.db.crud.clients import (
+from app.db.crud.clients import (
     get_client_by_id,
     get_clients,
     create_client,
@@ -20,7 +20,7 @@ from app.schemas.ClientsSchema import (
     ClientResponse,
     ClientListResponse,
 )
-from server.app.api.dependencies.auth import get_current_user
+from app.api.dependencies.auth import get_current_user
 from app.models.User import User
 
 router = APIRouter(prefix="/clients", tags=["Clients"])

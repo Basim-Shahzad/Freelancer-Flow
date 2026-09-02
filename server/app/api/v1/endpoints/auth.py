@@ -7,18 +7,16 @@ from app.core.security import (
     decode_token,
     verify_password,
 )
-from server.app.api.dependencies.auth import CurrentUser, DBSession
+from app.api.dependencies.auth import CurrentUser, DBSession
 from app.schemas.AuthSchema import (
     ChangePasswordRequest,
     LoginRequest,
     MessageResponse,
-    RefreshRequest,
-    TokenPair,
     UserCreate,
     UserResponse,
     AccessTokenResponse,
 )
-from server.app.db.crud.auth import (
+from app.db.crud.auth import (
     change_user_password,
     create_refresh_token_record,
     create_user,
@@ -70,8 +68,8 @@ async def register(payload: UserCreate, db: DBSession):
 
 @router.post(
     "/login",
-    response_model=TokenPair,
-    summary="Authenticate and receive access + refresh tokens",
+    response_model=AccessTokenResponse,
+    summary="Authenticate and receive an access token (refresh token set as httponly cookie)",
 )
 async def login(
     payload: LoginRequest,
@@ -111,6 +109,10 @@ async def login(
     await update_last_login(db, user)
     await db.commit()
 
+    # Refresh token never leaves the server as JS-readable data — only via
+    # this httponly cookie, so it can't be exfiltrated through XSS. The
+    # access token is short-lived and handed back in the body for the
+    # client to attach as an Authorization header.
     response.set_cookie(
         key="refresh_token",
         value=refresh_token,
@@ -120,7 +122,7 @@ async def login(
         max_age=604800,
     )
 
-    return TokenPair(access_token=access_token, refresh_token="")
+    return AccessTokenResponse(access_token=access_token)
 
 
 # ---------------------------------------------------------------------------
@@ -130,11 +132,14 @@ async def login(
 
 @router.post(
     "/refresh",
-    response_model=AccessTokenResponse,  # only returns access token now
-    summary="Exchange a valid refresh token cookie for a new access token",
+    response_model=AccessTokenResponse,
+    summary="Exchange a valid refresh token cookie for a new access token, rotating it",
 )
 async def refresh_tokens(
-    request: Request, db: DBSession, refresh_token: str = Cookie(None)
+    request: Request,
+    db: DBSession,
+    response: Response,
+    refresh_token: str = Cookie(None),
 ):
     # 1. Cookie present
     if not refresh_token:
@@ -166,8 +171,33 @@ async def refresh_tokens(
             detail="Refresh token has been revoked or expired",
         )
 
-    # 4. Issue new access token only (refresh token stays valid until DB expiry)
+    # 4. Rotate: revoke the used refresh token and issue a new one. This
+    # limits the damage of a stolen refresh token to a single use and lets
+    # future work detect reuse of a revoked token as a theft signal.
+    await revoke_refresh_token(db, record)
+
     new_access = create_access_token(record.user_id)
+    new_refresh = create_refresh_token(record.user_id)
+
+    user_agent = request.headers.get("user-agent")
+    ip_address = request.client.host if request.client else None
+    await create_refresh_token_record(
+        db,
+        user_id=record.user_id,
+        token=new_refresh,
+        user_agent=user_agent,
+        ip_address=ip_address,
+    )
+    await db.commit()
+
+    response.set_cookie(
+        key="refresh_token",
+        value=new_refresh,
+        httponly=True,
+        secure=True,
+        samesite="lax",
+        max_age=604800,
+    )
 
     return AccessTokenResponse(access_token=new_access)
 
@@ -182,11 +212,18 @@ async def refresh_tokens(
     response_model=MessageResponse,
     summary="Revoke the current refresh token",
 )
-async def logout(payload: RefreshRequest, db: DBSession, _: CurrentUser):
-    record = await get_refresh_token_record(db, payload.refresh_token)
-    if record and record.is_valid:
-        await revoke_refresh_token(db, record)
-        await db.commit()
+async def logout(
+    db: DBSession,
+    response: Response,
+    _: CurrentUser,
+    refresh_token: str = Cookie(None),
+):
+    if refresh_token:
+        record = await get_refresh_token_record(db, refresh_token)
+        if record and record.is_valid:
+            await revoke_refresh_token(db, record)
+            await db.commit()
+    response.delete_cookie("refresh_token")
     return MessageResponse(message="Logged out successfully")
 
 
@@ -200,9 +237,10 @@ async def logout(payload: RefreshRequest, db: DBSession, _: CurrentUser):
     response_model=MessageResponse,
     summary="Revoke all refresh tokens for the current user",
 )
-async def logout_all(current_user: CurrentUser, db: DBSession):
+async def logout_all(current_user: CurrentUser, db: DBSession, response: Response):
     count = await revoke_all_user_tokens(db, current_user.id)
     await db.commit()
+    response.delete_cookie("refresh_token")
     return MessageResponse(message=f"Logged out from {count} device(s)")
 
 
