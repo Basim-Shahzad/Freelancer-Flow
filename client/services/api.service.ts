@@ -1,6 +1,5 @@
 import axios, { AxiosError, create, type AxiosInstance, InternalAxiosRequestConfig } from "axios";
-import { useAuthStore } from "@/stores/useAuthStore";
-import { Tokens } from "@/types/auth.types";
+import { useAuthStore } from "@/features/auth/store";
 
 const API_BASE = "http://localhost:8000/api/v1";
 
