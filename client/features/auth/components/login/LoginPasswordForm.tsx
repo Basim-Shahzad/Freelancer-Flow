@@ -1,7 +1,10 @@
 "use client";
 
 import { useForm } from "react-hook-form";
-import { Button, Input, TextField, Label } from "@heroui/react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Spinner } from "@/components/ui/spinner";
 
 interface LoginPasswordFormProps {
    email: string;
@@ -9,23 +12,41 @@ interface LoginPasswordFormProps {
    isPending: boolean;
 }
 
-export function LoginPasswordForm({ email, onSubmit, isPending }: LoginPasswordFormProps) {
-   const { register, handleSubmit, formState: { isValid, isSubmitting, errors } } = useForm<{ password: string }>({
+export function LoginPasswordForm({
+   email,
+   onSubmit,
+   isPending,
+}: LoginPasswordFormProps) {
+   const {
+      register,
+      handleSubmit,
+      formState: { isValid, isSubmitting, errors },
+   } = useForm<{ password: string }>({
       defaultValues: { password: "" },
       mode: "onChange",
    });
 
+   const pending = isPending || isSubmitting;
+
    return (
       <form onSubmit={handleSubmit(onSubmit)} className="w-full flex flex-col gap-4">
-         <TextField className="w-full" name="password" type="password" isRequired>
-            <Label className="text-text-muted">Password</Label>
+         <div className="w-full flex flex-col gap-1.5">
+            <Label htmlFor="password" className="text-text-muted">
+               Password
+            </Label>
             <Input
+               id="password"
+               type="password"
                placeholder="••••••••••"
                autoFocus
-               className="w-full bg-surface border border-border focus:ring-primary/50 text-text"
+               aria-invalid={!!errors.password}
+               className="w-full h-12 rounded-full px-4"
                {...register("password", {
                   required: "Password is required",
-                  minLength: { value: 8, message: "Password must be at least 8 characters" },
+                  minLength: {
+                     value: 8,
+                     message: "Password must be at least 8 characters",
+                  },
                   pattern: {
                      value: /(?=.*[A-Z])(?=.*\d)/,
                      message: "Password must contain at least one uppercase letter and one number",
@@ -33,19 +54,18 @@ export function LoginPasswordForm({ email, onSubmit, isPending }: LoginPasswordF
                })}
             />
             {errors.password && (
-               <p className="text-sm text-error mt-1" role="alert">
+               <p className="text-sm text-error px-1" role="alert">
                   {errors.password.message}
                </p>
             )}
-         </TextField>
+         </div>
 
          <Button
             type="submit"
-            size="lg"
-            isPending={isPending || isSubmitting}
-            isDisabled={!isValid}
-            className="w-full bg-primary text-surface font-semibold h-12 rounded-full transition-all hover:opacity-90 disabled:opacity-50"
+            disabled={!isValid || pending}
+            className="w-full h-12 rounded-full font-semibold"
          >
+            {pending && <Spinner className="text-primary-foreground" />}
             Log in
          </Button>
       </form>

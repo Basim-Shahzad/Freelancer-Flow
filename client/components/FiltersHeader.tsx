@@ -1,7 +1,11 @@
 "use client";
 
 import { SlidersHorizontal, ListFilter } from "lucide-react";
-import { Chip, Tooltip, Popover } from "@heroui/react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
 import type { DisplayStoreState } from "@/stores/useDisplayStore";
 
 interface HeaderProps<T extends string> {
@@ -10,59 +14,66 @@ interface HeaderProps<T extends string> {
    actions?: unknown;
 }
 
-export default function FiltersHeader<T extends string>({ chips, displayStore, actions }: HeaderProps<T>) {
+export default function FiltersHeader<T extends string>({ chips, displayStore }: HeaderProps<T>) {
    const { display: displayLayout, options, setDisplay: setDisplayLayout } = displayStore;
 
    return (
-      <header className="flex items-center justify-between h-11 px-5 border-b rounded-t-3xl border-white/6 bg-[#0d0d0d]/95 backdrop-blur-sm">
-         {chips.map((chip, i) => (
-            <Chip className="select-none" key={i}>
-               {chip}
-            </Chip>
-         ))}
+      <header className="flex h-11 items-center justify-between border-b border-border bg-surface/95 px-5 backdrop-blur-sm">
+         <div className="flex items-center gap-2">
+            {chips.map((chip, i) => (
+               <Badge key={i} variant="outline" className="select-none">
+                  {chip}
+               </Badge>
+            ))}
+         </div>
 
-         <div className="flex items-center gap-4">
-            <div className="flex items-center gap-3"></div>
+         <div className="flex items-center gap-1">
             <Tooltip>
-               <Tooltip.Trigger>
-                  <button className="p-1 rounded-md text-white/40 hover:text-white/70 bg-white/5 transition-colors duration-100">
-                     <ListFilter size={16} />
-                  </button>
-               </Tooltip.Trigger>
-               <Tooltip.Content placement="bottom end">
-                  <Tooltip.Arrow />
-                  Helpful information about this element
-               </Tooltip.Content>
+               <TooltipTrigger
+                  render={
+                     <Button variant="ghost" size="icon-sm" className="text-text-muted hover:text-text" />
+                  }
+               >
+                  <ListFilter size={16} />
+               </TooltipTrigger>
+               <TooltipContent>Filter</TooltipContent>
             </Tooltip>
+
             <Popover>
                <Tooltip>
-                  <Popover.Trigger>
-                     <Tooltip.Trigger>
-                        <button className="p-1 rounded-md text-white/40 hover:text-white/70 bg-white/5 transition-colors duration-100">
-                           <SlidersHorizontal size={16} />
-                        </button>
-                     </Tooltip.Trigger>
-                  </Popover.Trigger>
-                  <Tooltip.Content placement="bottom end">
-                     <Tooltip.Arrow />
-                     Show Display options
-                  </Tooltip.Content>
+                  <PopoverTrigger
+                     render={
+                        <TooltipTrigger
+                           render={
+                              <Button variant="ghost" size="icon-sm" className="text-text-muted hover:text-text" />
+                           }
+                        />
+                     }
+                  >
+                     <SlidersHorizontal size={16} />
+                  </PopoverTrigger>
+                  <TooltipContent>Display options</TooltipContent>
                </Tooltip>
-               <Popover.Content className="w-80 h-100" placement="bottom right">
-                  <Popover.Dialog>
-                     <Popover.Heading className="flex items-center w-full justify-center gap-2">
-                        {options.map((opt) => (
-                           <Chip
-                              key={opt}
-                              onClick={() => setDisplayLayout(opt)}
-                              className={`${displayLayout === opt ? "bg-white/15 font-semibold" : ""} px-6 py-1 border border-white/10 capitalize select-none cursor-pointer`}
-                           >
-                              {opt}
-                           </Chip>
-                        ))}
-                     </Popover.Heading>
-                  </Popover.Dialog>
-               </Popover.Content>
+
+               <PopoverContent align="end" className="w-56">
+                  <p className="mb-1 px-1 text-xs font-medium text-text-muted select-none">Layout</p>
+                  <div className="flex flex-col gap-0.5">
+                     {options.map((opt) => (
+                        <button
+                           key={opt}
+                           onClick={() => setDisplayLayout(opt)}
+                           className={cn(
+                              "w-full cursor-pointer rounded-md px-2 py-1.5 text-left text-sm capitalize transition-colors select-none",
+                              displayLayout === opt
+                                 ? "bg-primary/10 font-medium text-primary"
+                                 : "text-text hover:bg-muted"
+                           )}
+                        >
+                           {opt}
+                        </button>
+                     ))}
+                  </div>
+               </PopoverContent>
             </Popover>
          </div>
       </header>

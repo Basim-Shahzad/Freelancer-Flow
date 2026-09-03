@@ -3,11 +3,11 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useRegister } from "../../hooks";
-import { toast } from "@heroui/react";
 import { SignupHeader } from "./SignupHeader";
 import { AuthMethodButtons } from "../AuthMethodButtons";
 import { CredentialsForm } from "../CredentialsForm";
 import { AuthFooter } from "../signup/SingupFooter";
+
 
 export function SignupPageClient() {
    const [isSigninEmailPress, setIsSigninEmailPress] = useState(false);
@@ -35,9 +35,7 @@ export function SignupPageClient() {
                router.push("/dashboard");
             },
             onError: (err: any) => {
-               toast(`Sign up failed. ${err?.message || "Something went wrong."}`, {
-                  variant: "danger",
-               });
+               console.log(err)
             },
          }
       );

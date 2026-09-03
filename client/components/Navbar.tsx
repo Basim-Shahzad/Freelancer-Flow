@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
 import Image from "next/image";
-import { Button, Separator } from "@heroui/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { appName } from "@/config";
+import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
 
 const NAV_LINKS = [
    { name: "Product", link: "#" },
@@ -15,38 +15,37 @@ const NAV_LINKS = [
 ];
 
 const Navbar = () => {
-   const [isDark] = useState(true);
    const router = useRouter();
 
    return (
-      <div
-         className={`${isDark ? "custom-dark-mode" : ""} border-b border-black/10 py-2 flex items-center justify-between transition-colors`}>
-         <div className="flex items-center">
-            <Image src="/logo.png" alt="Paylancer" width={50} height={50} className={isDark ? "invert" : ""} />
-
-            <a className="text-xl font-semibold font-mono">{appName}</a>
+      <div className="flex items-center justify-between border-b border-border bg-background px-6 py-3 transition-colors">
+         <div className="flex items-center gap-2">
+            <Image src="/logo.png" alt={appName} width={32} height={32} />
+            <span className="font-mono text-xl font-semibold text-text">{appName}</span>
          </div>
 
-         <div className="flex items-center mr-8">
+         <div className="flex items-center gap-6">
             <div className="flex gap-8">
                {NAV_LINKS.map((link) => (
-                  <Link key={link.name} href={link.link} className="">
+                  <Link
+                     key={link.name}
+                     href={link.link}
+                     className="text-sm text-text-muted transition-colors hover:text-text"
+                  >
                      {link.name}
                   </Link>
                ))}
             </div>
 
-            <Separator orientation="vertical" className={`${isDark ? "bg-white/10" : "bg-black/10"} mx-4`} />
+            <Separator orientation="vertical" className="h-5" />
 
             <div className="flex gap-2">
-               <Button
-                  onClick={() => router.push("/login")}
-                  className={`${isDark ? "text-white bg-black border border-white/10 hover:bg-white/10 " : "text-black bg-white border border-black/10 hover:bg-black/10"}  rounded-full`}>
+               <Button variant="outline" className="rounded-full" onClick={() => router.push("/login")}>
                   Log in
                </Button>
 
-               <Button onClick={() => router.push("/signup")} className="rounded-full bg-purple-700">
-                  Sign Up
+               <Button className="rounded-full" onClick={() => router.push("/signup")}>
+                  Sign up
                </Button>
             </div>
          </div>

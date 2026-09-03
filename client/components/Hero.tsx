@@ -1,61 +1,53 @@
 import React from "react";
-import { Button } from "@heroui/react";
-import { ArrowRight, Sparkles } from "lucide-react"; 
+import { ArrowRight, Sparkles } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 const Hero = () => {
    return (
-      <section className="relative flex flex-col items-center justify-center pt-20 pb-32 overflow-hidden px-6">
-         {/* Background Glow - The "SaaS" Look */}
-         <div className="absolute top-0 -z-10 h-full w-full bg-white dark:bg-black">
-            <div className="absolute bottom-auto left-auto right-0 top-0 h-[500px] w-[500px] -translate-x-[30%] translate-y-[20%] rounded-full bg-primary/10 opacity-50 blur-[80px] dark:bg-primary/20"></div>
+      <section className="relative flex flex-col items-center justify-center overflow-hidden px-6 pt-20 pb-32">
+         {/* Background Glow */}
+         <div className="absolute top-0 -z-10 h-full w-full bg-background">
+            <div className="absolute top-0 right-0 bottom-auto left-auto h-[500px] w-[500px] translate-y-[20%] -translate-x-[30%] rounded-full bg-primary/10 opacity-50 blur-[80px]" />
          </div>
 
          {/* Badge */}
-         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-black/5 dark:border-white/10 bg-black/5 dark:bg-white/5 mb-8 animate-fade-in">
+         <div className="mb-8 inline-flex items-center gap-2 rounded-full border border-border bg-surface px-3 py-1 animate-fade-in">
             <Sparkles size={14} className="text-primary" />
-            <span className="text-xs font-medium text-black/60 dark:text-white/60">
+            <span className="text-xs font-medium text-text-muted">
                Introducing Early Access for Freelancers
             </span>
          </div>
 
          {/* Heading */}
-         <h1 className="max-w-4xl text-center text-5xl md:text-7xl font-bold tracking-tight text-black dark:text-white mb-6">
+         <h1 className="mb-6 max-w-4xl text-center text-5xl font-bold tracking-tight text-text md:text-7xl">
             Payments for the <br />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-neutral-500 via-black to-neutral-500 dark:from-neutral-400 dark:via-white dark:to-neutral-400">
-               modern freelancer.
-            </span>
+            <span className="text-primary">modern freelancer.</span>
          </h1>
 
          {/* Subheading */}
-         <p className="max-w-xl text-center text-lg md:text-xl text-black/60 dark:text-white/60 mb-10 leading-relaxed">
-            Paylancr handles the global invoicing, tax compliance, and instant payouts, so you can focus on the craft.
-            No more chasing clients.
+         <p className="mb-10 max-w-xl text-center text-lg leading-relaxed text-text-muted md:text-xl">
+            Paylancr handles the global invoicing, tax compliance, and instant payouts, so you can focus on the
+            craft. No more chasing clients.
          </p>
 
          {/* CTAs */}
-         <div className="flex flex-col sm:flex-row gap-4 items-center">
-            <Button
-               size="lg"
-               className="bg-black text-white dark:bg-white dark:text-black font-semibold h-12 px-8 rounded-full shadow-lg hover:opacity-90 transition-all">
+         <div className="flex flex-col items-center gap-4 sm:flex-row">
+            <Button size="lg" className="h-12 rounded-full px-8 shadow-lg">
                Join the Waitlist
                <ArrowRight size={18} />
             </Button>
 
-            <Button
-               variant="secondary"
-               size="lg"
-               className="border-black/10 dark:border-white/10 text-white dark:text-black font-medium h-12 px-8 rounded-full hover:bg-black/5 dark:hover:bg-white/5 transition-all">
+            <Button variant="outline" size="lg" className="h-12 rounded-full px-8">
                Read the Manifesto
             </Button>
          </div>
 
          {/* UI Mockup Placeholder */}
-         <div className="mt-20 relative w-full max-w-5xl group">
-            <div className="absolute -inset-1 bg-gradient-to-r from-primary to-secondary rounded-2xl blur opacity-20 group-hover:opacity-30 transition duration-1000"></div>
-            <div className="relative rounded-xl border border-black/10 dark:border-white/10 bg-white/50 dark:bg-zinc-900/50 backdrop-blur-sm overflow-hidden shadow-2xl">
-               {/* Replace this with your actual Dashboard Screenshot later */}
-               <div className="aspect-[16/9] flex items-center justify-center bg-neutral-100 dark:bg-zinc-950/50">
-                  <p className="text-sm text-neutral-400 font-mono tracking-widest">PAYLANCR_DASHBOARD_PREVIEW.PNG</p>
+         <div className="group relative mt-20 w-full max-w-5xl">
+            <div className="absolute -inset-1 rounded-2xl bg-primary/40 opacity-20 blur transition duration-1000 group-hover:opacity-30" />
+            <div className="relative overflow-hidden rounded-xl border border-border bg-surface/50 shadow-2xl backdrop-blur-sm">
+               <div className="flex aspect-16/9 items-center justify-center bg-muted/40">
+                  <p className="font-mono text-sm tracking-widest text-text-muted/60">PAYLANCR_DASHBOARD_PREVIEW.PNG</p>
                </div>
             </div>
          </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { Button } from "@/components/ui/button";
 
 interface EmptyStateProps {
    icon: React.ReactNode;
@@ -19,28 +20,24 @@ interface EmptyStateProps {
 
 export default function EmptyState({ icon, title, description, primaryAction, secondaryAction }: EmptyStateProps) {
    return (
-      <div className="flex flex-col items-center justify-center flex-1 px-6 py-24 select-none">
-         <div className="text-white/20 mb-5">{icon}</div>
+      <div className="flex flex-1 flex-col items-center justify-center px-6 py-24 select-none">
+         <div className="mb-5 text-text-muted/50 [&_svg]:size-13">{icon}</div>
 
-         <h2 className="text-[15px] font-semibold text-white/80 mb-2">{title}</h2>
+         <h2 className="mb-2 text-[15px] font-semibold text-text">{title}</h2>
 
-         <p className="text-[13px] text-white/40 text-center max-w-[340px] leading-relaxed mb-6">{description}</p>
+         <p className="mb-6 max-w-[340px] text-center text-[13px] leading-relaxed text-text-muted">{description}</p>
 
          <div className="flex items-center gap-2">
             {primaryAction && (
-               <button
-                  onClick={primaryAction.onClick}
-                  className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 transition-colors duration-150 text-white text-[13px] font-medium px-3.5 py-1.5 rounded-[7px]">
+               <Button onClick={primaryAction.onClick} size="lg" className="rounded-full">
                   {primaryAction.label}
-               </button>
+               </Button>
             )}
 
             {secondaryAction && (
-               <button
-                  onClick={secondaryAction.onClick}
-                  className="text-[13px] text-white/45 hover:text-white/70 transition-colors duration-150 px-3.5 py-1.5 rounded-[7px] hover:bg-white/5 border border-white/[0.08]">
+               <Button onClick={secondaryAction.onClick} variant="ghost" size="lg" className="rounded-full">
                   {secondaryAction.label}
-               </button>
+               </Button>
             )}
          </div>
       </div>

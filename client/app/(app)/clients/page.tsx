@@ -5,7 +5,7 @@ import DashboardHeader from "@/components/Header";
 import ClientsTable from "./components/ClientsTable";
 import { useQuery } from "@tanstack/react-query";
 import { User } from "lucide-react";
-import { Spinner } from "@heroui/react";
+import { Spinner } from "@/components/ui/spinner";
 import { useClients } from "./useClients";
 import FiltersHeader from "@/components/FiltersHeader";
 import { useClientsStore } from "@/stores/useDisplayStore";
@@ -24,12 +24,17 @@ export default function ProjectsPage() {
 
    if (isLoading)
       return (
-         <div className="">
-            <Spinner className="absolute right-2/5 top-3/7" />
+         <div className="flex flex-1 items-center justify-center py-24">
+            <Spinner className="size-6 text-primary" />
          </div>
       );
 
-   if (isError) return <div>Error</div>;
+   if (isError)
+      return (
+         <div className="flex flex-1 items-center justify-center py-24">
+            <p className="text-sm text-error">Something went wrong loading clients.</p>
+         </div>
+      );
 
    if (res?.data.total === 0)
       return (
@@ -47,7 +52,7 @@ export default function ProjectsPage() {
       );
 
    return (
-      <div className="flex flex-col min-h-screen">
+      <div className="flex flex-1 flex-col">
          <DashboardHeader title="Clients" />
          <FiltersHeader
             chips={[]}

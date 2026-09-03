@@ -8,22 +8,18 @@ type ClickableChipProps = {
    className?: string;
 };
 
-export function ClickableChip({
-   startContent,
-   label,
-   onClick,
-   className,
-}: ClickableChipProps) {
+export function ClickableChip({ startContent, label, onClick, className }: ClickableChipProps) {
    return (
-      <div
+      <button
+         type="button"
          onClick={onClick}
          className={cn(
-            "flex items-center gap-1 w-max rounded-full px-2 py-0.5 text-[11px] text-white/75 select-none cursor-pointer transition-colors duration-150 hover:bg-black",
+            "inline-flex w-max items-center gap-1.5 rounded-full border border-transparent px-2.5 py-1 text-xs font-medium text-text-muted transition-colors select-none hover:bg-surface hover:text-text",
             className
          )}
       >
-         {startContent && <span>{startContent}</span>}
+         {startContent && <span className="flex items-center [&_svg]:size-3.5">{startContent}</span>}
          {label && <span>{label}</span>}
-      </div>
+      </button>
    );
 }

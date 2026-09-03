@@ -1,4 +1,6 @@
 import React from "react";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { cn } from "@/lib/utils";
 
 function getInitials(name: string): string {
    if (!name) return "";
@@ -9,42 +11,49 @@ function getInitials(name: string): string {
       .join("");
 }
 
-function getColorFromName(name: string): string | undefined {
-   if (!name) return "";
-   const colors = ["#6366F1", "#8B5CF6", "#EC4899", "#EF4444", "#F59E0B", "#10B981", "#06B6D4", "#3B82F6"];
+const AVATAR_COLORS = [
+   "#6366F1",
+   "#8B5CF6",
+   "#EC4899",
+   "#EF4444",
+   "#F59E0B",
+   "#10B981",
+   "#06B6D4",
+   "#3B82F6",
+];
+
+function getColorFromName(name: string): string {
+   if (!name) return AVATAR_COLORS[0];
    const hash = name
       .trim()
       .split("")
       .reduce((acc, char) => acc + char.charCodeAt(0), 0);
-   return colors[hash % colors.length];
+   return AVATAR_COLORS[hash % AVATAR_COLORS.length];
 }
 
 interface ProfilePictureFromNameProps {
    name: string;
-   scale: number;
+   scale?: number;
+   className?: string;
 }
 
-const ProfilePictureFromName: React.FC<ProfilePictureFromNameProps> = ({ name, scale = 1 }) => {
+const ProfilePictureFromName: React.FC<ProfilePictureFromNameProps> = ({ name, scale = 1, className }) => {
    const initials = getInitials(name);
    const bgColor = getColorFromName(name);
+   const sizePx = 32 * scale;
 
    return (
-      <div
-         style={{
-            width: 40 * scale,
-            height: 40 * scale,
-            borderRadius: "50%",
-            backgroundColor: bgColor,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            color: "white",
-            fontWeight: "bold",
-            fontSize: 16 * scale,
-            userSelect: "none",
-         }}>
-         {initials}
-      </div>
+      <Avatar
+         className={cn("shrink-0", className)}
+         style={{ width: sizePx, height: sizePx }}
+      >
+         <AvatarFallback
+            className="font-semibold text-white"
+            style={{ backgroundColor: bgColor, fontSize: 13 * scale }}
+         >
+            {initials}
+         </AvatarFallback>
+      </Avatar>
    );
 };
 

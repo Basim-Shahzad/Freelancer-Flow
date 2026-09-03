@@ -6,13 +6,14 @@ import { useMe } from "@/features/auth/hooks";
 import { useAuthStore } from "@/features/auth/store";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { ThemeProvider } from "next-themes";
-import { ToastProvider } from "@heroui/react";
+import { Toaster } from "@/components/ui/toast"
+import { TooltipProvider } from "@/components/ui/tooltip"
 
 let authInitialized = false;
 
 function AuthInitializer() {
    const {
-      data: res,
+      data,
       isLoading: isLoadingUser,
       isError: isErrorUser,
    } = useMe();
@@ -20,9 +21,9 @@ function AuthInitializer() {
    const updateUser = useAuthStore((state) => state.updateUser);
 
    useEffect(() => {
-      if (!res || isLoadingUser || isErrorUser || authInitialized) return;
-      updateUser(res?.data);
-   }, [res, updateUser]);
+      if (!data || isLoadingUser || isErrorUser || authInitialized) return;
+      updateUser(data);
+   }, [data, updateUser]);
 
    return null;
 }
@@ -43,8 +44,10 @@ export default function Providers({ children }: { children: ReactNode }) {
          <AuthInitializer />
          <ReactQueryDevtools initialIsOpen={false} />
          <ThemeProvider attribute="class" defaultTheme="light">
-            <ToastProvider />
-            {children}
+            <TooltipProvider>
+               <Toaster />
+               {children}
+            </TooltipProvider>
          </ThemeProvider>
       </QueryClientProvider>
    );
