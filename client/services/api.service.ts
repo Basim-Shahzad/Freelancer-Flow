@@ -11,6 +11,7 @@ const api: AxiosInstance = create({
 
 const isRefreshFailed = () => sessionStorage.getItem("refreshFailed") === "true";
 const setRefreshFailed = () => sessionStorage.setItem("refreshFailed", "true");
+export const clearRefreshFailed = () => sessionStorage.removeItem("refreshFailed");
 
 let isRefreshing = false;
 let refreshFailed = false;

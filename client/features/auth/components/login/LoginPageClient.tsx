@@ -2,7 +2,10 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { useLogin } from "../../hooks";
+import { useAuthStore } from "../../store";
+import { clearRefreshFailed } from "@/services/api.service";
 import { LoginHeader } from "../login/LoginHeader";
 import { AuthMethodButtons } from "../AuthMethodButtons";
 import { LoginPasswordForm } from "../login/LoginPasswordForm";
@@ -15,6 +18,8 @@ export function LoginPageClient() {
    const [email, setEmail] = useState("");
 
    const router = useRouter();
+   const queryClient = useQueryClient();
+   const setAccessToken = useAuthStore((state) => state.setAccessToken);
 
    const handleEmailSubmit = (submittedEmail: string) => {
       setEmail(submittedEmail);
@@ -39,7 +44,10 @@ export function LoginPageClient() {
             password: data.password,
          },
          {
-            onSuccess: () => {
+            onSuccess: ({ accessToken }) => {
+               setAccessToken(accessToken);
+               clearRefreshFailed();
+               queryClient.invalidateQueries({ queryKey: ["me"] });
                router.push("/dashboard");
             },
             onError: (err) => {

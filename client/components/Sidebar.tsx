@@ -82,7 +82,7 @@ function SectionLabel({ label }: { label: string }) {
 }
 
 function TopBar() {
-   const user = useAuthStore((s) => s.user);
+   const user = useAuthStore((state) => state.user);
    const { isLoading } = useMe();
 
    return (
