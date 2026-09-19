@@ -6,7 +6,9 @@ from decimal import Decimal
 import enum
 
 
-from sqlalchemy import DateTime, ForeignKey, String, Text, Enum, Integer
+from typing import Optional
+
+from sqlalchemy import DateTime, ForeignKey, String, Text, Enum
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy import Numeric
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -18,6 +20,7 @@ if TYPE_CHECKING:
     from app.models.TimeEntry import TimeEntry
     from app.models.Milestone import Milestone
     from app.models.Invoice import Invoice
+    from app.models.ChangeRequest import ChangeRequest
 
 
 class ProjectStatus(enum.Enum):
@@ -46,14 +49,22 @@ class Project(Base):
         Enum(ProjectStatus), default=ProjectStatus.DRAFT
     ) 
     budget: Mapped[Decimal] = mapped_column(
-        Numeric(precision=10, scale=2), nullable=True
+        Numeric(precision=13, scale=2), nullable=True
+    )
+    currency: Mapped[Optional[str]] = mapped_column(String(3), nullable=True)
+    # Rate snapshot for hourly billing; time entries fall back to the
+    # freelancer's rate when this is unset.
+    hourly_rate: Mapped[Optional[Decimal]] = mapped_column(
+        Numeric(precision=13, scale=2), nullable=True
     )
     budget_type: Mapped[BudgetType] = mapped_column(
         Enum(BudgetType), default=BudgetType.FIXED
     )
     due_date: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=True)
 
-    total_time_spent: Mapped[int] = mapped_column(Integer, nullable=True)
+    # `total_time_spent_minutes` (SUM of time_entries.duration_minutes) is a
+    # derived column_property attached in app/models/__init__.py; it is not
+    # stored, so it cannot drift.
 
     # relationships
     client: Mapped["ClientProfile"] = relationship(back_populates="projects")
@@ -64,6 +75,9 @@ class Project(Base):
         back_populates="project", cascade="all, delete-orphan"
     )
     invoices: Mapped[list["Invoice"]] = relationship(back_populates="project")
+    change_requests: Mapped[list["ChangeRequest"]] = relationship(
+        back_populates="project", cascade="all, delete-orphan"
+    )
 
     # foriegn keys
     client_id: Mapped[uuid.UUID] = mapped_column(
