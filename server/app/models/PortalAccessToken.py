@@ -13,6 +13,7 @@ from app.db.database import Base
 class ScopeType(str, enum.Enum):
     PROJECT = "project"
     MILESTONE = "milestone"
+    INVOICE = "invoice"
 
 class PortalAccessToken(Base):
     __tablename__ = "portal_tokens"
@@ -33,9 +34,13 @@ class PortalAccessToken(Base):
     issued_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     revoked_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=True)
+    # Lets the freelancer tell whether a client ever opened a link.
+    last_used_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default=datetime.now(timezone.utc)
+        DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc)
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

@@ -13,10 +13,19 @@ from app.models.ClientProfile import ClientProfile
 
 
 async def issue_portal_token(
-    db: AsyncSession, client_id: uuid.UUID, scope_type: ScopeType, scope_id: uuid.UUID
+    db: AsyncSession,
+    client_id: uuid.UUID,
+    scope_type: ScopeType,
+    scope_id: uuid.UUID,
+    commit: bool = True,
 ) -> str:
+    """Create a portal token row and return the signed JWT.
+
+    With ``commit=False`` the row is only flushed so the caller can commit it
+    atomically together with its own changes.
+    """
     now = datetime.now(timezone.utc)
-    expires_at = now + timedelta(days=14)
+    expires_at = now + timedelta(days=settings.PORTAL_TOKEN_EXPIRE_DAYS)
     jti = str(uuid.uuid4())
 
     db_token = PortalAccessToken(
@@ -28,7 +37,10 @@ async def issue_portal_token(
         expires_at=expires_at,
     )
     db.add(db_token)
-    await db.commit()
+    if commit:
+        await db.commit()
+    else:
+        await db.flush()
 
     payload = {
         "client_id": str(client_id),
@@ -81,7 +93,22 @@ async def validate_portal_token(db: AsyncSession, token_string: str) -> PortalAc
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Token has expired"
         )
 
+    await _touch_last_used(db, token_record, now)
     return token_record
+
+
+async def _touch_last_used(
+    db: AsyncSession, token_record: PortalAccessToken, now: datetime
+) -> None:
+    """Record that the link was used (throttled to limit write volume)."""
+    last = token_record.last_used_at
+    if last is not None:
+        if last.tzinfo is None:
+            last = last.replace(tzinfo=timezone.utc)
+        if (now - last).total_seconds() < settings.PORTAL_TOKEN_TOUCH_INTERVAL_SECONDS:
+            return
+    token_record.last_used_at = now
+    await db.commit()
 
 
 async def get_portal_client(
