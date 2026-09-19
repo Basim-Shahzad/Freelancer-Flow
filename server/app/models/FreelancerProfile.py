@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, List, Optional
 from datetime import datetime, timezone
 from decimal import Decimal
 
-from sqlalchemy import DateTime, ForeignKey, String, Numeric
+from sqlalchemy import DateTime, ForeignKey, Integer, String, Numeric, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -26,7 +26,35 @@ class FreelancerProfile(Base):
     hourly_rate: Mapped[Optional[Decimal]] = mapped_column(
         Numeric(precision=13, scale=2), nullable=True
     )
-    type: Mapped[Optional[String]] = mapped_column(String(255), nullable=True)
+    type: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+
+    # Default currency (ISO-4217); snapshotted onto each invoice.
+    currency: Mapped[str] = mapped_column(String(3), nullable=False, default="SAR")
+
+    # Business identity printed on invoices.
+    business_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    business_address: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    vat_number: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    logo_url: Mapped[Optional[str]] = mapped_column(String(1024), nullable=True)
+    default_payment_terms_days: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=30
+    )
+    # Percentage, e.g. 15.00 for 15% VAT.
+    default_tax_rate: Mapped[Decimal] = mapped_column(
+        Numeric(precision=5, scale=2), nullable=False, default=0
+    )
+
+    # Last issued invoice sequence number; incremented under a row lock so
+    # numbers stay gap-free and unique per freelancer.
+    invoice_sequence: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+    # Self-reported cash position, used for runway calculations.
+    bank_balance: Mapped[Optional[Decimal]] = mapped_column(
+        Numeric(precision=13, scale=2), nullable=True
+    )
+    bank_balance_updated_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 
     email_verified_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True), nullable=True
