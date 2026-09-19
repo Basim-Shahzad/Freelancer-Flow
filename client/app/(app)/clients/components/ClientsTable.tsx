@@ -1,6 +1,7 @@
 import { createColumnHelper, flexRender, getCoreRowModel, useReactTable } from "@tanstack/react-table";
 import { ClientInList } from "../clients.types";
 import ProfilePictureFromName from "@/components/ProfilePictureFromName";
+import { Badge } from "@/components/ui/badge";
 import { formatDate } from "@/lib/helpers";
 
 interface ClientsTableProps {
@@ -16,8 +17,8 @@ const columns = [
          <div className="flex items-center gap-3">
             <ProfilePictureFromName name={getValue()} scale={0.75} />
             <div className="flex flex-col">
-               <span className="font-medium text-[14px] text-white/70">{getValue()}</span>
-               <span className="text-white/40 text-[11px]">{row.original.email}</span>
+               <span className="text-[14px] font-medium text-text">{getValue()}</span>
+               <span className="text-[11px] text-text-muted">{row.original.email}</span>
             </div>
          </div>
       ),
@@ -28,18 +29,15 @@ const columns = [
       cell: (info) => {
          const projects = info.getValue();
          if (projects.length === 0) {
-            return <span className="text-white/25 text-[12px] italic">No projects</span>;
+            return <span className="text-[12px] text-text-muted/60 italic">No projects</span>;
          }
          return (
             <div className="flex flex-wrap gap-1.5">
                {projects.map((project) => (
-                  <span
-                     key={project.id}
-                     className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium bg-white/[0.06] border border-white/[0.08] text-white/60 hover:text-white/85 hover:bg-white/[0.09] transition-all duration-100"
-                  >
-                     <span className="w-1.5 h-1.5 rounded-full bg-blue-400/60 shrink-0" />
+                  <Badge key={project.id} variant="outline" className="gap-1.5">
+                     <span className="size-1.5 shrink-0 rounded-full bg-primary/60" />
                      {project.name}
-                  </span>
+                  </Badge>
                ))}
             </div>
          );
@@ -48,7 +46,7 @@ const columns = [
    columnHelper.accessor((row) => row.createdAt, {
       id: "joined",
       header: "Joined",
-      cell: (info) => <span className="text-white/45 text-[13px] tabular-nums">{formatDate(info.getValue())}</span>,
+      cell: (info) => <span className="text-[13px] tabular-nums text-text-muted">{formatDate(info.getValue())}</span>,
    }),
    columnHelper.accessor((row) => row.projects, {
       id: "lastSeen",
@@ -56,9 +54,9 @@ const columns = [
       cell: (info) => {
          const projects = info.getValue();
          return projects.length > 0 ? (
-            <span className="text-white/45 text-[13px] tabular-nums">{formatDate(projects[0].createdAt)}</span>
+            <span className="text-[13px] tabular-nums text-text-muted">{formatDate(projects[0].createdAt)}</span>
          ) : (
-            <span className="text-white/25">—</span>
+            <span className="text-text-muted/50">—</span>
          );
       },
    }),
@@ -72,7 +70,7 @@ const ClientsTable: React.FC<ClientsTableProps> = ({ clients }) => {
    });
 
    return (
-      <table className="text-white/80 w-full">
+      <table className="w-full px-6 text-text">
          <colgroup>
             <col style={{ width: "220px" }} />
             <col style={{ width: "auto" }} />
@@ -81,16 +79,20 @@ const ClientsTable: React.FC<ClientsTableProps> = ({ clients }) => {
          </colgroup>
          <thead>
             {table.getHeaderGroups().map((headerGroup) => (
-               <tr key={headerGroup.id} className="border-b border-white/[0.06]">
+               <tr key={headerGroup.id} className="border-b border-border">
                   {headerGroup.headers.map((header, index) => (
                      <th
                         key={header.id}
                         className={`py-2 ${
-                           index === 0 ? "text-left pl-4 pr-6 select-none" : index === 1 ? "text-left px-4" : "text-right px-4 select-none"
+                           index === 0
+                              ? "px-4 pr-6 text-left select-none"
+                              : index === 1
+                                ? "px-4 text-left"
+                                : "px-4 text-right select-none"
                         }`}
                      >
                         {header.isPlaceholder ? null : (
-                           <span className="text-[12px] select-none text-white/45 px-[7px] py-[3px] rounded-xl hover:text-white/65 hover:bg-white/10 font-medium tracking-wide">
+                           <span className="rounded-xl px-[7px] py-[3px] text-[12px] font-medium tracking-wide text-text-muted select-none hover:bg-muted hover:text-text">
                               {flexRender(header.column.columnDef.header, header.getContext())}
                            </span>
                         )}
@@ -101,15 +103,12 @@ const ClientsTable: React.FC<ClientsTableProps> = ({ clients }) => {
          </thead>
          <tbody>
             {table.getRowModel().rows.map((row) => (
-               <tr
-                  key={row.id}
-                  className="border-b border-white/[0.04] hover:bg-white/[0.03] transition-colors duration-75"
-               >
+               <tr key={row.id} className="border-b border-border/60 transition-colors duration-75 hover:bg-muted/50">
                   {row.getVisibleCells().map((cell, index) => (
                      <td
                         key={cell.id}
                         className={`py-2.5 ${
-                           index === 0 ? "text-left pl-4 pr-6" : index === 1 ? "text-left px-4" : "text-right px-4"
+                           index === 0 ? "px-4 pr-6 text-left" : index === 1 ? "px-4 text-left" : "px-4 text-right"
                         }`}
                      >
                         {flexRender(cell.column.columnDef.cell, cell.getContext())}

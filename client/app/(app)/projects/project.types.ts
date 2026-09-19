@@ -1,6 +1,16 @@
 import type { Client } from "../clients/clients.types";
 
-export type ProjectStatus = "DRAFT" | "IN_PROGRESS" | "IN_REVIEW" | "INVOICED" | "COMPLETED" | "ARCHIVED" | "CANCELLED";
+export const projectStatuses = [
+   "DRAFT",
+   "IN_PROGRESS",
+   "IN_REVIEW",
+   "INVOICED",
+   "COMPLETED",
+   "ARCHIVED",
+   "CANCELLED",
+] as const;
+
+export type ProjectStatus = typeof projectStatuses[number];
 
 export type ProjectInList = {
    id: string;
