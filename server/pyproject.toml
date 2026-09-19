@@ -26,3 +26,13 @@ dependencies = [
     "uvicorn[standard]==0.48.0",
     "websockets==16.0",
 ]
+
+[dependency-groups]
+dev = [
+    "aiosqlite>=0.22.1",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+testpaths = ["tests"]
