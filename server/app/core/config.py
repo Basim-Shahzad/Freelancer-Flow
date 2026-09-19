@@ -28,6 +28,19 @@ class Settings(BaseSettings):
     # Database
     DATABASE_URL: str
 
+    # Client portal / invoicing
+    # Public URL of the web client; used to build links in outgoing emails.
+    FRONTEND_URL: str = "http://localhost:3000"
+    PORTAL_TOKEN_EXPIRE_DAYS: int = 14
+    # Minimum seconds between `last_used_at` writes for one portal token.
+    PORTAL_TOKEN_TOUCH_INTERVAL_SECONDS: int = 60
+    # ISO-4217 code used when neither the request, project nor freelancer sets one.
+    DEFAULT_CURRENCY: str = "SAR"
+    DEFAULT_PAYMENT_TERMS_DAYS: int = 30
+    INVOICE_NUMBER_PREFIX: str = "INV"
+    # Guards against nagging a client: minimum gap between reminders.
+    INVOICE_REMINDER_MIN_INTERVAL_HOURS: int = 24
+
     # CORS — stored as a plain string, parsed into a list via the property below
     # We use str here to bypass pydantic-settings' JSON-parsing for list fields
     CORS_ORIGINS: str = ""

@@ -16,6 +16,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jwt.exceptions import PyJWTError
 from app.db.database import get_db
 from app.core.security import decode_token
+from app.models.FreelancerProfile import FreelancerProfile
 from app.models.User import User, UserRole
 
 from app.db.crud.auth import get_user_by_id
@@ -89,6 +90,18 @@ def get_verified_user(
     return user
 
 
+def get_current_freelancer(
+    user: Annotated[User, Depends(get_current_user)],
+) -> FreelancerProfile:
+    """The caller's freelancer profile, or 403 for accounts without one."""
+    if user.freelancer is None:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="A freelancer profile is required for this action",
+        )
+    return user.freelancer
+
+
 def get_admin_user(
     user: Annotated[User, Depends(get_current_user)],
 ) -> User:
@@ -119,4 +132,5 @@ CurrentUser = Annotated[User, Depends(get_current_user)]
 VerifiedUser = Annotated[User, Depends(get_verified_user)]
 AdminUser = Annotated[User, Depends(get_admin_user)]
 ModeratorUser = Annotated[User, Depends(get_moderator_or_admin)]
+CurrentFreelancer = Annotated[FreelancerProfile, Depends(get_current_freelancer)]
 DBSession = Annotated[AsyncSession, Depends(get_db)]

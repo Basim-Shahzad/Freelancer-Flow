@@ -56,7 +56,7 @@ class User(Base):
         back_populates="user", cascade="all, delete-orphan", lazy="select"
     )
 
-    freelancer: Mapped["FreelancerProfile | None"] = relationship(
+    freelancer: Mapped["FreelancerProfile"] = relationship(
         back_populates="user",
         uselist=False,
         cascade="all, delete-orphan",
