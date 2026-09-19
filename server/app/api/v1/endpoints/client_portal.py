@@ -3,12 +3,20 @@ from uuid import UUID
 from dataclasses import dataclass
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, status, HTTPException, Request
-from pydantic import BaseModel, Field
+from typing import Optional
+
+from fastapi import APIRouter, Body, Depends, status, HTTPException, Request
+from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
+from app.api.v1.openapi import errors
+from app.db.crud.activity import log_activity
+from app.db.crud.invoices import mark_invoice_viewed
 from app.db.database import get_db
+from app.schemas.InvoiceSchema import InvoiceResponse
+from app.schemas.MilestoneSchema import MilestoneDecision, MilestoneResponse
+from app.schemas.PortalSchema import PortalProjectResponse
 from app.api.dependencies.client_portal import validate_portal_token
 from app.core.security import hash_password
 from app.models.User import User
@@ -100,7 +108,12 @@ async def _load_milestone_for_session(
 # ---------------------------------------------------------------------------
 
 
-@router.get("/project/{project_id}")
+@router.get(
+    "/project/{project_id}",
+    response_model=PortalProjectResponse,
+    summary="View a project (client portal)",
+    responses=errors(401, 403, 404),
+)
 async def get_portal_project(
     project_id: UUID,
     session: PortalSession = Depends(get_portal_session),
@@ -118,10 +131,15 @@ async def get_portal_project(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Project not found"
         )
-    return project  # TODO: swap for a Pydantic response_model before shipping
+    return project
 
 
-@router.get("/milestone/{milestone_id}")
+@router.get(
+    "/milestone/{milestone_id}",
+    response_model=MilestoneResponse,
+    summary="View a milestone (client portal)",
+    responses=errors(401, 403, 404),
+)
 async def get_portal_milestone(
     milestone_id: UUID,
     session: PortalSession = Depends(get_portal_session),
@@ -135,27 +153,79 @@ async def get_portal_milestone(
 # ---------------------------------------------------------------------------
 
 
-@router.post("/milestone/{milestone_id}/approve")
+@router.post(
+    "/milestone/{milestone_id}/approve",
+    response_model=MilestoneResponse,
+    summary="Approve a submitted milestone",
+    description="Optional `comment` is stored with the decision.",
+    responses=errors(400, 401, 403, 404),
+)
 async def approve_portal_milestone(
     milestone_id: UUID,
     request: Request,
+    data: Optional[MilestoneDecision] = Body(None),
     session: PortalSession = Depends(get_portal_session),
     db: AsyncSession = Depends(get_db),
 ):
     return await _handle_milestone_decision(
-        milestone_id, MilestoneApprovalDecision.APPROVED, session, request, db
+        milestone_id,
+        MilestoneApprovalDecision.APPROVED,
+        session,
+        request,
+        db,
+        comment=data.comment if data else None,
     )
 
 
-@router.post("/milestone/{milestone_id}/reject")
+@router.post(
+    "/milestone/{milestone_id}/reject",
+    response_model=MilestoneResponse,
+    summary="Reject a submitted milestone",
+    description="`comment` is required and should explain what needs to change; "
+    "it is stored in the approval history.",
+    responses=errors(400, 401, 403, 404, 422),
+)
 async def reject_portal_milestone(
     milestone_id: UUID,
+    request: Request,
+    data: Optional[MilestoneDecision] = Body(None),
+    session: PortalSession = Depends(get_portal_session),
+    db: AsyncSession = Depends(get_db),
+):
+    return await _handle_milestone_decision(
+        milestone_id,
+        MilestoneApprovalDecision.REJECTED,
+        session,
+        request,
+        db,
+        comment=data.comment if data else None,
+    )
+
+
+@router.get(
+    "/invoice/{invoice_id}",
+    response_model=InvoiceResponse,
+    summary="View an invoice (client portal)",
+    description="Requires an invoice-scoped link. The first view stamps the "
+    "invoice's `viewedAt` and logs a VIEWED event.",
+    responses=errors(401, 403, 404),
+)
+async def get_portal_invoice(
+    invoice_id: UUID,
     request: Request,
     session: PortalSession = Depends(get_portal_session),
     db: AsyncSession = Depends(get_db),
 ):
-    return await _handle_milestone_decision(
-        milestone_id, MilestoneApprovalDecision.REJECTED, session, request, db
+    if session.token.scope_type != ScopeType.INVOICE or session.token.scope != invoice_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Token is not valid for this invoice",
+        )
+    return await mark_invoice_viewed(
+        db,
+        invoice_id,
+        session.client.id,
+        request.client.host if request.client else None,
     )
 
 
@@ -165,7 +235,14 @@ async def _handle_milestone_decision(
     session: PortalSession,
     request: Request,
     db: AsyncSession,
+    comment: Optional[str] = None,
 ):
+    comment = comment.strip() if comment else None
+    if decision == MilestoneApprovalDecision.REJECTED and not comment:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="A comment explaining the rejection is required",
+        )
     # Lock the row for the duration of this transaction so two near-
     # simultaneous approve/reject calls can't both pass the status check.
     result = await db.execute(
@@ -193,6 +270,7 @@ async def _handle_milestone_decision(
         milestone_id=milestone.id,
         client_id=session.client.id,
         decision=decision,
+        comment=comment,
         ip_address=request.client.host if request.client else None,
         user_agent=request.headers.get("user-agent"),
         access_token_id=session.token.id,
@@ -204,16 +282,27 @@ async def _handle_milestone_decision(
         if decision == MilestoneApprovalDecision.APPROVED
         else MilestoneStatus.REJECTED
     )
-    # NOTE: assumed column name is `approved_by` (matches MilestoneResponse
-    # schema's `approved_by` field) -- confirm this against your real
-    # Milestone model; change back to `approved_by_client_id` if that's
-    # the actual column name there.
+    # Denormalised cache of the latest decision (the approval row above is
+    # the audit history).
     milestone.approved_by_client_id = session.client.id
     milestone.approved_at = datetime.now(timezone.utc)
 
+    project = await db.get(Project, milestone.project_id)
+    if project is not None:
+        log_activity(
+            db,
+            user_id=project.created_by,
+            entity_type="milestone",
+            entity_id=milestone.id,
+            action=decision.value.lower(),
+            summary=f"{session.client.name} {decision.value.lower()} milestone "
+            f"{milestone.name}",
+            changes={"comment": comment} if comment else None,
+        )
+
     await db.commit()
     await db.refresh(milestone)
-    return milestone  # TODO: swap for a Pydantic response_model before shipping
+    return milestone
 
 
 # ---------------------------------------------------------------------------
@@ -222,7 +311,17 @@ async def _handle_milestone_decision(
 
 
 class PortalConvertRequest(BaseModel):
-    password: str = Field(min_length=8)
+    password: str = Field(min_length=8, max_length=128)
+
+    @field_validator("password")
+    @classmethod
+    def password_strength(cls, v: str) -> str:
+        # Same rules as registration (see AuthSchema.UserCreate).
+        if not any(c.isupper() for c in v):
+            raise ValueError("Password must contain at least one uppercase letter")
+        if not any(c.isdigit() for c in v):
+            raise ValueError("Password must contain at least one digit")
+        return v
 
 
 @router.post("/convert")
