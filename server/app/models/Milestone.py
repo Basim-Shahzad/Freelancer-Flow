@@ -4,7 +4,10 @@ from typing import TYPE_CHECKING
 from datetime import datetime, timezone
 import enum
 
-from sqlalchemy import DateTime, ForeignKey, String, Text, Enum, Boolean
+from decimal import Decimal
+from typing import Optional
+
+from sqlalchemy import DateTime, ForeignKey, Integer, Numeric, String, Text, Enum, Boolean
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -37,8 +40,10 @@ class Milestone(Base):
     )
 
     project: Mapped["Project"] = relationship(back_populates="milestones")
+    # No delete cascade: deleting a milestone must never delete tracked
+    # (possibly invoiced) time; the FK is SET NULL instead.
     time_entries: Mapped[list["TimeEntry"]] = relationship(
-        back_populates="milestone", cascade="all, delete-orphan"
+        back_populates="milestone", passive_deletes=True
     )
     approvals: Mapped[list["MilestoneApproval"]] = relationship(
         back_populates="milestone", cascade="all, delete-orphan"
@@ -48,6 +53,14 @@ class Milestone(Base):
         Enum(MilestoneStatus), default=MilestoneStatus.PENDING
     )
     due_date: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=True)
+    # Fixed-price billing is milestone-based, so the milestone carries the money.
+    amount: Mapped[Optional[Decimal]] = mapped_column(
+        Numeric(precision=13, scale=2), nullable=True
+    )
+    sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    submitted_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     approval_required: Mapped[bool] = mapped_column(
         Boolean, default=False, nullable=False
     )
@@ -55,14 +68,14 @@ class Milestone(Base):
     # MilestoneApproval history/audit table) for cheap reads. Always write
     # both a new MilestoneApproval row and these two fields together.
     approved_by_client_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("clients.id", ondelete="CASCADE"), nullable=True
+        ForeignKey("clients.id", ondelete="SET NULL"), nullable=True
     )
     approved_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
 
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default=datetime.now(timezone.utc)
+        DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc)
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

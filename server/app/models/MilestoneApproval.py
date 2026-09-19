@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 from datetime import datetime, timezone
 import enum
 
-from sqlalchemy import DateTime, ForeignKey, String, Enum
+from sqlalchemy import DateTime, ForeignKey, String, Enum, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -38,6 +38,8 @@ class MilestoneApproval(Base):
     decided_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc)
     )
+    # Why the client decided this way; required in practice for rejections.
+    comment: Mapped[str | None] = mapped_column(Text, nullable=True)
     ip_address: Mapped[str] = mapped_column(String(255), nullable=True)
     user_agent: Mapped[str] = mapped_column(String(255), nullable=True)
 
