@@ -57,7 +57,8 @@ class TaxSpec:
     """A tax to apply, as configured by the user (any name, any regime).
 
     ``is_inclusive``: prices already contain this tax (it is extracted, not
-    added). ``is_compound``: computed on the base *plus* earlier exclusive taxes.
+    added). ``is_compound``: computed on the base *plus* earlier exclusive
+    collected taxes.
     ``is_withholding``: deducted from what the client pays (not tax collected).
     """
 
@@ -99,7 +100,9 @@ def compute_totals(
 
     Inclusive taxes are extracted from the discounted amount (it already
     contains them); exclusive taxes are added on the net; compound ones stack
-    on the net plus earlier exclusive taxes. Withholding is subtracted.
+    on the net plus earlier exclusive collected taxes (withholding never
+    enlarges a compound base: the client does not pay it). Withholding is
+    subtracted.
     Rates are percentages (15 == 15%).
     """
     taxes = list(taxes)
@@ -123,7 +126,7 @@ def compute_totals(
         else:
             base = net
         amount = q(base * t.rate / _HUNDRED)
-        if not t.is_inclusive:
+        if not t.is_inclusive and not t.is_withholding:
             running_exclusive += amount
         lines.append(
             TaxLine(t.name, t.rate, amount, t.is_inclusive, t.is_compound, t.is_withholding)
