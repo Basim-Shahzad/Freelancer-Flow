@@ -5,10 +5,10 @@ from datetime import date, datetime, timezone
 from decimal import Decimal
 from typing import Optional
 
-from fastapi import HTTPException, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.errors import NotFound, Unprocessable
 from app.db.crud.activity import diff_changes, log_activity
 from app.db.crud.projects import get_project_by_id
 from app.models.Expense import Expense, RecurrenceInterval
@@ -30,10 +30,6 @@ _MONTHS_PER_INTERVAL = {
 RUNWAY_LOOKBACK_MONTHS = 3
 
 
-def _unprocessable(detail: str) -> HTTPException:
-    return HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=detail)
-
-
 async def _check_project(
     db: AsyncSession, project_id: Optional[uuid.UUID], freelancer: FreelancerProfile
 ) -> None:
@@ -53,9 +49,7 @@ async def get_expense_by_id(
         )
     ).scalar_one_or_none()
     if expense is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Expense not found"
-        )
+        raise NotFound("Expense not found")
     return expense
 
 
@@ -129,14 +123,14 @@ async def update_expense(
     update_data = data.model_dump(exclude_unset=True)
     for required in ("description", "amount", "incurred_on", "currency", "is_recurring"):
         if required in update_data and update_data[required] is None:
-            raise _unprocessable(f"{required} cannot be null")
+            raise Unprocessable(f"{required} cannot be null")
     await _check_project(db, update_data.get("project_id"), freelancer)
 
     # Validate the merged result, not just the patch.
     is_recurring = update_data.get("is_recurring", expense.is_recurring)
     recurrence = update_data["recurrence"] if "recurrence" in update_data else expense.recurrence
     if is_recurring and recurrence is None:
-        raise _unprocessable("recurrence is required when is_recurring is true")
+        raise Unprocessable("recurrence is required when is_recurring is true")
     if not is_recurring:
         update_data["recurrence"] = None
         update_data["recurrence_ends_on"] = None
@@ -146,7 +140,7 @@ async def update_expense(
         else expense.recurrence_ends_on
     )
     if ends is not None and ends < update_data.get("incurred_on", expense.incurred_on):
-        raise _unprocessable("recurrence_ends_on cannot be before incurred_on")
+        raise Unprocessable("recurrence_ends_on cannot be before incurred_on")
 
     if "amount" in update_data or "currency" in update_data:
         update_data["amount"] = quantize_money(

@@ -4,11 +4,11 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
-from fastapi import HTTPException, status
 from sqlalchemy import select, func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.errors import Conflict, NotFound, Unprocessable
 from app.db.crud.activity import diff_changes, log_activity
 from app.db.crud.freelancers import get_freelancer_by_user
 from app.db.crud.projects import get_project_by_id
@@ -59,10 +59,7 @@ async def _check_milestone(
         )
     ).scalar_one_or_none()
     if found is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Milestone not found on this project",
-        )
+        raise NotFound("Milestone not found on this project")
 
 
 async def get_time_entries(
@@ -98,9 +95,7 @@ async def get_owned_entry(
     )
     entry = result.scalar_one_or_none()
     if entry is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Time entry not found"
-        )
+        raise NotFound("Time entry not found")
     return entry
 
 
@@ -122,10 +117,7 @@ async def create_time_entry(
     project = await get_project_by_id(db, data.project_id, user_id)
     await _check_milestone(db, data.milestone_id, project.id)
     if _aware(data.end_time) > _now() + _FUTURE_TOLERANCE:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail="end_time cannot be in the future",
-        )
+        raise Unprocessable("end_time cannot be in the future")
 
     entry = TimeEntry(
         description=data.description,
@@ -162,16 +154,10 @@ async def start_timer(
     await _check_milestone(db, data.milestone_id, project.id)
 
     if await get_running_entry(db, user_id) is not None:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="A timer is already running; stop it first",
-        )
+        raise Conflict("A timer is already running; stop it first")
     start = data.start_time or _now()
     if start > _now() + _FUTURE_TOLERANCE:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail="start_time cannot be in the future",
-        )
+        raise Unprocessable("start_time cannot be in the future")
 
     entry = TimeEntry(
         description=data.description,
@@ -189,10 +175,7 @@ async def start_timer(
         await db.flush()
     except IntegrityError:
         await db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="A timer is already running; stop it first",
-        )
+        raise Conflict("A timer is already running; stop it first")
     log_activity(
         db,
         user_id=user_id,
@@ -211,9 +194,7 @@ async def stop_timer(
 ) -> TimeEntry:
     entry = await get_owned_entry(db, entry_id, user_id)
     if entry.end_time is not None:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT, detail="Timer is not running"
-        )
+        raise Conflict("Timer is not running")
     end = max(_now(), _aware(entry.start_time))
     entry.end_time = end
     entry.duration_minutes = duration_minutes(_aware(entry.start_time), end)
@@ -235,18 +216,12 @@ async def update_time_entry(
 ) -> TimeEntry:
     entry = await get_owned_entry(db, entry_id, user_id)
     if entry.is_invoiced:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Invoiced time entries cannot be changed",
-        )
+        raise Conflict("Invoiced time entries cannot be changed")
 
     update_data = data.model_dump(exclude_unset=True)
     for required in ("description", "start_time", "is_billable", "end_time"):
         if required in update_data and update_data[required] is None:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-                detail=f"{required} cannot be null",
-            )
+            raise Unprocessable(f"{required} cannot be null")
     if "milestone_id" in update_data:
         await _check_milestone(db, update_data["milestone_id"], entry.project_id)
 
@@ -254,15 +229,9 @@ async def update_time_entry(
     end = update_data.get("end_time") or entry.end_time
     end = _aware(end) if end is not None else None
     if end is not None and end <= start:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail="end_time must be after start_time",
-        )
+        raise Unprocessable("end_time must be after start_time")
     if end is not None and end > _now() + _FUTURE_TOLERANCE:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail="end_time cannot be in the future",
-        )
+        raise Unprocessable("end_time cannot be in the future")
 
     changes = diff_changes(entry, update_data)
     for field, value in update_data.items():
@@ -282,9 +251,7 @@ async def update_time_entry(
         await db.commit()
     except IntegrityError:
         await db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT, detail="Time entry conflict"
-        )
+        raise Conflict("Time entry conflict")
     await db.refresh(entry)
     return entry
 
@@ -294,10 +261,7 @@ async def delete_time_entry(
 ) -> None:
     entry = await get_owned_entry(db, entry_id, user_id)
     if entry.is_invoiced:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Invoiced time entries cannot be deleted",
-        )
+        raise Conflict("Invoiced time entries cannot be deleted")
     log_activity(
         db,
         user_id=user_id,

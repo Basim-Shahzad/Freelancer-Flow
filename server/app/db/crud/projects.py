@@ -3,12 +3,12 @@ from __future__ import annotations
 import uuid
 from typing import Optional
 
-from fastapi import HTTPException, status
 from sqlalchemy import select, func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.errors import Conflict, NotFound, Unprocessable
 from app.db.crud.activity import diff_changes, log_activity
 from app.db.crud.clients import get_client_by_id
 from app.models.Project import Project, ProjectStatus
@@ -29,10 +29,7 @@ async def get_project_by_id(
     )
     project = result.scalar_one_or_none()
     if not project:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Project with id {project_id} not found",
-        )
+        raise NotFound(f"Project with id {project_id} not found")
     return project
 
 
@@ -110,10 +107,7 @@ async def update_project(
     update_data = data.model_dump(exclude_unset=True)
     for required in ("name", "status", "budget_type", "client_id"):
         if required in update_data and update_data[required] is None:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-                detail=f"{required} cannot be null",
-            )
+            raise Unprocessable(f"{required} cannot be null")
     if update_data.get("client_id") not in (None, project.client_id):
         await get_client_by_id(db, update_data["client_id"], user_id)
 
@@ -167,7 +161,4 @@ async def delete_project(
     except IntegrityError:
         # Invoices reference projects with ON DELETE RESTRICT.
         await db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Project has invoices and cannot be deleted; archive it instead",
-        )
+        raise Conflict("Project has invoices and cannot be deleted; archive it instead")

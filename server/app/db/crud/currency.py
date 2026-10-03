@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Optional
 
-from fastapi import HTTPException, status
+from app.core.errors import Unprocessable
 
 
 def resolve_currency(*candidates: Optional[str]) -> str:
@@ -10,7 +10,6 @@ def resolve_currency(*candidates: Optional[str]) -> str:
     for code in candidates:
         if code:
             return code
-    raise HTTPException(
-        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-        detail="No currency: set one on your profile or pass `currency` explicitly",
+    raise Unprocessable(
+        "No currency: set one on your profile or pass `currency` explicitly"
     )

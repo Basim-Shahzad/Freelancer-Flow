@@ -4,10 +4,10 @@ import uuid
 from datetime import datetime, timezone
 from typing import Optional
 
-from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.errors import BadRequest, Conflict, Forbidden, NotFound, Unprocessable
 from app.core.security import hash_password
 from app.db.crud.activity import log_activity
 from app.models.ClientProfile import ClientProfile
@@ -25,10 +25,7 @@ def require_scope(
     this client in general. Without this, a token scoped to Project A would
     also work against Project B for the same client."""
     if token.scope_type != scope_type or token.scope != scope_id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=f"Token is not valid for this {scope_type.value.lower()}",
-        )
+        raise Forbidden(f"Token is not valid for this {scope_type.value.lower()}")
 
 
 async def get_portal_project(
@@ -40,9 +37,7 @@ async def get_portal_project(
     )
     project = result.scalar_one_or_none()
     if not project:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Project not found"
-        )
+        raise NotFound("Project not found")
     return project
 
 
@@ -62,9 +57,7 @@ async def get_portal_milestone(
         query = query.with_for_update()
     milestone = (await db.execute(query)).scalar_one_or_none()
     if not milestone:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Milestone not found"
-        )
+        raise NotFound("Milestone not found")
     # token is scoped by project, so check the milestone's project matches it
     require_scope(token, ScopeType.PROJECT, milestone.project_id)
     return milestone
@@ -83,10 +76,7 @@ async def decide_milestone(
 ) -> Milestone:
     comment = comment.strip() if comment else None
     if decision == MilestoneApprovalDecision.REJECTED and not comment:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail="A comment explaining the rejection is required",
-        )
+        raise Unprocessable("A comment explaining the rejection is required")
     # Lock the row for the duration of this transaction so two near-
     # simultaneous approve/reject calls can't both pass the status check.
     milestone = await get_portal_milestone(
@@ -94,9 +84,9 @@ async def decide_milestone(
     )
 
     if milestone.status != MilestoneStatus.SUBMITTED:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Milestone cannot be {decision.value.lower()}ed because it is in status {milestone.status.value}",
+        raise BadRequest(
+            f"Milestone cannot be {decision.value.lower()}ed because it is in "
+            f"status {milestone.status.value}"
         )
 
     db.add(
@@ -144,17 +134,11 @@ async def convert_client_to_user(
 ) -> ClientProfile:
     """Give a guest portal client a real login."""
     if client.user_id is not None:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="This client already has an account",
-        )
+        raise BadRequest("This client already has an account")
 
     result = await db.execute(select(User).where(User.email == client.email))
     if result.scalar_one_or_none():
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="An account with this email already exists",
-        )
+        raise Conflict("An account with this email already exists")
 
     new_user = User(
         email=client.email,

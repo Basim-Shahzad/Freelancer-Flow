@@ -3,10 +3,10 @@ from __future__ import annotations
 import uuid
 from datetime import datetime, timezone
 
-from fastapi import HTTPException, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.errors import Conflict, NotFound, Unprocessable
 from app.db.crud.portal_tokens import issue_portal_token
 from app.db.crud.activity import diff_changes, log_activity
 from app.db.crud.projects import get_project_by_id
@@ -46,9 +46,7 @@ async def get_owned_milestone(
     )
     milestone = result.scalar_one_or_none()
     if milestone is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Milestone not found"
-        )
+        raise NotFound("Milestone not found")
     return milestone
 
 
@@ -101,10 +99,7 @@ async def update_milestone(
     update_data = data.model_dump(exclude_unset=True)
     for required in ("name", "status", "approval_required", "sort_order"):
         if required in update_data and update_data[required] is None:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-                detail=f"{required} cannot be null",
-            )
+            raise Unprocessable(f"{required} cannot be null")
 
     new_status = update_data.get("status")
     if new_status is not None and new_status != milestone.status:
@@ -119,10 +114,9 @@ async def update_milestone(
                 or new_status == MilestoneStatus.APPROVED
                 else ""
             )
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail=f"Cannot move milestone from {milestone.status.value} "
-                f"to {new_status.value}{hint}",
+            raise Conflict(
+                f"Cannot move milestone from {milestone.status.value} "
+                f"to {new_status.value}{hint}"
             )
         if new_status == MilestoneStatus.APPROVED:
             milestone.approved_at = datetime.now(timezone.utc)
@@ -158,9 +152,8 @@ async def reorder_milestones(
     milestones, _ = await get_milestones(db, project.id)
     existing = {m.id: m for m in milestones}
     if len(set(milestone_ids)) != len(milestone_ids) or set(milestone_ids) != set(existing):
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail="milestoneIds must list every milestone of the project exactly once",
+        raise Unprocessable(
+            "milestoneIds must list every milestone of the project exactly once"
         )
     for position, mid in enumerate(milestone_ids):
         existing[mid].sort_order = position
@@ -191,10 +184,7 @@ async def delete_milestone(
         )
     ).scalar_one()
     if billed:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Milestone has been invoiced and cannot be deleted",
-        )
+        raise Conflict("Milestone has been invoiced and cannot be deleted")
     log_activity(
         db,
         user_id=user_id,
@@ -220,15 +210,9 @@ async def submit_milestone(
     """
     milestone = await get_owned_milestone(db, milestone_id, user_id)
     if project_id is not None and milestone.project_id != project_id:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Milestone does not belong to the given project",
-        )
+        raise NotFound("Milestone does not belong to the given project")
     if milestone.status not in _SUBMITTABLE:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=f"Cannot submit milestone in status {milestone.status.value}",
-        )
+        raise Conflict(f"Cannot submit milestone in status {milestone.status.value}")
 
     project = await get_project_by_id(db, milestone.project_id, user_id)
 

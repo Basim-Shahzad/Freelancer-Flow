@@ -6,7 +6,6 @@ refresh rotation, logout, password change). Routes only handle cookies.
 from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
-from fastapi import HTTPException, status
 from jwt.exceptions import PyJWTError
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -14,6 +13,7 @@ from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
+from app.core.errors import BadRequest, Conflict, Forbidden, Unauthorized
 from app.core.security import (
     create_access_token,
     create_refresh_token,
@@ -144,15 +144,8 @@ async def revoke_all_user_tokens(db: AsyncSession, user_id: UUID) -> int:
 # ---------------------------------------------------------------------------
 
 
-def _unauthorized(detail: str) -> HTTPException:
-    return HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=detail)
-
-
-def _email_taken() -> HTTPException:
-    return HTTPException(
-        status_code=status.HTTP_409_CONFLICT,
-        detail="An account with this email already exists",
-    )
+def _email_taken() -> Conflict:
+    return Conflict("An account with this email already exists")
 
 
 async def register_user(db: AsyncSession, payload: UserCreate) -> User:
@@ -198,13 +191,10 @@ async def login(
 
     # Constant-time comparison to avoid timing attacks
     if not user or not verify_password(password, user.hashed_password):
-        raise _unauthorized("Invalid email or password")
+        raise Unauthorized("Invalid email or password")
 
     if not user.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Account is disabled",
-        )
+        raise Forbidden("Account is disabled")
 
     tokens = await _issue_tokens(db, user.id, user_agent, ip_address)
     await update_last_login(db, user)
@@ -222,21 +212,21 @@ async def rotate_refresh_token(
     """Exchange a refresh token for a new ``(access_token, refresh_token)``."""
     # 1. Token present
     if not refresh_token:
-        raise _unauthorized("Refresh token missing")
+        raise Unauthorized("Refresh token missing")
 
     # 2. Validate JWT signature + expiry
     try:
         token_data = decode_token(refresh_token)
     except PyJWTError:
-        raise _unauthorized("Refresh token is invalid or expired")
+        raise Unauthorized("Refresh token is invalid or expired")
 
     if token_data.get("type") != "refresh":
-        raise _unauthorized("Invalid token type")
+        raise Unauthorized("Invalid token type")
 
     # 3. Validate DB record (allows manual revocation)
     record = await get_refresh_token_record(db, refresh_token)
     if not record or not record.is_valid:
-        raise _unauthorized("Refresh token has been revoked or expired")
+        raise Unauthorized("Refresh token has been revoked or expired")
 
     # 4. Rotate: revoke the used refresh token and issue a new one. This
     # limits the damage of a stolen refresh token to a single use and lets
@@ -266,10 +256,7 @@ async def change_password(
     db: AsyncSession, user: User, current_password: str, new_password: str
 ) -> None:
     if not verify_password(current_password, user.hashed_password):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Current password is incorrect",
-        )
+        raise BadRequest("Current password is incorrect")
 
     await change_user_password(db, user, new_password)
     # Security: invalidate all existing sessions after password change

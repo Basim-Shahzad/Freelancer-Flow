@@ -4,9 +4,9 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 
-from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.errors import Conflict, NotFound, Unprocessable
 from app.db.crud.activity import log_activity
 from app.db.crud.invoices import OPEN_STATUSES, add_event, get_invoice_by_id
 from app.models.FreelancerProfile import FreelancerProfile
@@ -51,32 +51,19 @@ async def record_payment(
     # Row lock serialises concurrent payments so the balance check is safe.
     invoice = await get_invoice_by_id(db, invoice_id, freelancer.id, for_update=True)
     if invoice.status == InvoiceStatus.DRAFT:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Send the invoice before recording payments",
-        )
+        raise Conflict("Send the invoice before recording payments")
     if invoice.status not in OPEN_STATUSES:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=f"Cannot record a payment on an invoice in status {invoice.status.value}",
+        raise Conflict(
+            f"Cannot record a payment on an invoice in status {invoice.status.value}"
         )
     amount = quantize_money(data.amount, invoice.currency)
     if amount <= 0:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail=f"Payment rounds to zero in {invoice.currency}",
-        )
+        raise Unprocessable(f"Payment rounds to zero in {invoice.currency}")
     if amount > invoice.balance_due:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail=f"Payment exceeds the balance due ({invoice.balance_due})",
-        )
+        raise Unprocessable(f"Payment exceeds the balance due ({invoice.balance_due})")
     paid_at = data.paid_at or datetime.now(timezone.utc)
     if paid_at > datetime.now(timezone.utc) + _FUTURE_TOLERANCE:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail="paid_at cannot be in the future",
-        )
+        raise Unprocessable("paid_at cannot be in the future")
 
     payment = Payment(
         amount=amount,
@@ -117,15 +104,10 @@ async def void_payment(
     """Remove a mistakenly recorded payment and re-derive the invoice status."""
     invoice = await get_invoice_by_id(db, invoice_id, freelancer.id, for_update=True)
     if invoice.status == InvoiceStatus.CANCELLED:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Payments on a cancelled invoice cannot be changed",
-        )
+        raise Conflict("Payments on a cancelled invoice cannot be changed")
     payment = next((p for p in invoice.payments if p.id == payment_id), None)
     if payment is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Payment not found"
-        )
+        raise NotFound("Payment not found")
 
     amount = payment.amount
     invoice.payments.remove(payment)  # delete-orphan cascade removes the row

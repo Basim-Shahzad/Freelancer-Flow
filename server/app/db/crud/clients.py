@@ -3,12 +3,12 @@ from __future__ import annotations
 import uuid
 from typing import Optional
 
-from fastapi import HTTPException, status
 from sqlalchemy import select, func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.errors import Conflict, NotFound, Unprocessable
 from app.db.crud.activity import diff_changes, log_activity
 from app.models.ClientProfile import ClientProfile
 from app.models.FreelancerProfile import FreelancerProfile
@@ -30,10 +30,7 @@ async def get_client_by_id(
     )
     client = result.scalar_one_or_none()
     if not client:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Client with id {client_id} not found",
-        )
+        raise NotFound(f"Client with id {client_id} not found")
     return client
 
 
@@ -79,10 +76,7 @@ async def create_client(
         await db.commit()
     except IntegrityError:
         await db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="A client with this email already exists",
-        )
+        raise Conflict("A client with this email already exists")
     await db.refresh(client)
     return client
 
@@ -97,10 +91,7 @@ async def update_client(
 
     update_data = data.model_dump(exclude_unset=True)
     if update_data.get("name", "") is None or update_data.get("email", "") is None:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail="name and email cannot be null",
-        )
+        raise Unprocessable("name and email cannot be null")
     changes = diff_changes(client, update_data)
     for field, value in update_data.items():
         setattr(client, field, value)
@@ -119,10 +110,7 @@ async def update_client(
         await db.commit()
     except IntegrityError:
         await db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="A client with this email already exists",
-        )
+        raise Conflict("A client with this email already exists")
     await db.refresh(client)
     return client
 
@@ -140,7 +128,4 @@ async def delete_client(
         # Invoices reference clients with ON DELETE RESTRICT: billing history
         # must survive, so a billed client cannot be deleted.
         await db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Client has invoices and cannot be deleted",
-        )
+        raise Conflict("Client has invoices and cannot be deleted")

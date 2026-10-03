@@ -6,12 +6,12 @@ from decimal import Decimal
 from typing import Optional
 from zoneinfo import ZoneInfo
 
-from fastapi import HTTPException, status
 from sqlalchemy import func, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.core.errors import Conflict, NotFound, RateLimited, Unprocessable
 from app.db.crud.portal_tokens import issue_portal_token
 from app.core.config import settings
 from app.db.crud.activity import diff_changes, log_activity
@@ -84,9 +84,7 @@ async def get_invoice_by_id(
         query = query.execution_options(populate_existing=True)
     invoice = (await db.execute(query)).scalar_one_or_none()
     if invoice is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Invoice not found"
-        )
+        raise NotFound("Invoice not found")
     return invoice
 
 
@@ -158,14 +156,6 @@ async def _next_invoice_number(
     return fmt.format(seq=sequence, year=year)
 
 
-def _unprocessable(detail: str) -> HTTPException:
-    return HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=detail)
-
-
-def _conflict(detail: str) -> HTTPException:
-    return HTTPException(status_code=status.HTTP_409_CONFLICT, detail=detail)
-
-
 async def _time_entry_items(
     db: AsyncSession, ids: list[uuid.UUID], project_id: uuid.UUID, currency: str
 ) -> tuple[list[InvoiceItem], list[TimeEntry]]:
@@ -178,18 +168,18 @@ async def _time_entry_items(
         )
     ).scalars().all()
     if len(entries) != len(unique_ids):
-        raise _unprocessable("Some time entries were not found on this project")
+        raise Unprocessable("Some time entries were not found on this project")
 
     items: list[InvoiceItem] = []
     for entry in sorted(entries, key=lambda e: e.start_time):
         if entry.end_time is None:
-            raise _conflict("A running timer cannot be invoiced; stop it first")
+            raise Conflict("A running timer cannot be invoiced; stop it first")
         if entry.is_invoiced:
-            raise _conflict("A time entry has already been invoiced")
+            raise Conflict("A time entry has already been invoiced")
         if not entry.is_billable:
-            raise _unprocessable("A time entry is marked non-billable")
+            raise Unprocessable("A time entry is marked non-billable")
         if entry.hourly_rate is None:
-            raise _unprocessable(
+            raise Unprocessable(
                 "A time entry has no hourly rate; set a rate on the project or profile"
             )
         items.append(
@@ -217,7 +207,7 @@ async def _milestone_items(
         )
     ).scalars().all()
     if len(milestones) != len(unique_ids):
-        raise _unprocessable("Some milestones were not found on this project")
+        raise Unprocessable("Some milestones were not found on this project")
 
     already_billed = (
         await db.execute(
@@ -231,14 +221,14 @@ async def _milestone_items(
         )
     ).scalars().all()
     if already_billed:
-        raise _conflict("A milestone has already been invoiced")
+        raise Conflict("A milestone has already been invoiced")
 
     items: list[InvoiceItem] = []
     for milestone in sorted(milestones, key=lambda m: m.sort_order):
         if milestone.amount is None:
-            raise _unprocessable(f"Milestone '{milestone.name}' has no amount")
+            raise Unprocessable(f"Milestone '{milestone.name}' has no amount")
         if milestone.approval_required and milestone.status != MilestoneStatus.APPROVED:
-            raise _conflict(
+            raise Conflict(
                 f"Milestone '{milestone.name}' must be approved before it is invoiced"
             )
         items.append(
@@ -374,7 +364,7 @@ async def create_invoice(
         await db.commit()
     except IntegrityError:
         await db.rollback()
-        raise _conflict("Could not allocate an invoice number; please retry")
+        raise Conflict("Could not allocate an invoice number; please retry")
     return await get_invoice_by_id(db, invoice.id, freelancer.id, refresh=True)
 
 
@@ -386,17 +376,17 @@ async def update_invoice(
 ) -> Invoice:
     invoice = await get_invoice_by_id(db, invoice_id, freelancer.id, for_update=True)
     if invoice.status != InvoiceStatus.DRAFT:
-        raise _conflict("Only draft invoices can be edited")
+        raise Conflict("Only draft invoices can be edited")
 
     update_data = data.model_dump(exclude_unset=True)
     for required in ("issue_date", "due_date", "taxes", "discount_rate"):
         if required in update_data and update_data[required] is None:
-            raise _unprocessable(f"{required} cannot be null")
+            raise Unprocessable(f"{required} cannot be null")
 
     issue = _aware(update_data.get("issue_date") or invoice.issue_date)
     due = _aware(update_data.get("due_date") or invoice.due_date)
     if due < issue:
-        raise _unprocessable("due_date cannot be before issue_date")
+        raise Unprocessable("due_date cannot be before issue_date")
 
     new_taxes = update_data.pop("taxes", None)
     changes = diff_changes(invoice, update_data)
@@ -448,7 +438,7 @@ async def delete_invoice(
 ) -> None:
     invoice = await get_invoice_by_id(db, invoice_id, freelancer.id, for_update=True)
     if invoice.status != InvoiceStatus.DRAFT:
-        raise _conflict("Only draft invoices can be deleted; cancel it instead")
+        raise Conflict("Only draft invoices can be deleted; cancel it instead")
     await _release_time_entries(db, invoice)
     log_activity(
         db,
@@ -506,7 +496,7 @@ async def send_invoice(
     """
     invoice = await get_invoice_by_id(db, invoice_id, freelancer.id, for_update=True)
     if invoice.status not in (InvoiceStatus.DRAFT, *OPEN_STATUSES):
-        raise _conflict(f"Cannot send an invoice in status {invoice.status.value}")
+        raise Conflict(f"Cannot send an invoice in status {invoice.status.value}")
 
     first_send = invoice.status == InvoiceStatus.DRAFT
     if first_send:
@@ -548,7 +538,7 @@ async def remind_invoice(
 ) -> tuple[Invoice, str]:
     invoice = await get_invoice_by_id(db, invoice_id, freelancer.id, for_update=True)
     if invoice.status not in OPEN_STATUSES:
-        raise _conflict("Reminders can only be sent for unpaid, sent invoices")
+        raise Conflict("Reminders can only be sent for unpaid, sent invoices")
 
     reminders = (
         await db.execute(
@@ -563,10 +553,7 @@ async def remind_invoice(
     if reminders:
         gap = _now() - _aware(reminders[0])
         if gap < timedelta(hours=settings.INVOICE_REMINDER_MIN_INTERVAL_HOURS):
-            raise HTTPException(
-                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                detail="A reminder was sent recently; try again later",
-            )
+            raise RateLimited("A reminder was sent recently; try again later")
 
     token = await issue_portal_token(
         db,
@@ -604,11 +591,11 @@ async def cancel_invoice(
 ) -> Invoice:
     invoice = await get_invoice_by_id(db, invoice_id, freelancer.id, for_update=True)
     if invoice.status == InvoiceStatus.CANCELLED:
-        raise _conflict("Invoice is already cancelled")
+        raise Conflict("Invoice is already cancelled")
     if invoice.status == InvoiceStatus.PAID:
-        raise _conflict("A paid invoice cannot be cancelled")
+        raise Conflict("A paid invoice cannot be cancelled")
     if invoice.amount_paid > 0:
-        raise _conflict("Invoice has payments; void them before cancelling")
+        raise Conflict("Invoice has payments; void them before cancelling")
 
     invoice.status = InvoiceStatus.CANCELLED
     await _release_time_entries(db, invoice)
@@ -655,9 +642,7 @@ async def mark_invoice_viewed(
         )
     ).scalar_one_or_none()
     if invoice is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Invoice not found"
-        )
+        raise NotFound("Invoice not found")
     if invoice.viewed_at is None:
         invoice.viewed_at = _now()
         add_event(db, invoice.id, InvoiceEventType.VIEWED, ip_address=ip_address)

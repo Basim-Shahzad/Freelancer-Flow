@@ -6,10 +6,10 @@ from decimal import Decimal
 from typing import Optional
 from zoneinfo import ZoneInfo
 
-from fastapi import HTTPException, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.errors import NotFound
 from app.db.crud.activity import log_activity
 from app.models.FreelancerProfile import FreelancerProfile
 from app.db.crud.currency import resolve_currency
@@ -87,9 +87,7 @@ async def delete_remittance(
         )
     ).scalar_one_or_none()
     if remittance is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Tax remittance not found"
-        )
+        raise NotFound("Tax remittance not found")
     log_activity(
         db,
         user_id=freelancer.user_id,

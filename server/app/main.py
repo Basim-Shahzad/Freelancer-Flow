@@ -1,12 +1,14 @@
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request, Response
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from sqlalchemy import text
 
 from app.api.v1.api import api_router
 from app.core.config import settings
+from app.core.errors import DomainError
 from app.db.database import init_db, async_session
 from app.models.User import UserRole
 from app.schemas.AuthSchema import UserCreate
@@ -113,6 +115,15 @@ def create_app() -> FastAPI:
                 headers=dict(response.headers),
                 media_type=response.media_type,
             )
+
+    # -------------------------------------------------------------------
+    # Errors
+    # -------------------------------------------------------------------
+
+    @app.exception_handler(DomainError)
+    async def domain_error_handler(request: Request, exc: DomainError):
+        # Same body shape as FastAPI's HTTPException handler.
+        return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
 
     # -------------------------------------------------------------------
     # Routes

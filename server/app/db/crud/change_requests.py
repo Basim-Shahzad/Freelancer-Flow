@@ -4,10 +4,10 @@ import uuid
 from datetime import datetime, timezone
 from typing import Optional
 
-from fastapi import HTTPException, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.errors import Conflict, NotFound, Unprocessable
 from app.db.crud.activity import diff_changes, log_activity
 from app.db.crud.projects import get_project_by_id
 from app.models.ChangeRequest import ChangeRequest, ChangeRequestStatus
@@ -27,9 +27,7 @@ async def get_change_request_by_id(
     )
     change_request = result.scalar_one_or_none()
     if change_request is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Change request not found"
-        )
+        raise NotFound("Change request not found")
     return change_request
 
 
@@ -92,16 +90,12 @@ async def update_change_request(
     change_request = await get_change_request_by_id(db, change_request_id, user_id)
     update_data = data.model_dump(exclude_unset=True)
     if update_data.get("title", "x") is None or update_data.get("status", "x") is None:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail="title and status cannot be null",
-        )
+        raise Unprocessable("title and status cannot be null")
 
     if change_request.status != ChangeRequestStatus.PENDING:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=f"Change request is already {change_request.status.value}; "
-            "decisions are final",
+        raise Conflict(
+            f"Change request is already {change_request.status.value}; "
+            "decisions are final"
         )
 
     new_status = update_data.get("status")
@@ -111,10 +105,7 @@ async def update_change_request(
     if new_status is not None:
         change_request.decided_at = datetime.now(timezone.utc)
     elif "decision_note" in update_data and update_data["decision_note"] is not None:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail="decision_note can only be set together with a decision",
-        )
+        raise Unprocessable("decision_note can only be set together with a decision")
 
     changes = diff_changes(change_request, update_data)
     for field, value in update_data.items():
