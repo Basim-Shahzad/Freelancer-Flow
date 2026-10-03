@@ -49,13 +49,13 @@ class Project(Base):
         Enum(ProjectStatus), default=ProjectStatus.DRAFT
     ) 
     budget: Mapped[Decimal] = mapped_column(
-        Numeric(precision=13, scale=2), nullable=True
+        Numeric(precision=18, scale=4), nullable=True
     )
     currency: Mapped[Optional[str]] = mapped_column(String(3), nullable=True)
     # Rate snapshot for hourly billing; time entries fall back to the
     # freelancer's rate when this is unset.
     hourly_rate: Mapped[Optional[Decimal]] = mapped_column(
-        Numeric(precision=13, scale=2), nullable=True
+        Numeric(precision=18, scale=4), nullable=True
     )
     budget_type: Mapped[BudgetType] = mapped_column(
         Enum(BudgetType), default=BudgetType.FIXED

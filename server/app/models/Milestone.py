@@ -55,7 +55,7 @@ class Milestone(Base):
     due_date: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=True)
     # Fixed-price billing is milestone-based, so the milestone carries the money.
     amount: Mapped[Optional[Decimal]] = mapped_column(
-        Numeric(precision=13, scale=2), nullable=True
+        Numeric(precision=18, scale=4), nullable=True
     )
     sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     submitted_at: Mapped[Optional[datetime]] = mapped_column(

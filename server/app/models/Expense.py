@@ -41,7 +41,7 @@ class Expense(Base):
     category: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     vendor: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     amount: Mapped[Decimal] = mapped_column(
-        Numeric(precision=13, scale=2), nullable=False
+        Numeric(precision=18, scale=4), nullable=False
     )
     currency: Mapped[str] = mapped_column(String(3), nullable=False)
     incurred_on: Mapped[date] = mapped_column(Date, nullable=False)

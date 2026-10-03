@@ -50,7 +50,7 @@ class TimeEntry(Base):
     # Rate snapshot taken when the entry is created, so later changes to a
     # profile/project rate never rewrite billing history.
     hourly_rate: Mapped[Optional[Decimal]] = mapped_column(
-        Numeric(precision=13, scale=2), nullable=True
+        Numeric(precision=18, scale=4), nullable=True
     )
 
     # Foreign Keys

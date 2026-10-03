@@ -46,7 +46,7 @@ class ChangeRequest(Base):
     )
     # Price of the change; NULL means "not priced yet".
     estimated_amount: Mapped[Optional[Decimal]] = mapped_column(
-        Numeric(precision=13, scale=2), nullable=True
+        Numeric(precision=18, scale=4), nullable=True
     )
     requested_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

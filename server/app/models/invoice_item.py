@@ -47,10 +47,10 @@ class InvoiceItem(Base):
         Numeric(precision=10, scale=2), nullable=False, default=1
     )
     unit_price: Mapped[Decimal] = mapped_column(
-        Numeric(precision=13, scale=2), nullable=False
+        Numeric(precision=18, scale=4), nullable=False
     )
     amount: Mapped[Decimal] = mapped_column(
-        Numeric(precision=13, scale=2), nullable=False
+        Numeric(precision=18, scale=4), nullable=False
     )
 
     created_at: Mapped[datetime] = mapped_column(

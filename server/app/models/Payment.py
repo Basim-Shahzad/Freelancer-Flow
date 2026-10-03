@@ -39,7 +39,7 @@ class Payment(Base):
     invoice: Mapped["Invoice"] = relationship(back_populates="payments")
 
     amount: Mapped[Decimal] = mapped_column(
-        Numeric(precision=13, scale=2), nullable=False
+        Numeric(precision=18, scale=4), nullable=False
     )
     paid_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

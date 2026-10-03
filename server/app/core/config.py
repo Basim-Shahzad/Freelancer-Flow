@@ -34,8 +34,6 @@ class Settings(BaseSettings):
     PORTAL_TOKEN_EXPIRE_DAYS: int = 14
     # Minimum seconds between `last_used_at` writes for one portal token.
     PORTAL_TOKEN_TOUCH_INTERVAL_SECONDS: int = 60
-    # ISO-4217 code used when neither the request, project nor freelancer sets one.
-    DEFAULT_CURRENCY: str = "SAR"
     DEFAULT_PAYMENT_TERMS_DAYS: int = 30
     INVOICE_NUMBER_PREFIX: str = "INV"
     # Guards against nagging a client: minimum gap between reminders.
