@@ -447,8 +447,9 @@ async def test_payment_lifecycle_partial_then_paid(client, auth_headers, project
     assert Decimal(body["balanceDue"]) == Decimal("600.00")
     assert body["payments"][0]["method"] == "CARD"
 
-    rest = await _pay(client, auth_headers, invoice["id"], "600")
+    rest = await _pay(client, auth_headers, invoice["id"], "600", method="PAYONEER")
     assert rest.json()["status"] == "PAID"
+    assert rest.json()["payments"][1]["method"] == "PAYONEER"
     assert rest.json()["paymentAt"] is not None
     assert Decimal(rest.json()["balanceDue"]) == 0
 

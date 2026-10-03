@@ -16,7 +16,19 @@ if TYPE_CHECKING:
 
 
 class PaymentMethod(str, enum.Enum):
+    """How the client paid. Pakistan-first priority methods come first."""
+
+    # International receipts for Pakistan residents.
+    PAYONEER = "PAYONEER"
+    ESFCA_WIRE = "ESFCA_WIRE"
+    ELEVATE_PAY = "ELEVATE_PAY"
+    WISE_TO_IBAN = "WISE_TO_IBAN"
+    # Domestic PKR methods.
     BANK_TRANSFER = "BANK_TRANSFER"
+    RAAST = "RAAST"
+    JAZZCASH = "JAZZCASH"
+    EASYPAISA = "EASYPAISA"
+    # Other methods.
     CARD = "CARD"
     CASH = "CASH"
     CHEQUE = "CHEQUE"
