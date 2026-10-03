@@ -283,7 +283,7 @@ async def test_convert_should_enforce_same_password_strength_as_registration(
     a digit in addition to an 8-char minimum. PortalConvertRequest only
     enforces min_length=8, so a portal-converted account can end up with a
     much weaker password than a normally registered one.
-    Root cause: app/api/v1/endpoints/client_portal.py PortalConvertRequest
+    Root cause: app/schemas/PortalSchema.py PortalConvertRequest
     should reuse the same password_strength validator as UserCreate."""
     token, _ = await make_portal_token(
         client_id=client_profile.id, scope_type=ScopeType.PROJECT, scope=project.id
