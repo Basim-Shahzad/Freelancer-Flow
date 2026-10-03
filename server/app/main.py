@@ -41,7 +41,7 @@ async def _seed_superuser() -> None:
 async def lifespan(app: FastAPI):
     from app import models
 
-    await init_db()
+    # await init_db()
     await _seed_superuser()
     yield
 
