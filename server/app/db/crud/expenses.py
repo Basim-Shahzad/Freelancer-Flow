@@ -18,7 +18,9 @@ from app.schemas.ExpenseSchema import (
     ExpenseCreate,
     ExpenseUpdate,
 )
+from app.db.crud.currency import resolve_currency
 from app.services.invoicing import quantize_money
+from zoneinfo import ZoneInfo
 
 _MONTHS_PER_INTERVAL = {
     RecurrenceInterval.MONTHLY: Decimal(1),
@@ -99,7 +101,8 @@ async def create_expense(
 ) -> Expense:
     await _check_project(db, data.project_id, freelancer)
     values = data.model_dump()
-    values["currency"] = values["currency"] or freelancer.currency
+    values["currency"] = resolve_currency(values["currency"], freelancer.currency)
+    values["amount"] = quantize_money(values["amount"], values["currency"])
     expense = Expense(**values, freelancer_id=freelancer.id)
     db.add(expense)
     await db.flush()
@@ -145,6 +148,11 @@ async def update_expense(
     if ends is not None and ends < update_data.get("incurred_on", expense.incurred_on):
         raise _unprocessable("recurrence_ends_on cannot be before incurred_on")
 
+    if "amount" in update_data or "currency" in update_data:
+        update_data["amount"] = quantize_money(
+            update_data.get("amount", expense.amount),
+            update_data.get("currency", expense.currency),
+        )
     changes = diff_changes(expense, update_data)
     for field, value in update_data.items():
         setattr(expense, field, value)
@@ -192,12 +200,14 @@ async def cash_runway(
     """Burn and months of runway from expenses and the self-reported balance.
 
     Only expenses in the freelancer's own currency are counted; mixing
-    currencies without FX rates would silently produce wrong numbers.
+    currencies without FX rates would silently produce wrong numbers. "Today"
+    is the freelancer's local date (profile timezone).
     """
-    today = datetime.now(timezone.utc).date()
+    currency = resolve_currency(freelancer.currency)
+    today = datetime.now(ZoneInfo(freelancer.timezone)).date()
     base = [
         Expense.freelancer_id == freelancer.id,
-        Expense.currency == freelancer.currency,
+        Expense.currency == currency,
     ]
 
     recurring = (
@@ -237,10 +247,10 @@ async def cash_runway(
         runway = runway.quantize(Decimal("0.1"))
 
     return CashRunwayResponse(
-        currency=freelancer.currency,
-        monthly_recurring=quantize_money(monthly_recurring),
-        monthly_one_off_average=quantize_money(monthly_one_off),
-        monthly_burn=quantize_money(burn),
+        currency=currency,
+        monthly_recurring=quantize_money(monthly_recurring, currency),
+        monthly_one_off_average=quantize_money(monthly_one_off, currency),
+        monthly_burn=quantize_money(burn, currency),
         lookback_months=RUNWAY_LOOKBACK_MONTHS,
         bank_balance=balance,
         bank_balance_updated_at=freelancer.bank_balance_updated_at,

@@ -73,7 +73,7 @@ async def list_invoices(
         "Builds a DRAFT from manual `items`, un-invoiced billable `timeEntryIds` "
         "(billed at each entry's rate snapshot) and `milestoneIds` (billed at the "
         "milestone amount; milestones needing approval must be APPROVED). "
-        "Currency, terms and VAT rate default from the project / client / profile. "
+        "Currency, terms and taxes default from the project / client / profile. "
         "Invoiced time entries are locked until the invoice is cancelled or deleted. "
         "Numbers are sequential per freelancer (e.g. `INV-0001`). "
         "`taxRate` and `discountRate` are percentages."

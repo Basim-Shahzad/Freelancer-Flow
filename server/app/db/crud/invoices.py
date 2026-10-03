@@ -4,6 +4,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from typing import Optional
+from zoneinfo import ZoneInfo
 
 from fastapi import HTTPException, status
 from sqlalchemy import func, select, update
@@ -16,7 +17,8 @@ from app.core.config import settings
 from app.db.crud.activity import diff_changes, log_activity
 from app.db.crud.projects import get_project_by_id
 from app.models.FreelancerProfile import FreelancerProfile
-from app.models.Invoice import Invoice, InvoiceStatus
+from app.db.crud.currency import resolve_currency
+from app.models.Invoice import Invoice, InvoiceStatus, InvoiceTax
 from app.models.invoice_item import InvoiceItem
 from app.models.InvoiceEvent import InvoiceEvent, InvoiceEventType
 from app.models.Milestone import Milestone, MilestoneStatus
@@ -32,6 +34,8 @@ from app.services.email_service import (
     send_invoice_reminder_email,
 )
 from app.services.invoicing import (
+    TaxSpec,
+    Totals,
     compute_totals,
     hours_from_minutes,
     line_amount,
@@ -129,7 +133,11 @@ async def get_invoices(
     return list(rows), total
 
 
-async def _next_invoice_number(db: AsyncSession, freelancer_id: uuid.UUID) -> str:
+async def _next_invoice_number(
+    db: AsyncSession,
+    freelancer: FreelancerProfile,
+    issue_date: Optional[datetime] = None,
+) -> str:
     """Gap-free per-freelancer number.
 
     A single atomic ``UPDATE ... RETURNING`` both increments the counter and
@@ -140,12 +148,14 @@ async def _next_invoice_number(db: AsyncSession, freelancer_id: uuid.UUID) -> st
     sequence = (
         await db.execute(
             update(FreelancerProfile)
-            .where(FreelancerProfile.id == freelancer_id)
+            .where(FreelancerProfile.id == freelancer.id)
             .values(invoice_sequence=FreelancerProfile.invoice_sequence + 1)
             .returning(FreelancerProfile.invoice_sequence)
         )
     ).scalar_one()
-    return f"{settings.INVOICE_NUMBER_PREFIX}-{sequence:04d}"
+    fmt = freelancer.invoice_number_format or f"{settings.INVOICE_NUMBER_PREFIX}-{{seq:04d}}"
+    year = (issue_date or _now()).astimezone(ZoneInfo(freelancer.timezone)).year
+    return fmt.format(seq=sequence, year=year)
 
 
 def _unprocessable(detail: str) -> HTTPException:
@@ -157,7 +167,7 @@ def _conflict(detail: str) -> HTTPException:
 
 
 async def _time_entry_items(
-    db: AsyncSession, ids: list[uuid.UUID], project_id: uuid.UUID
+    db: AsyncSession, ids: list[uuid.UUID], project_id: uuid.UUID, currency: str
 ) -> tuple[list[InvoiceItem], list[TimeEntry]]:
     unique_ids = list(dict.fromkeys(ids))
     entries = (
@@ -189,7 +199,7 @@ async def _time_entry_items(
                 description=entry.description,
                 quantity=hours_from_minutes(entry.duration_minutes),
                 unit_price=entry.hourly_rate,
-                amount=time_entry_amount(entry.duration_minutes, entry.hourly_rate),
+                amount=time_entry_amount(entry.duration_minutes, entry.hourly_rate, currency),
             )
         )
     return items, list(entries)
@@ -243,6 +253,41 @@ async def _milestone_items(
     return items
 
 
+def _specs_from_inputs(inputs) -> list[TaxSpec]:
+    return [
+        TaxSpec(t.name, t.rate, t.is_inclusive, t.is_compound, t.is_withholding)
+        for t in inputs
+    ]
+
+
+def _specs_from_profile(freelancer: FreelancerProfile) -> list[TaxSpec]:
+    return [
+        TaxSpec(
+            t["name"],
+            Decimal(str(t["rate"])),
+            t.get("is_inclusive", False),
+            t.get("is_compound", False),
+            t.get("is_withholding", False),
+        )
+        for t in (freelancer.default_taxes or [])
+    ]
+
+
+def _tax_rows(totals: Totals) -> list[InvoiceTax]:
+    return [
+        InvoiceTax(
+            sort_order=i,
+            name=line.name,
+            rate=line.rate,
+            amount=line.amount,
+            is_inclusive=line.is_inclusive,
+            is_compound=line.is_compound,
+            is_withholding=line.is_withholding,
+        )
+        for i, line in enumerate(totals.tax_lines)
+    ]
+
+
 async def create_invoice(
     db: AsyncSession,
     data: InvoiceCreate,
@@ -251,7 +296,9 @@ async def create_invoice(
     project = await get_project_by_id(db, data.project_id, freelancer.user_id)
     client = project.client
 
-    currency = data.currency or project.currency or client.currency or freelancer.currency
+    currency = resolve_currency(
+        data.currency, project.currency, client.currency, freelancer.currency
+    )
     issue_date = data.issue_date or _now()
     terms = (
         client.payment_terms_days
@@ -259,33 +306,35 @@ async def create_invoice(
         else freelancer.default_payment_terms_days
     )
     due_date = data.due_date or issue_date + timedelta(days=terms)
-    tax_rate = data.tax_rate if data.tax_rate is not None else freelancer.default_tax_rate
+    tax_specs = (
+        _specs_from_inputs(data.taxes)
+        if data.taxes is not None
+        else _specs_from_profile(freelancer)
+    )
 
     items: list[InvoiceItem] = [
         InvoiceItem(
             description=i.description,
             quantity=i.quantity,
             unit_price=i.unit_price,
-            amount=line_amount(i.quantity, i.unit_price),
+            amount=line_amount(i.quantity, i.unit_price, currency),
         )
         for i in data.items
     ]
     billed_entries: list[TimeEntry] = []
     if data.time_entry_ids:
         entry_items, billed_entries = await _time_entry_items(
-            db, data.time_entry_ids, project.id
+            db, data.time_entry_ids, project.id, currency
         )
         items += entry_items
     if data.milestone_ids:
         items += await _milestone_items(db, data.milestone_ids, project.id)
 
     subtotal = sum((i.amount for i in items), Decimal("0.00"))
-    discount_amount, tax_amount, total = compute_totals(
-        subtotal, data.discount_rate, tax_rate
-    )
+    totals = compute_totals(subtotal, data.discount_rate, tax_specs, currency)
 
     invoice = Invoice(
-        invoice_number=await _next_invoice_number(db, freelancer.id),
+        invoice_number=await _next_invoice_number(db, freelancer, issue_date),
         issue_date=issue_date,
         due_date=due_date,
         status=InvoiceStatus.DRAFT,
@@ -296,10 +345,12 @@ async def create_invoice(
         items=items,
         subtotal=subtotal,
         discount_rate=data.discount_rate,
-        discount_amount=discount_amount,
-        tax_rate=tax_rate,
-        tax_amount=tax_amount,
-        total=total,
+        discount_amount=totals.discount_amount,
+        taxes=_tax_rows(totals),
+        tax_note=data.tax_note,
+        tax_amount=totals.tax_amount,
+        withholding_amount=totals.withholding_amount,
+        total=totals.total,
         notes=data.notes,
     )
     db.add(invoice)
@@ -313,7 +364,7 @@ async def create_invoice(
             entity_type="invoice",
             entity_id=invoice.id,
             action="created",
-            summary=f"Created invoice {invoice.invoice_number} ({currency} {total})",
+            summary=f"Created invoice {invoice.invoice_number} ({currency} {totals.total})",
         )
         await db.commit()
     except IntegrityError:
@@ -333,7 +384,7 @@ async def update_invoice(
         raise _conflict("Only draft invoices can be edited")
 
     update_data = data.model_dump(exclude_unset=True)
-    for required in ("issue_date", "due_date", "tax_rate", "discount_rate"):
+    for required in ("issue_date", "due_date", "taxes", "discount_rate"):
         if required in update_data and update_data[required] is None:
             raise _unprocessable(f"{required} cannot be null")
 
@@ -342,13 +393,28 @@ async def update_invoice(
     if due < issue:
         raise _unprocessable("due_date cannot be before issue_date")
 
+    new_taxes = update_data.pop("taxes", None)
     changes = diff_changes(invoice, update_data)
     for field, value in update_data.items():
         setattr(invoice, field, value)
-    if "tax_rate" in update_data or "discount_rate" in update_data:
-        invoice.discount_amount, invoice.tax_amount, invoice.total = compute_totals(
-            invoice.subtotal, invoice.discount_rate, invoice.tax_rate
+    if new_taxes is not None or "discount_rate" in update_data:
+        specs = (
+            _specs_from_inputs(data.taxes)
+            if new_taxes is not None
+            else [
+                TaxSpec(t.name, t.rate, t.is_inclusive, t.is_compound, t.is_withholding)
+                for t in invoice.taxes
+            ]
         )
+        totals = compute_totals(
+            invoice.subtotal, invoice.discount_rate, specs, invoice.currency
+        )
+        invoice.discount_amount = totals.discount_amount
+        invoice.tax_amount = totals.tax_amount
+        invoice.withholding_amount = totals.withholding_amount
+        invoice.total = totals.total
+        invoice.taxes = _tax_rows(totals)
+        changes = {**changes, "taxes": {"old": None, "new": "recalculated"}}
     if changes:
         log_activity(
             db,

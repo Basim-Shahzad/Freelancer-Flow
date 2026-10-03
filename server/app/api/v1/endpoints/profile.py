@@ -20,7 +20,7 @@ router = APIRouter(prefix="/profile", tags=["Profile"])
     response_model=FreelancerProfileResponse,
     summary="Get the business profile",
     description="Business identity (printed on invoices), default currency, "
-    "payment terms, VAT rate and hourly rate.",
+    "payment terms, default taxes and hourly rate.",
     responses=errors(401, 403),
 )
 async def get_profile(freelancer: CurrentFreelancer):

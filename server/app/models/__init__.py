@@ -10,12 +10,12 @@ from .Milestone import Milestone
 from .MilestoneApproval import MilestoneApproval
 from .FreelancerProfile import FreelancerProfile
 from .PortalAccessToken import PortalAccessToken
-from .Invoice import Invoice
+from .Invoice import Invoice, InvoiceTax
 from .invoice_item import InvoiceItem
 from .Payment import Payment
 from .InvoiceEvent import InvoiceEvent
 from .Expense import Expense
-from .VatRemittance import VatRemittance
+from .TaxRemittance import TaxRemittance
 from .ChangeRequest import ChangeRequest
 from .ActivityEvent import ActivityEvent
 

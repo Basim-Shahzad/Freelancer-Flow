@@ -9,39 +9,41 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies.auth import CurrentFreelancer
 from app.api.v1.openapi import errors
-from app.db.crud.vat_remittances import (
+from app.db.crud.tax_remittances import (
     create_remittance,
     delete_remittance,
     get_remittances,
-    vat_summary,
+    tax_summary,
 )
 from app.db.database import get_db
 from app.schemas.types import CurrencyCode
-from app.schemas.VatRemittanceSchema import (
-    VatRemittanceCreate,
-    VatRemittanceListResponse,
-    VatRemittanceResponse,
-    VatSummaryResponse,
+from app.schemas.TaxRemittanceSchema import (
+    TaxRemittanceCreate,
+    TaxRemittanceListResponse,
+    TaxRemittanceResponse,
+    TaxSummaryResponse,
 )
 
-router = APIRouter(prefix="/vat", tags=["VAT"])
+router = APIRouter(prefix="/tax", tags=["Tax"])
 
 
 @router.get(
     "/summary",
-    response_model=VatSummaryResponse,
-    summary="VAT collected vs remitted",
-    description="`vatCollected` is the tax on issued (non-draft, non-cancelled) "
-    "invoices dated within the period; `vatRemitted` is the sum of recorded "
-    "remittances whose period ends within it. Amounts are in one currency "
-    "(default: the profile currency).",
+    response_model=TaxSummaryResponse,
+    summary="Tax collected vs remitted",
+    description="`taxCollected` is the tax on invoices in the period (issued in "
+    "it on the accrual basis, fully paid in it on the cash basis; see the "
+    "profile's `taxBasis`); `taxRemitted` is the sum of recorded remittances "
+    "whose period ends within it. Filter by `taxName` to report one tax. "
+    "Amounts are in one currency (default: the profile currency).",
     responses=errors(401, 403, 422),
 )
-async def get_vat_summary(
+async def get_tax_summary(
     freelancer: CurrentFreelancer,
     period_start: date = Query(...),
     period_end: date = Query(...),
     currency: Optional[CurrencyCode] = Query(None),
+    tax_name: Optional[str] = Query(None, max_length=100),
     db: AsyncSession = Depends(get_db),
 ):
     if period_end < period_start:
@@ -49,13 +51,13 @@ async def get_vat_summary(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="period_end cannot be before period_start",
         )
-    return await vat_summary(db, freelancer, period_start, period_end, currency)
+    return await tax_summary(db, freelancer, period_start, period_end, currency, tax_name)
 
 
 @router.get(
     "/remittances",
-    response_model=VatRemittanceListResponse,
-    summary="List VAT remittances",
+    response_model=TaxRemittanceListResponse,
+    summary="List tax remittances",
     responses=errors(401, 403),
 )
 async def list_remittances(
@@ -65,18 +67,18 @@ async def list_remittances(
     db: AsyncSession = Depends(get_db),
 ):
     remittances, total = await get_remittances(db, freelancer.id, skip=skip, limit=limit)
-    return VatRemittanceListResponse(remittances=remittances, total=total)
+    return TaxRemittanceListResponse(remittances=remittances, total=total)
 
 
 @router.post(
     "/remittances",
-    response_model=VatRemittanceResponse,
+    response_model=TaxRemittanceResponse,
     status_code=status.HTTP_201_CREATED,
-    summary="Record a VAT payment to the tax authority",
+    summary="Record a tax payment to a tax authority",
     responses=errors(401, 403),
 )
 async def add_remittance(
-    data: VatRemittanceCreate,
+    data: TaxRemittanceCreate,
     freelancer: CurrentFreelancer,
     db: AsyncSession = Depends(get_db),
 ):
@@ -86,7 +88,7 @@ async def add_remittance(
 @router.delete(
     "/remittances/{remittance_id}",
     status_code=status.HTTP_204_NO_CONTENT,
-    summary="Delete a VAT remittance record",
+    summary="Delete a tax remittance record",
     responses=errors(401, 403, 404),
 )
 async def remove_remittance(

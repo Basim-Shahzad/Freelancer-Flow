@@ -12,7 +12,13 @@ from app.models.FreelancerProfile import FreelancerProfile
 from app.schemas.FreelancerSchema import FreelancerProfileUpdate
 
 # Columns that must never be set to NULL through PATCH.
-_NOT_NULLABLE = {"currency", "default_payment_terms_days", "default_tax_rate"}
+_NOT_NULLABLE = {
+    "default_payment_terms_days",
+    "default_taxes",
+    "timezone",
+    "tax_basis",
+    "invoice_number_format",
+}
 
 
 async def get_freelancer_by_user(
@@ -42,6 +48,11 @@ async def update_freelancer_profile(
                 status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail=f"{field} cannot be null",
             )
+    if update_data.get("default_taxes") is not None:
+        # JSON column: Decimals are stored as strings.
+        update_data["default_taxes"] = [
+            {**t, "rate": str(t["rate"])} for t in update_data["default_taxes"]
+        ]
     if update_data.get("logo_url") is not None:
         update_data["logo_url"] = str(update_data["logo_url"])
 

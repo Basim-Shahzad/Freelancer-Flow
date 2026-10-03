@@ -11,6 +11,7 @@ from app.models.InvoiceEvent import InvoiceEventType
 
 from .Base import Base
 from .PaymentSchema import PaymentResponse
+from .TaxSchema import TaxInput, TaxLineResponse
 from .types import CurrencyCode, Money, Percent, UTCDateTime
 
 
@@ -55,8 +56,15 @@ class InvoiceCreate(Base):
     currency: Optional[CurrencyCode] = Field(
         default=None, description="Defaults to project, client, then freelancer currency."
     )
-    tax_rate: Optional[Percent] = Field(
-        default=None, description="Percent. Defaults to the freelancer's default VAT rate."
+    taxes: Optional[list[TaxInput]] = Field(
+        default=None,
+        max_length=10,
+        description="Taxes to apply. Omit to use the profile's default taxes; "
+        "[] for none.",
+    )
+    tax_note: Optional[str] = Field(
+        default=None, max_length=500,
+        description="Printed when no tax applies (exempt, reverse charge...).",
     )
     discount_rate: Percent = Decimal("0")
     notes: Optional[str] = Field(default=None, max_length=5000)
@@ -84,7 +92,8 @@ class InvoiceUpdate(Base):
 
     issue_date: Optional[UTCDateTime] = None
     due_date: Optional[UTCDateTime] = None
-    tax_rate: Optional[Percent] = None
+    taxes: Optional[list[TaxInput]] = Field(default=None, max_length=10)
+    tax_note: Optional[str] = Field(default=None, max_length=500)
     discount_rate: Optional[Percent] = None
     notes: Optional[str] = Field(default=None, max_length=5000)
 
@@ -113,7 +122,8 @@ class InvoiceIssuer(Base):
     name: Optional[str] = None
     business_name: Optional[str] = None
     address: Optional[str] = None
-    vat_number: Optional[str] = None
+    tax_registration_number: Optional[str] = None
+    tax_label: Optional[str] = None
     logo_url: Optional[str] = None
 
 
@@ -134,8 +144,10 @@ class InvoiceResponse(Base):
     subtotal: Money
     discount_rate: Decimal
     discount_amount: Money
-    tax_rate: Decimal
+    taxes: list[TaxLineResponse]
+    tax_note: Optional[str] = None
     tax_amount: Money
+    withholding_amount: Money
     total: Money
     amount_paid: Money
     balance_due: Money

@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from decimal import Decimal
 
 from sqlalchemy import (
+    Boolean,
     DateTime,
     Enum,
     ForeignKey,
@@ -90,24 +91,33 @@ class Invoice(Base):
     )
 
     subtotal: Mapped[Decimal] = mapped_column(
-        Numeric(precision=13, scale=2), nullable=False
+        Numeric(precision=18, scale=4), nullable=False
     )
-    # Percentages (e.g. 15.00 == 15%).
-    tax_rate: Mapped[Decimal] = mapped_column(
-        Numeric(precision=5, scale=2), nullable=False, default=0
+    # Percentage (e.g. 10.00 == 10%).
+    taxes: Mapped[list["InvoiceTax"]] = relationship(
+        back_populates="invoice",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+        order_by="InvoiceTax.sort_order",
     )
+    # Shown on the invoice when no/zero tax applies (reverse charge, exempt...).
+    tax_note: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
     discount_rate: Mapped[Decimal] = mapped_column(
         Numeric(precision=5, scale=2), nullable=False, default=0
     )
-    # Amount snapshots so aggregates (VAT collected) never depend on re-deriving.
+    # Amount snapshots so aggregates (tax collected) never depend on re-deriving.
     discount_amount: Mapped[Decimal] = mapped_column(
-        Numeric(precision=13, scale=2), nullable=False, default=0
+        Numeric(precision=18, scale=4), nullable=False, default=0
     )
     tax_amount: Mapped[Decimal] = mapped_column(
-        Numeric(precision=13, scale=2), nullable=False, default=0
+        Numeric(precision=18, scale=4), nullable=False, default=0
+    )
+    # Withholding deducted from what the client pays (not tax collected).
+    withholding_amount: Mapped[Decimal] = mapped_column(
+        Numeric(precision=18, scale=4), nullable=False, default=0
     )
     total: Mapped[Decimal] = mapped_column(
-        Numeric(precision=13, scale=2), nullable=False
+        Numeric(precision=18, scale=4), nullable=False
     )
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
@@ -144,7 +154,8 @@ class Invoice(Base):
             "name": f.business_name or (f.user.full_name if f.user else None),
             "business_name": f.business_name,
             "address": f.business_address,
-            "vat_number": f.vat_number,
+            "tax_registration_number": f.tax_registration_number,
+            "tax_label": f.tax_label,
             "logo_url": f.logo_url,
         }
 
@@ -166,3 +177,25 @@ class Invoice(Base):
         if due.tzinfo is None:
             due = due.replace(tzinfo=timezone.utc)
         return due < datetime.now(timezone.utc)
+
+
+class InvoiceTax(Base):
+    """A tax applied to an invoice: a snapshot, so later config changes never
+    rewrite issued invoices."""
+
+    __tablename__ = "invoice_taxes"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    invoice_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("invoices.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    invoice: Mapped["Invoice"] = relationship(back_populates="taxes")
+    sort_order: Mapped[int] = mapped_column(nullable=False, default=0)
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    rate: Mapped[Decimal] = mapped_column(Numeric(precision=7, scale=4), nullable=False)
+    amount: Mapped[Decimal] = mapped_column(Numeric(precision=18, scale=4), nullable=False)
+    is_inclusive: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    is_compound: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    is_withholding: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)

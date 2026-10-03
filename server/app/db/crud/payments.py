@@ -14,6 +14,7 @@ from app.models.Invoice import Invoice, InvoiceStatus
 from app.models.InvoiceEvent import InvoiceEventType
 from app.models.Payment import Payment
 from app.schemas.PaymentSchema import PaymentCreate
+from app.services.invoicing import quantize_money
 
 _FUTURE_TOLERANCE = timedelta(minutes=5)
 
@@ -59,7 +60,13 @@ async def record_payment(
             status_code=status.HTTP_409_CONFLICT,
             detail=f"Cannot record a payment on an invoice in status {invoice.status.value}",
         )
-    if data.amount > invoice.balance_due:
+    amount = quantize_money(data.amount, invoice.currency)
+    if amount <= 0:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=f"Payment rounds to zero in {invoice.currency}",
+        )
+    if amount > invoice.balance_due:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=f"Payment exceeds the balance due ({invoice.balance_due})",
@@ -72,7 +79,7 @@ async def record_payment(
         )
 
     payment = Payment(
-        amount=data.amount,
+        amount=amount,
         paid_at=paid_at,
         method=data.method,
         reference=data.reference,
@@ -85,7 +92,7 @@ async def record_payment(
         db,
         invoice.id,
         InvoiceEventType.PAYMENT_RECORDED,
-        f"{invoice.currency} {data.amount}" + (f" ({data.reference})" if data.reference else ""),
+        f"{invoice.currency} {amount}" + (f" ({data.reference})" if data.reference else ""),
     )
     if invoice.status == InvoiceStatus.PAID and not was_paid_before:
         add_event(db, invoice.id, InvoiceEventType.PAID)
@@ -95,7 +102,7 @@ async def record_payment(
         entity_type="invoice",
         entity_id=invoice.id,
         action="payment_recorded",
-        summary=f"Recorded {invoice.currency} {data.amount} on {invoice.invoice_number}",
+        summary=f"Recorded {invoice.currency} {amount} on {invoice.invoice_number}",
     )
     await db.commit()
     return await get_invoice_by_id(db, invoice.id, freelancer.id, refresh=True)

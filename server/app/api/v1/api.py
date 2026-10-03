@@ -12,7 +12,7 @@ from app.api.v1.endpoints import (
     profile,
     projects,
     time_entries,
-    vat,
+    tax,
 )
 
 api_router = APIRouter()
@@ -27,6 +27,6 @@ api_router.include_router(change_requests.router)
 api_router.include_router(invoices.router)
 api_router.include_router(payments.router)
 api_router.include_router(expenses.router)
-api_router.include_router(vat.router)
+api_router.include_router(tax.router)
 api_router.include_router(activity.router)
 api_router.include_router(client_portal.router)

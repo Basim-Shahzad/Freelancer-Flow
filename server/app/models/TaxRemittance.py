@@ -11,12 +11,12 @@ from sqlalchemy.orm import Mapped, mapped_column
 from app.db.database import Base
 
 
-class VatRemittance(Base):
-    """A VAT payment already made to the tax authority (e.g. ZATCA) for a period."""
+class TaxRemittance(Base):
+    """A tax payment already made to a tax authority for a filing period."""
 
-    __tablename__ = "vat_remittances"
+    __tablename__ = "tax_remittances"
     __table_args__ = (
-        Index("ix_vat_remittances_freelancer_period", "freelancer_id", "period_end"),
+        Index("ix_tax_remittances_freelancer_period", "freelancer_id", "period_end"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(
@@ -25,10 +25,15 @@ class VatRemittance(Base):
     freelancer_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("freelancers.id", ondelete="CASCADE"), nullable=False
     )
+    # Which tax this settles (matches an invoice tax name, e.g. "VAT", "GST");
+    # NULL settles all collected tax.
+    tax_name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    # Free label for the filing period ("2026-Q1", "FY26"...).
+    period_label: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     period_start: Mapped[date] = mapped_column(Date, nullable=False)
     period_end: Mapped[date] = mapped_column(Date, nullable=False)
     amount: Mapped[Decimal] = mapped_column(
-        Numeric(precision=13, scale=2), nullable=False
+        Numeric(precision=18, scale=4), nullable=False
     )
     currency: Mapped[str] = mapped_column(String(3), nullable=False)
     paid_at: Mapped[datetime] = mapped_column(
