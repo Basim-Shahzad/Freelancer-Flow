@@ -14,8 +14,10 @@ from app.db.crud.activity import log_activity
 from app.models.FreelancerProfile import FreelancerProfile
 from app.db.crud.currency import resolve_currency
 from app.models.Invoice import Invoice, InvoiceStatus, InvoiceTax
+from app.models.Payment import Payment
 from app.models.TaxRemittance import TaxRemittance
 from app.schemas.TaxRemittanceSchema import TaxRemittanceCreate, TaxSummaryResponse
+from app.services.invoicing import quantize_money
 
 # Tax is owed on invoices that were actually issued to the client.
 _ISSUED_STATUSES = (
@@ -23,6 +25,8 @@ _ISSUED_STATUSES = (
     InvoiceStatus.PARTIALLY_PAID,
     InvoiceStatus.PAID,
 )
+# Statuses that can hold payments (cancelling requires voiding them first).
+_PAYABLE_STATUSES = (InvoiceStatus.PARTIALLY_PAID, InvoiceStatus.PAID)
 
 
 async def create_remittance(
@@ -98,6 +102,52 @@ async def delete_remittance(
     await db.commit()
 
 
+async def _cash_basis_collected(
+    db: AsyncSession,
+    invoice_filters: list,
+    start_dt: datetime,
+    end_dt: datetime,
+    tax_name: Optional[str],
+) -> Decimal:
+    """Tax received in the window: each payment carries its share of the tax.
+
+    A payment of ``amount`` on an invoice whose client owes ``total``
+    collects ``tax * amount / total``, so part-payments count when they are
+    received instead of waiting for the invoice to be fully paid.
+    """
+    tax_column = (
+        select(func.coalesce(func.sum(InvoiceTax.amount), 0))
+        .where(
+            InvoiceTax.invoice_id == Invoice.id,
+            InvoiceTax.name == tax_name,
+            InvoiceTax.is_withholding.is_(False),
+        )
+        .scalar_subquery()
+        if tax_name
+        else Invoice.tax_amount
+    )
+    rows = (
+        await db.execute(
+            select(Payment.amount, Invoice.total, tax_column)
+            .join(Invoice, Invoice.id == Payment.invoice_id)
+            .where(
+                *invoice_filters,
+                Invoice.status.in_(_PAYABLE_STATUSES),
+                Payment.paid_at >= start_dt,
+                Payment.paid_at < end_dt,
+            )
+        )
+    ).all()
+    return sum(
+        (
+            Decimal(tax) * Decimal(amount) / Decimal(total)
+            for amount, total, tax in rows
+            if Decimal(total) > 0
+        ),
+        Decimal("0"),
+    )
+
+
 def _local_window(period_start: date, period_end: date, tz_name: str):
     tz = ZoneInfo(tz_name)
     return (
@@ -122,27 +172,22 @@ async def tax_summary(
 
     filters = [Invoice.freelancer_id == freelancer.id, Invoice.currency == currency]
     if cash:
-        filters += [
-            Invoice.status == InvoiceStatus.PAID,
-            Invoice.payment_at >= start_dt,
-            Invoice.payment_at < end_dt,
-        ]
+        collected = await _cash_basis_collected(db, filters, start_dt, end_dt, tax_name)
     else:
         filters += [
             Invoice.status.in_(_ISSUED_STATUSES),
             Invoice.issue_date >= start_dt,
             Invoice.issue_date < end_dt,
         ]
-
-    if tax_name:
-        query = (
-            select(func.coalesce(func.sum(InvoiceTax.amount), 0))
-            .join(Invoice, Invoice.id == InvoiceTax.invoice_id)
-            .where(*filters, InvoiceTax.name == tax_name, InvoiceTax.is_withholding.is_(False))
-        )
-    else:
-        query = select(func.coalesce(func.sum(Invoice.tax_amount), 0)).where(*filters)
-    collected = (await db.execute(query)).scalar_one()
+        if tax_name:
+            query = (
+                select(func.coalesce(func.sum(InvoiceTax.amount), 0))
+                .join(Invoice, Invoice.id == InvoiceTax.invoice_id)
+                .where(*filters, InvoiceTax.name == tax_name, InvoiceTax.is_withholding.is_(False))
+            )
+        else:
+            query = select(func.coalesce(func.sum(Invoice.tax_amount), 0)).where(*filters)
+        collected = (await db.execute(query)).scalar_one()
 
     remit_filters = [
         TaxRemittance.freelancer_id == freelancer.id,
@@ -158,7 +203,8 @@ async def tax_summary(
         )
     ).scalar_one()
 
-    collected, remitted = Decimal(collected), Decimal(remitted)
+    collected = quantize_money(Decimal(collected), currency)
+    remitted = Decimal(remitted)
     return TaxSummaryResponse(
         period_start=period_start,
         period_end=period_end,
