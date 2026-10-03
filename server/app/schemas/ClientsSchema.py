@@ -1,11 +1,13 @@
 from __future__ import annotations
-from pydantic import ConfigDict, EmailStr, Field
+from pydantic import ConfigDict, EmailStr, Field, field_serializer
 import uuid
 from datetime import datetime
 from typing import Optional
 from .ProjectsSchema import ProjectResponse
 
 from .Base import Base
+from app.core.sensitive import mask
+
 from .types import CurrencyCode
 
 
@@ -15,7 +17,7 @@ class ClientCreate(Base):
     company_name: Optional[str] = None
     phone: Optional[str] = None
     address: Optional[str] = None
-    tax_id: Optional[str] = None
+    tax_id: Optional[str] = Field(default=None, max_length=255)
     notes: Optional[str] = None
     payment_terms_days: Optional[int] = Field(default=None, ge=0, le=365)
     currency: Optional[CurrencyCode] = None
@@ -27,7 +29,7 @@ class ClientUpdate(Base):
     company_name: Optional[str] = None
     phone: Optional[str] = None
     address: Optional[str] = None
-    tax_id: Optional[str] = None
+    tax_id: Optional[str] = Field(default=None, max_length=255)
     notes: Optional[str] = None
     payment_terms_days: Optional[int] = Field(default=None, ge=0, le=365)
     currency: Optional[CurrencyCode] = None
@@ -68,6 +70,11 @@ class ClientInList(Base):
     projects: list[ProjectInClientList] = Field(default_factory=list)
 
     model_config = ConfigDict(from_attributes=True)
+
+    @field_serializer("tax_id")
+    def _mask_tax_id(self, value: Optional[str]) -> Optional[str]:
+        # Lists show only the last digits; the full value is on the detail view.
+        return mask(value)
 
 class ClientListResponse(Base):
     clients: list[ClientInList]

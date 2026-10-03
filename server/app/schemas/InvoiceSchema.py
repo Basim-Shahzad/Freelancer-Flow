@@ -12,7 +12,7 @@ from app.models.InvoiceEvent import InvoiceEventType
 from .Base import Base
 from .PaymentSchema import PaymentResponse
 from .TaxSchema import TaxInput, TaxLineResponse
-from .types import CurrencyCode, Money, Percent, UTCDateTime
+from .types import ClientFacingText, CurrencyCode, Money, Percent, UTCDateTime
 
 
 class InvoiceDisplayStatus(str, enum.Enum):
@@ -67,7 +67,12 @@ class InvoiceCreate(Base):
         description="Printed when no tax applies (exempt, reverse charge...).",
     )
     discount_rate: Percent = Decimal("0")
-    notes: Optional[str] = Field(default=None, max_length=5000)
+    notes: Optional[ClientFacingText] = Field(default=None, max_length=5000)
+    payment_instructions: Optional[ClientFacingText] = Field(
+        default=None, max_length=2000,
+        description="How the client should pay (e.g. bank account / IBAN). "
+        "Omit to use the profile's default; null for none.",
+    )
     items: list[InvoiceItemCreate] = Field(default_factory=list, max_length=200)
     time_entry_ids: list[uuid.UUID] = Field(default_factory=list, max_length=1000)
     milestone_ids: list[uuid.UUID] = Field(default_factory=list, max_length=200)
@@ -95,7 +100,8 @@ class InvoiceUpdate(Base):
     taxes: Optional[list[TaxInput]] = Field(default=None, max_length=10)
     tax_note: Optional[str] = Field(default=None, max_length=500)
     discount_rate: Optional[Percent] = None
-    notes: Optional[str] = Field(default=None, max_length=5000)
+    notes: Optional[ClientFacingText] = Field(default=None, max_length=5000)
+    payment_instructions: Optional[ClientFacingText] = Field(default=None, max_length=2000)
 
 
 # ── Responses ─────────────────────────────────────────────────────────────────
@@ -153,6 +159,7 @@ class InvoiceResponse(Base):
     balance_due: Money
     is_overdue: bool
     notes: Optional[str] = None
+    payment_instructions: Optional[str] = None
     sent_at: Optional[UTCDateTime] = None
     viewed_at: Optional[UTCDateTime] = None
     payment_at: Optional[UTCDateTime] = Field(

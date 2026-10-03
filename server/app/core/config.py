@@ -1,7 +1,7 @@
 from functools import lru_cache
 from typing import Literal
 
-from pydantic import AnyHttpUrl, EmailStr, field_validator
+from pydantic import AnyHttpUrl, EmailStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -24,6 +24,10 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 15
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
+    # Fernet key for encrypted columns (tax IDs). Generate with
+    # `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"`.
+    # Required in production; development derives one from SECRET_KEY.
+    FIELD_ENCRYPTION_KEY: str = ""
 
     # Database
     DATABASE_URL: str
@@ -76,6 +80,12 @@ class Settings(BaseSettings):
     @property
     def is_production(self) -> bool:
         return self.APP_ENV == "production"
+
+    @model_validator(mode="after")
+    def _require_encryption_key_in_production(self) -> "Settings":
+        if self.is_production and not self.FIELD_ENCRYPTION_KEY:
+            raise ValueError("FIELD_ENCRYPTION_KEY must be set in production")
+        return self
 
 
 @lru_cache

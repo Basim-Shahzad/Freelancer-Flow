@@ -120,6 +120,8 @@ class Invoice(Base):
         Numeric(precision=18, scale=4), nullable=False
     )
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    # Shown to the client; Paylancer never receives the money itself.
+    payment_instructions: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     # Lifecycle timestamps. NULL until the event happens.
     sent_at: Mapped[Optional[datetime]] = mapped_column(

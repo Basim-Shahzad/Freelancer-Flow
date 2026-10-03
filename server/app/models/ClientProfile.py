@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+from app.core.sensitive import EncryptedText
 from app.db.database import Base
 
 if TYPE_CHECKING:
@@ -35,7 +36,8 @@ class ClientProfile(Base):
     company_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     phone: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     address: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
-    tax_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    # Encrypted at rest (may be an NTN/CNIC); masked in list responses.
+    tax_id: Mapped[Optional[str]] = mapped_column(EncryptedText, nullable=True)
     notes: Mapped[Optional[str]] = mapped_column(Text, default="", nullable=True)
     # Override the freelancer defaults when set.
     payment_terms_days: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)

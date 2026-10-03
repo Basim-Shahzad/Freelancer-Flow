@@ -8,7 +8,7 @@ from pydantic import AfterValidator, Field, HttpUrl
 
 from .Base import Base
 from .TaxSchema import TaxInput
-from .types import CurrencyCode, Money, UTCDateTime
+from .types import ClientFacingText, CurrencyCode, Money, UTCDateTime
 
 
 def _check_timezone(value: str) -> str:
@@ -59,6 +59,10 @@ class FreelancerProfileUpdate(Base):
     tax_registration_number: Optional[str] = Field(default=None, max_length=100)
     tax_label: Optional[str] = Field(default=None, max_length=50)
     tax_basis: Optional[Literal["accrual", "cash"]] = None
+    payment_instructions: Optional[ClientFacingText] = Field(
+        default=None, max_length=2000,
+        description="Default payment instructions copied onto new invoices.",
+    )
     invoice_number_format: Optional[InvoiceNumberFormat] = None
     logo_url: Optional[HttpUrl] = None
     default_payment_terms_days: Optional[int] = Field(default=None, ge=0, le=365)
@@ -84,6 +88,7 @@ class FreelancerProfileResponse(Base):
     tax_registration_number: Optional[str] = None
     tax_label: Optional[str] = None
     tax_basis: str
+    payment_instructions: Optional[str] = None
     invoice_number_format: str
     logo_url: Optional[str] = None
     default_payment_terms_days: int

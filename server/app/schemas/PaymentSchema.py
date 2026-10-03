@@ -6,7 +6,7 @@ from pydantic import Field
 from app.models.Payment import PaymentMethod
 
 from .Base import Base
-from .types import PositiveMoney, UTCDateTime
+from .types import PositiveMoney, TransactionReference, UTCDateTime
 
 
 class PaymentCreate(Base):
@@ -17,7 +17,10 @@ class PaymentCreate(Base):
         default=None, description="Defaults to now. May not be in the future."
     )
     method: PaymentMethod = PaymentMethod.BANK_TRANSFER
-    reference: Optional[str] = Field(default=None, max_length=255)
+    reference: Optional[TransactionReference] = Field(
+        default=None, max_length=255,
+        description="Transaction ID only; card numbers, IBANs and CNICs are rejected.",
+    )
 
 
 class PaymentResponse(Base):

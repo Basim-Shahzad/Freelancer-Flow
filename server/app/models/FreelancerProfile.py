@@ -8,6 +8,7 @@ from sqlalchemy import JSON, DateTime, ForeignKey, Integer, String, Numeric, Tex
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from app.core.sensitive import EncryptedText
 from app.db.database import Base
 
 if TYPE_CHECKING:
@@ -39,9 +40,10 @@ class FreelancerProfile(Base):
     # Business identity printed on invoices.
     business_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     business_address: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    # Free-text registration id (VAT/GST/EIN/...); never format-validated.
+    # Free-text registration id (VAT/GST/EIN/NTN...); never format-validated.
+    # Encrypted at rest: a Pakistani NTN is often the owner's CNIC.
     tax_registration_number: Mapped[Optional[str]] = mapped_column(
-        String(100), nullable=True
+        EncryptedText, nullable=True
     )
     # What this jurisdiction calls its tax on documents ("VAT", "GST", ...).
     tax_label: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
@@ -55,6 +57,8 @@ class FreelancerProfile(Base):
     # "accrual": tax is due when invoiced; "cash": when the invoice is paid.
     tax_basis: Mapped[str] = mapped_column(String(10), nullable=False, default="accrual")
     # Template for invoice numbers; tokens: {seq}, {year}. e.g. "INV-{seq:04d}".
+    # Default "how to pay me" text, snapshotted onto each new invoice.
+    payment_instructions: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     invoice_number_format: Mapped[str] = mapped_column(
         String(100), nullable=False, default="INV-{seq:04d}"
     )

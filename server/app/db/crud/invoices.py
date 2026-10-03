@@ -352,6 +352,11 @@ async def create_invoice(
         withholding_amount=totals.withholding_amount,
         total=totals.total,
         notes=data.notes,
+        payment_instructions=(
+            data.payment_instructions
+            if "payment_instructions" in data.model_fields_set
+            else freelancer.payment_instructions
+        ),
     )
     db.add(invoice)
     for entry in billed_entries:

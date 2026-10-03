@@ -32,6 +32,11 @@ def _same(old: Any, new: Any) -> bool:
     return old == new
 
 
+# Encrypted columns: the audit feed records that they changed, never the values.
+_REDACTED_FIELDS = frozenset({"tax_id", "tax_registration_number"})
+_REDACTED = "[redacted]"
+
+
 def diff_changes(obj: Any, new_values: dict[str, Any]) -> dict[str, dict[str, Any]]:
     """Before/after pairs for the fields in ``new_values`` that really change.
 
@@ -41,7 +46,10 @@ def diff_changes(obj: Any, new_values: dict[str, Any]) -> dict[str, dict[str, An
     for field, new in new_values.items():
         old = getattr(obj, field, None)
         if not _same(old, new):
-            changes[field] = {"old": _jsonable(old), "new": _jsonable(new)}
+            if field in _REDACTED_FIELDS:
+                changes[field] = {"old": _REDACTED, "new": _REDACTED}
+            else:
+                changes[field] = {"old": _jsonable(old), "new": _jsonable(new)}
     return changes
 
 

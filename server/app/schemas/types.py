@@ -9,6 +9,7 @@ from typing import Annotated
 from pydantic import AfterValidator, BeforeValidator, Field
 
 from app.core.currencies import MAX_EXPONENT, is_valid_currency
+from app.core.sensitive import reject_card_and_cnic, reject_payment_details
 
 
 def _to_utc(value: datetime) -> datetime:
@@ -50,3 +51,9 @@ CurrencyCode = Annotated[
     AfterValidator(_check_currency),
     Field(pattern=r"^[A-Z]{3}$", min_length=3, max_length=3, examples=["USD"]),
 ]
+
+# Free text shown to clients: no card numbers or CNICs (bank details allowed).
+ClientFacingText = Annotated[str, AfterValidator(reject_card_and_cnic)]
+
+# A payment's transaction ID: no card numbers, IBANs or CNICs.
+TransactionReference = Annotated[str, AfterValidator(reject_payment_details)]
