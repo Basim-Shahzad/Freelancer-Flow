@@ -198,6 +198,50 @@ async def test_tax_summary_counts_only_issued_invoices(client, auth_headers, pro
     assert Decimal(body["taxRemitted"]) == 0 and Decimal(body["taxOutstanding"]) == Decimal("180.00")
 
 
+
+async def _pay(client, headers, invoice_id, amount):
+    resp = await client.post(
+        f"/api/v1/invoices/{invoice_id}/payments", json={"amount": amount}, headers=headers
+    )
+    assert resp.status_code == 201, resp.text
+
+
+async def test_cash_basis_counts_part_payments_as_received(client, auth_headers, project):
+    await client.patch(PROFILE_URL, json={"taxBasis": "cash"}, headers=auth_headers)
+    invoice = await _issued_invoice(client, auth_headers, project.id)  # 1150, VAT 150
+    await _issued_invoice(client, auth_headers, project.id)            # unpaid: excluded
+
+    await _pay(client, auth_headers, invoice["id"], "575")
+    body = (await client.get(f"{TAX_URL}/summary", params=_period(), headers=auth_headers)).json()
+    assert body["basis"] == "cash"
+    assert Decimal(body["taxCollected"]) == Decimal("75.00")
+
+    await _pay(client, auth_headers, invoice["id"], "575")
+    body = (await client.get(f"{TAX_URL}/summary", params=_period(), headers=auth_headers)).json()
+    assert Decimal(body["taxCollected"]) == Decimal("150.00")
+
+
+async def test_cash_basis_by_tax_name_ignores_withholding(client, auth_headers, project):
+    await client.patch(PROFILE_URL, json={"taxBasis": "cash"}, headers=auth_headers)
+    resp = await client.post(
+        "/api/v1/invoices",
+        json={"projectId": str(project.id),
+              "taxes": [{"name": "VAT", "rate": "15"},
+                        {"name": "WHT", "rate": "10", "isWithholding": True}],
+              "items": [{"description": "x", "quantity": "1", "unitPrice": "1000"}]},
+        headers=auth_headers,
+    )
+    invoice = resp.json()  # client owes 1000 + 150 - 100 = 1050
+    await client.post(f"/api/v1/invoices/{invoice['id']}/send", headers=auth_headers)
+    await _pay(client, auth_headers, invoice["id"], "525")
+
+    vat = (await client.get(f"{TAX_URL}/summary", params={**_period(), "tax_name": "VAT"},
+                            headers=auth_headers)).json()
+    assert Decimal(vat["taxCollected"]) == Decimal("75.00")
+    wht = (await client.get(f"{TAX_URL}/summary", params={**_period(), "tax_name": "WHT"},
+                            headers=auth_headers)).json()
+    assert Decimal(wht["taxCollected"]) == 0
+
 async def test_tax_remittance_reduces_outstanding(client, auth_headers, project):
     await _issued_invoice(client, auth_headers, project.id)  # 150
     period = _period()

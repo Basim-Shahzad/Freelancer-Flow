@@ -74,6 +74,24 @@ def test_withholding_reduces_amount_due_and_is_not_collected_tax():
     assert t.total == Decimal("1050.00")
 
 
+
+def test_compound_tax_ignores_earlier_withholding():
+    t = compute_totals(
+        Decimal("1000"), Decimal("0"),
+        [
+            _tax("10", name="VAT"),
+            _tax("5", name="WHT", is_withholding=True),
+            _tax("10", name="PST", is_compound=True),
+        ],
+        "USD",
+    )
+    # PST is 10% of 1000 + VAT 100, not of 1000 + VAT + WHT.
+    assert [l.amount for l in t.tax_lines] == [
+        Decimal("100.00"), Decimal("50.00"), Decimal("110.00"),
+    ]
+    assert t.tax_amount == Decimal("210.00")
+    assert t.total == Decimal("1160.00")
+
 def test_duration_rounds_to_nearest_minute_and_never_goes_negative():
     assert duration_minutes(T0, T0 + timedelta(minutes=90)) == 90
     assert duration_minutes(T0, T0 + timedelta(seconds=89)) == 1
