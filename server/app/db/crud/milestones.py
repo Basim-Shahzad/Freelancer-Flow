@@ -7,7 +7,7 @@ from fastapi import HTTPException, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.dependencies.client_portal import issue_portal_token
+from app.db.crud.portal_tokens import issue_portal_token
 from app.db.crud.activity import diff_changes, log_activity
 from app.db.crud.projects import get_project_by_id
 from app.models.Invoice import Invoice, InvoiceStatus
@@ -243,7 +243,6 @@ async def submit_milestone(
         client_id=project.client_id,
         scope_type=ScopeType.PROJECT,
         scope_id=project.id,
-        commit=False,
     )
     log_activity(
         db,

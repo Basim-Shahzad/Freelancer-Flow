@@ -12,7 +12,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.api.dependencies.client_portal import issue_portal_token
+from app.db.crud.portal_tokens import issue_portal_token
 from app.core.config import settings
 from app.db.crud.activity import diff_changes, log_activity
 from app.db.crud.projects import get_project_by_id
@@ -518,7 +518,6 @@ async def send_invoice(
         client_id=invoice.client_id,
         scope_type=ScopeType.INVOICE,
         scope_id=invoice.id,
-        commit=False,
     )
     add_event(db, invoice.id, InvoiceEventType.SENT, "Sent" if first_send else "Re-sent")
     log_activity(
@@ -574,7 +573,6 @@ async def remind_invoice(
         client_id=invoice.client_id,
         scope_type=ScopeType.INVOICE,
         scope_id=invoice.id,
-        commit=False,
     )
     add_event(db, invoice.id, InvoiceEventType.REMINDED, f"Reminder #{len(reminders) + 1}")
     log_activity(
