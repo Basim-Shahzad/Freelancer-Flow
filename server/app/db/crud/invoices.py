@@ -594,6 +594,8 @@ async def cancel_invoice(
         raise Conflict("Invoice is already cancelled")
     if invoice.status == InvoiceStatus.PAID:
         raise Conflict("A paid invoice cannot be cancelled")
+    if invoice.status == InvoiceStatus.WRITTEN_OFF:
+        raise Conflict("A written-off invoice cannot be cancelled")
     if invoice.amount_paid > 0:
         raise Conflict("Invoice has payments; void them before cancelling")
 
@@ -618,6 +620,48 @@ async def cancel_invoice(
         entity_id=invoice.id,
         action="cancelled",
         summary=f"Cancelled invoice {invoice.invoice_number}",
+    )
+    await db.commit()
+    return await get_invoice_by_id(db, invoice.id, freelancer.id, refresh=True)
+
+
+async def write_off_invoice(
+    db: AsyncSession,
+    invoice_id: uuid.UUID,
+    reason: str,
+    freelancer: FreelancerProfile,
+) -> Invoice:
+    """Give up the unpaid balance of a sent invoice as uncollectable.
+
+    Payments already recorded stay on the invoice; the balance due becomes 0
+    and the invoice no longer counts as overdue.
+    """
+    invoice = await get_invoice_by_id(db, invoice_id, freelancer.id, for_update=True)
+    if invoice.status not in OPEN_STATUSES:
+        raise Conflict(
+            f"Only unpaid or partially paid invoices can be written off "
+            f"(status is {invoice.status.value})"
+        )
+    written_off = invoice.balance_due
+    old_status = invoice.status
+    invoice.status = InvoiceStatus.WRITTEN_OFF
+    add_event(
+        db,
+        invoice.id,
+        InvoiceEventType.WRITTEN_OFF,
+        f"{invoice.currency} {written_off}: {reason}"[:255],
+    )
+    log_activity(
+        db,
+        user_id=freelancer.user_id,
+        entity_type="invoice",
+        entity_id=invoice.id,
+        action="written_off",
+        summary=f"Wrote off {invoice.currency} {written_off} on {invoice.invoice_number}",
+        changes={
+            "status": {"old": old_status.value, "new": InvoiceStatus.WRITTEN_OFF.value},
+            "reason": {"old": None, "new": reason},
+        },
     )
     await db.commit()
     return await get_invoice_by_id(db, invoice.id, freelancer.id, refresh=True)

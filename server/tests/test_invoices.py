@@ -544,6 +544,60 @@ async def test_cancel_rules(client, auth_headers, project):
     assert (await client.post(f"{INVOICES_URL}/{fresh['id']}/cancel", headers=auth_headers)).status_code == 409
 
 
+def _write_off(client, headers, invoice_id, reason="Client stopped responding"):
+    return client.post(
+        f"{INVOICES_URL}/{invoice_id}/write-off", json={"reason": reason}, headers=headers
+    )
+
+
+async def test_write_off_partially_paid_invoice(client, auth_headers, project):
+    invoice = await _create_ok(
+        client, auth_headers, project.id, dueDate=_iso(datetime.now(timezone.utc) - timedelta(days=3))
+    )
+    await _send_ok(client, auth_headers, invoice["id"])
+    await _pay(client, auth_headers, invoice["id"], "400")
+
+    resp = await _write_off(client, auth_headers, invoice["id"])
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["status"] == "WRITTEN_OFF" and body["displayStatus"] == "WRITTEN_OFF"
+    assert body["isOverdue"] is False
+    assert Decimal(body["amountPaid"]) == 400 and Decimal(body["balanceDue"]) == 0
+
+    events = (await client.get(f"{INVOICES_URL}/{invoice['id']}/events", headers=auth_headers)).json()
+    assert events["events"][-1]["eventType"] == "WRITTEN_OFF"
+
+    listed = await client.get(INVOICES_URL, params={"status": "WRITTEN_OFF"}, headers=auth_headers)
+    assert [i["id"] for i in listed.json()["invoices"]] == [invoice["id"]]
+
+
+async def test_write_off_rules(client, auth_headers, project):
+    draft = await _create_ok(client, auth_headers, project.id)
+    assert (await _write_off(client, auth_headers, draft["id"])).status_code == 409
+
+    paid = await _create_ok(client, auth_headers, project.id)
+    await _send_ok(client, auth_headers, paid["id"])
+    await _pay(client, auth_headers, paid["id"], "1000")
+    assert (await _write_off(client, auth_headers, paid["id"])).status_code == 409
+
+    sent = await _create_ok(client, auth_headers, project.id)
+    await _send_ok(client, auth_headers, sent["id"])
+    part = await _pay(client, auth_headers, sent["id"], "100")
+    payment_id = part.json()["payments"][0]["id"]
+    assert (await _write_off(client, auth_headers, sent["id"], reason="")).status_code == 422
+    assert (await _write_off(client, auth_headers, sent["id"])).status_code == 200
+
+    # Closed: no more payments, voids, reminders, cancels or second write-off.
+    assert (await _pay(client, auth_headers, sent["id"], "100")).status_code == 409
+    void = await client.delete(
+        f"{INVOICES_URL}/{sent['id']}/payments/{payment_id}", headers=auth_headers
+    )
+    assert void.status_code == 409
+    assert (await client.post(f"{INVOICES_URL}/{sent['id']}/remind", headers=auth_headers)).status_code == 409
+    assert (await client.post(f"{INVOICES_URL}/{sent['id']}/cancel", headers=auth_headers)).status_code == 409
+    assert (await _write_off(client, auth_headers, sent["id"])).status_code == 409
+
+
 # ---------------------------------------------------------------------------
 # Client portal view
 # ---------------------------------------------------------------------------

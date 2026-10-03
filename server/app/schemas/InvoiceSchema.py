@@ -22,6 +22,7 @@ class InvoiceDisplayStatus(str, enum.Enum):
     SENT = "SENT"
     PARTIALLY_PAID = "PARTIALLY_PAID"
     PAID = "PAID"
+    WRITTEN_OFF = "WRITTEN_OFF"
     CANCELLED = "CANCELLED"
     OVERDUE = "OVERDUE"
 
@@ -102,6 +103,12 @@ class InvoiceUpdate(Base):
     discount_rate: Optional[Percent] = None
     notes: Optional[ClientFacingText] = Field(default=None, max_length=5000)
     payment_instructions: Optional[ClientFacingText] = Field(default=None, max_length=2000)
+
+
+class InvoiceWriteOff(Base):
+    """POST /invoices/{id}/write-off"""
+
+    reason: str = Field(min_length=1, max_length=500)
 
 
 # ── Responses ─────────────────────────────────────────────────────────────────

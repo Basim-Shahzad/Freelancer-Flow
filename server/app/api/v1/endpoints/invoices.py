@@ -18,6 +18,7 @@ from app.db.crud.invoices import (
     remind_invoice,
     send_invoice,
     update_invoice,
+    write_off_invoice,
 )
 from app.db.database import get_db
 from app.schemas.InvoiceSchema import (
@@ -28,6 +29,7 @@ from app.schemas.InvoiceSchema import (
     InvoiceResponse,
     InvoiceSendResponse,
     InvoiceUpdate,
+    InvoiceWriteOff,
 )
 
 router = APIRouter(prefix="/invoices", tags=["Invoices"])
@@ -185,11 +187,28 @@ async def cancel_existing_invoice(
     return await cancel_invoice(db, invoice_id, freelancer)
 
 
+@router.post(
+    "/{invoice_id}/write-off",
+    response_model=InvoiceResponse,
+    summary="Write off an invoice's unpaid balance",
+    description="Only for sent, unpaid or partially paid invoices. Recorded payments "
+    "stay; the balance due becomes 0 and the invoice is no longer overdue.",
+    responses=errors(401, 403, 404, 409, 422),
+)
+async def write_off_existing_invoice(
+    invoice_id: uuid.UUID,
+    payload: InvoiceWriteOff,
+    freelancer: CurrentFreelancer,
+    db: AsyncSession = Depends(get_db),
+):
+    return await write_off_invoice(db, invoice_id, payload.reason, freelancer)
+
+
 @router.get(
     "/{invoice_id}/events",
     response_model=InvoiceEventListResponse,
     summary="Invoice lifecycle events",
-    description="Sent / viewed / reminded / payment / paid / cancelled, oldest first.",
+    description="Sent / viewed / reminded / payment / paid / written off / cancelled, oldest first.",
     responses=errors(401, 403, 404),
 )
 async def list_invoice_events(

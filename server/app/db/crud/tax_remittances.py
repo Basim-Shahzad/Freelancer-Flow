@@ -24,9 +24,15 @@ _ISSUED_STATUSES = (
     InvoiceStatus.SENT,
     InvoiceStatus.PARTIALLY_PAID,
     InvoiceStatus.PAID,
+    InvoiceStatus.WRITTEN_OFF,
 )
-# Statuses that can hold payments (cancelling requires voiding them first).
-_PAYABLE_STATUSES = (InvoiceStatus.PARTIALLY_PAID, InvoiceStatus.PAID)
+# Statuses that can hold payments (cancelling requires voiding them first;
+# a written-off invoice keeps the payments recorded before the write-off).
+_PAYABLE_STATUSES = (
+    InvoiceStatus.PARTIALLY_PAID,
+    InvoiceStatus.PAID,
+    InvoiceStatus.WRITTEN_OFF,
+)
 
 
 async def create_remittance(

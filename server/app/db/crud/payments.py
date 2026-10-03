@@ -29,7 +29,11 @@ def sync_payment_status(invoice: Invoice) -> None:
     Called after every payment change so the stored status can never disagree
     with the ledger. (OVERDUE is derived elsewhere and never stored.)
     """
-    if invoice.status in (InvoiceStatus.DRAFT, InvoiceStatus.CANCELLED):
+    if invoice.status in (
+        InvoiceStatus.DRAFT,
+        InvoiceStatus.CANCELLED,
+        InvoiceStatus.WRITTEN_OFF,
+    ):
         return
     paid = invoice.amount_paid
     if paid >= invoice.total and invoice.payments:
@@ -103,8 +107,11 @@ async def void_payment(
 ) -> Invoice:
     """Remove a mistakenly recorded payment and re-derive the invoice status."""
     invoice = await get_invoice_by_id(db, invoice_id, freelancer.id, for_update=True)
-    if invoice.status == InvoiceStatus.CANCELLED:
-        raise Conflict("Payments on a cancelled invoice cannot be changed")
+    if invoice.status in (InvoiceStatus.CANCELLED, InvoiceStatus.WRITTEN_OFF):
+        raise Conflict(
+            f"Payments on a {invoice.status.value.lower().replace('_', ' ')} "
+            "invoice cannot be changed"
+        )
     payment = next((p for p in invoice.payments if p.id == payment_id), None)
     if payment is None:
         raise NotFound("Payment not found")

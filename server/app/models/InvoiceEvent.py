@@ -17,6 +17,7 @@ class InvoiceEventType(str, enum.Enum):
     REMINDED = "REMINDED"
     PAYMENT_RECORDED = "PAYMENT_RECORDED"
     PAID = "PAID"
+    WRITTEN_OFF = "WRITTEN_OFF"
     CANCELLED = "CANCELLED"
 
 

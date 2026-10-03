@@ -40,6 +40,8 @@ class InvoiceStatus(str, enum.Enum):
     SENT = "SENT"
     PARTIALLY_PAID = "PARTIALLY_PAID"
     PAID = "PAID"
+    # Unpaid balance given up as uncollectable; payments already recorded stay.
+    WRITTEN_OFF = "WRITTEN_OFF"
     CANCELLED = "CANCELLED"
 
 
@@ -167,7 +169,7 @@ class Invoice(Base):
 
     @property
     def balance_due(self) -> Decimal:
-        if self.status == InvoiceStatus.CANCELLED:
+        if self.status in (InvoiceStatus.CANCELLED, InvoiceStatus.WRITTEN_OFF):
             return Decimal("0.00")
         return max(self.total - self.amount_paid, Decimal("0.00"))
 
