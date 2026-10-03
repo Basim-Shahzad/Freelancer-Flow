@@ -1,11 +1,11 @@
-"""Profile, expenses / runway, VAT remittances, change requests and the activity feed."""
+"""Profile, expenses / runway, tax remittances, change requests and the activity feed."""
 
 import uuid
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 
 EXPENSES_URL = "/api/v1/expenses"
-VAT_URL = "/api/v1/vat"
+TAX_URL = "/api/v1/tax"
 CR_URL = "/api/v1/change-requests"
 ACTIVITY_URL = "/api/v1/activity"
 PROFILE_URL = "/api/v1/profile"
@@ -27,13 +27,15 @@ async def test_profile_requires_auth_and_freelancer(client, make_user):
 
 async def test_profile_defaults_and_update(client, auth_headers):
     body = (await client.get(PROFILE_URL, headers=auth_headers)).json()
-    assert body["currency"] == "SAR" and body["defaultPaymentTermsDays"] == 30
-    assert Decimal(body["defaultTaxRate"]) == 0 and body["bankBalance"] is None
+    # No country assumptions: no default tax, UTC, accrual, plain numbering.
+    assert body["defaultPaymentTermsDays"] == 30 and body["defaultTaxes"] == []
+    assert body["timezone"] == "UTC" and body["taxBasis"] == "accrual"
+    assert body["invoiceNumberFormat"] == "INV-{seq:04d}" and body["bankBalance"] is None
 
     resp = await client.patch(
         PROFILE_URL,
         json={
-            "type": "Designer", "businessName": "Studio", "vatNumber": "123",
+            "type": "Designer", "businessName": "Studio", "taxRegistrationNumber": "123", "taxLabel": "GST", "country": "IN",
             "logoUrl": "https://example.com/logo.png", "bankBalance": "12000.50",
         },
         headers=auth_headers,
@@ -47,8 +49,11 @@ async def test_profile_defaults_and_update(client, auth_headers):
 
 async def test_profile_validation(client, auth_headers):
     for bad in (
-        {"currency": "RIYAL"}, {"defaultTaxRate": "150"}, {"defaultPaymentTermsDays": -1},
-        {"hourlyRate": "-1"}, {"logoUrl": "not a url"}, {"currency": None},
+        {"currency": "RIYAL"}, {"currency": "ZZZ"}, {"defaultPaymentTermsDays": -1},
+        {"defaultTaxes": [{"name": "X", "rate": "150"}]}, {"timezone": "Mars/Base"},
+        {"taxBasis": "vibes"}, {"invoiceNumberFormat": "INV-{oops}"},
+        {"invoiceNumberFormat": "NOSEQ"}, {"invoiceNumberFormat": "{seq.__class__}"},
+        {"hourlyRate": "-1"}, {"logoUrl": "not a url"}, {"timezone": None},
     ):
         assert (await client.patch(PROFILE_URL, json=bad, headers=auth_headers)).status_code == 422, bad
 
@@ -68,7 +73,7 @@ async def test_expense_crud_and_ownership(client, auth_headers, other_auth_heade
     created = await client.post(EXPENSES_URL, json=_expense(category="software"), headers=auth_headers)
     assert created.status_code == 201, created.text
     expense = created.json()
-    assert expense["currency"] == "SAR" and expense["isRecurring"] is False
+    assert expense["currency"] == "USD" and expense["isRecurring"] is False
     url = f"{EXPENSES_URL}/{expense['id']}"
 
     assert (await client.get(url, headers=other_auth_headers)).status_code == 404
@@ -141,7 +146,7 @@ async def test_runway_from_recurring_and_one_off_costs(client, auth_headers):
                       recurrenceEndsOn=(today - timedelta(days=100)).isoformat()),
         headers=auth_headers,
     )
-    await client.post(EXPENSES_URL, json=_expense(amount="777", currency="USD"), headers=auth_headers)
+    await client.post(EXPENSES_URL, json=_expense(amount="777", currency="EUR"), headers=auth_headers)
 
     body = (await client.get(f"{EXPENSES_URL}/runway", headers=auth_headers)).json()
     assert Decimal(body["monthlyRecurring"]) == Decimal("3400.00")
@@ -159,14 +164,14 @@ async def test_runway_is_null_without_balance_or_burn(client, auth_headers):
 
 
 # ---------------------------------------------------------------------------
-# VAT
+# Tax
 # ---------------------------------------------------------------------------
 
 
 async def _issued_invoice(client, headers, project_id, subtotal="1000", tax="15", send=True):
     resp = await client.post(
         "/api/v1/invoices",
-        json={"projectId": str(project_id), "taxRate": tax,
+        json={"projectId": str(project_id), "taxes": [{"name": "VAT", "rate": tax}],
               "items": [{"description": "x", "quantity": "1", "unitPrice": subtotal}]},
         headers=headers,
     )
@@ -181,71 +186,71 @@ def _period():
     return {"period_start": (today - timedelta(days=30)).isoformat(), "period_end": (today + timedelta(days=1)).isoformat()}
 
 
-async def test_vat_summary_counts_only_issued_invoices(client, auth_headers, project):
+async def test_tax_summary_counts_only_issued_invoices(client, auth_headers, project):
     await _issued_invoice(client, auth_headers, project.id)                      # 150
     await _issued_invoice(client, auth_headers, project.id, subtotal="200")      # 30
     await _issued_invoice(client, auth_headers, project.id, send=False)          # draft: excluded
     cancelled = await _issued_invoice(client, auth_headers, project.id)
     await client.post(f"/api/v1/invoices/{cancelled['id']}/cancel", headers=auth_headers)
 
-    body = (await client.get(f"{VAT_URL}/summary", params=_period(), headers=auth_headers)).json()
-    assert Decimal(body["vatCollected"]) == Decimal("180.00")
-    assert Decimal(body["vatRemitted"]) == 0 and Decimal(body["vatOutstanding"]) == Decimal("180.00")
+    body = (await client.get(f"{TAX_URL}/summary", params=_period(), headers=auth_headers)).json()
+    assert Decimal(body["taxCollected"]) == Decimal("180.00")
+    assert Decimal(body["taxRemitted"]) == 0 and Decimal(body["taxOutstanding"]) == Decimal("180.00")
 
 
-async def test_vat_remittance_reduces_outstanding(client, auth_headers, project):
+async def test_tax_remittance_reduces_outstanding(client, auth_headers, project):
     await _issued_invoice(client, auth_headers, project.id)  # 150
     period = _period()
     created = await client.post(
-        f"{VAT_URL}/remittances",
+        f"{TAX_URL}/remittances",
         json={"periodStart": period["period_start"], "periodEnd": date.today().isoformat(),
-              "amount": "100", "reference": "ZATCA-1"},
+              "amount": "100", "reference": "FILING-1"},
         headers=auth_headers,
     )
     assert created.status_code == 201, created.text
-    assert created.json()["currency"] == "SAR"
+    assert created.json()["currency"] == "USD"
 
-    body = (await client.get(f"{VAT_URL}/summary", params=period, headers=auth_headers)).json()
-    assert Decimal(body["vatRemitted"]) == Decimal("100.00")
-    assert Decimal(body["vatOutstanding"]) == Decimal("50.00")
+    body = (await client.get(f"{TAX_URL}/summary", params=period, headers=auth_headers)).json()
+    assert Decimal(body["taxRemitted"]) == Decimal("100.00")
+    assert Decimal(body["taxOutstanding"]) == Decimal("50.00")
 
-    listing = (await client.get(f"{VAT_URL}/remittances", headers=auth_headers)).json()
+    listing = (await client.get(f"{TAX_URL}/remittances", headers=auth_headers)).json()
     assert listing["total"] == 1
 
     # Over-remitting never yields a negative outstanding figure.
     await client.post(
-        f"{VAT_URL}/remittances",
+        f"{TAX_URL}/remittances",
         json={"periodStart": period["period_start"], "periodEnd": date.today().isoformat(), "amount": "500"},
         headers=auth_headers,
     )
-    body = (await client.get(f"{VAT_URL}/summary", params=period, headers=auth_headers)).json()
-    assert Decimal(body["vatOutstanding"]) == 0
+    body = (await client.get(f"{TAX_URL}/summary", params=period, headers=auth_headers)).json()
+    assert Decimal(body["taxOutstanding"]) == 0
 
 
-async def test_vat_is_scoped_and_validated(client, auth_headers, other_auth_headers, project):
+async def test_tax_is_scoped_and_validated(client, auth_headers, other_auth_headers, project):
     await _issued_invoice(client, auth_headers, project.id)
-    theirs = (await client.get(f"{VAT_URL}/summary", params=_period(), headers=other_auth_headers)).json()
-    assert Decimal(theirs["vatCollected"]) == 0
+    theirs = (await client.get(f"{TAX_URL}/summary", params=_period(), headers=other_auth_headers)).json()
+    assert Decimal(theirs["taxCollected"]) == 0
 
     remittance = (
         await client.post(
-            f"{VAT_URL}/remittances",
+            f"{TAX_URL}/remittances",
             json={"periodStart": "2026-01-01", "periodEnd": "2026-03-31", "amount": "10"},
             headers=auth_headers,
         )
     ).json()
-    assert (await client.delete(f"{VAT_URL}/remittances/{remittance['id']}", headers=other_auth_headers)).status_code == 404
-    assert (await client.delete(f"{VAT_URL}/remittances/{remittance['id']}", headers=auth_headers)).status_code == 204
+    assert (await client.delete(f"{TAX_URL}/remittances/{remittance['id']}", headers=other_auth_headers)).status_code == 404
+    assert (await client.delete(f"{TAX_URL}/remittances/{remittance['id']}", headers=auth_headers)).status_code == 204
 
     bad_period = {"period_start": "2026-03-01", "period_end": "2026-01-01"}
-    assert (await client.get(f"{VAT_URL}/summary", params=bad_period, headers=auth_headers)).status_code == 422
+    assert (await client.get(f"{TAX_URL}/summary", params=bad_period, headers=auth_headers)).status_code == 422
     inverted = await client.post(
-        f"{VAT_URL}/remittances",
+        f"{TAX_URL}/remittances",
         json={"periodStart": "2026-03-01", "periodEnd": "2026-01-01", "amount": "10"},
         headers=auth_headers,
     )
     assert inverted.status_code == 422
-    assert (await client.get(f"{VAT_URL}/summary", params=_period())).status_code == 401
+    assert (await client.get(f"{TAX_URL}/summary", params=_period())).status_code == 401
 
 
 # ---------------------------------------------------------------------------

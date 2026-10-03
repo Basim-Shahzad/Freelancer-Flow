@@ -88,13 +88,13 @@ async def test_create_invoice_requires_auth(client, project):
 
 async def test_create_invoice_computes_totals_and_defaults(client, auth_headers, project):
     body = await _create_ok(
-        client, auth_headers, project.id, discountRate="10", taxRate="15"
+        client, auth_headers, project.id, discountRate="10", taxes=[{"name": "VAT", "rate": "15"}]
     )
     assert body["invoiceNumber"] == "INV-0001"
     assert body["status"] == "DRAFT"
     assert body["displayStatus"] == "DRAFT"
-    assert body["currency"] == "SAR"
-    # 1000 - 10% = 900; +15% VAT = 1035
+    assert body["currency"] == "USD"
+    # 1000 - 10% = 900; +15% tax = 1035
     assert Decimal(body["subtotal"]) == Decimal("1000.00")
     assert Decimal(body["discountAmount"]) == Decimal("100.00")
     assert Decimal(body["taxAmount"]) == Decimal("135.00")
@@ -129,20 +129,21 @@ async def test_create_invoice_uses_profile_business_identity_and_defaults(
         "/api/v1/profile",
         json={
             "businessName": "Acme Studio",
-            "businessAddress": "1 King Fahd Rd, Riyadh",
-            "vatNumber": "300000000000003",
+            "businessAddress": "1 Example Street",
+            "taxRegistrationNumber": "TAX-12345", "taxLabel": "Sales Tax",
             "currency": "usd",
             "defaultPaymentTermsDays": 14,
-            "defaultTaxRate": "15",
+            "defaultTaxes": [{"name": "Sales Tax", "rate": "15"}],
         },
         headers=auth_headers,
     )
     assert resp.status_code == 200, resp.text
     body = await _create_ok(client, auth_headers, project.id)
     assert body["issuer"]["businessName"] == "Acme Studio"
-    assert body["issuer"]["vatNumber"] == "300000000000003"
+    assert body["issuer"]["taxRegistrationNumber"] == "TAX-12345"
     assert body["currency"] == "USD"
-    assert Decimal(body["taxRate"]) == Decimal("15")
+    assert [t["name"] for t in body["taxes"]] == ["Sales Tax"]
+    assert Decimal(body["taxes"][0]["rate"]) == Decimal("15")
     issued = datetime.fromisoformat(body["issueDate"])
     assert datetime.fromisoformat(body["dueDate"]) - issued == timedelta(days=14)
 
@@ -198,12 +199,12 @@ async def test_money_validation(client, auth_headers, project):
     bad_items = [
         {"description": "x", "quantity": "1", "unitPrice": "-5"},
         {"description": "x", "quantity": "0", "unitPrice": "5"},
-        {"description": "x", "quantity": "1", "unitPrice": "1.005"},
+        {"description": "x", "quantity": "1", "unitPrice": "1.00005"},
     ]
     for item in bad_items:
         resp = await _create(client, auth_headers, project.id, items=[item])
         assert resp.status_code == 422, item
-    assert (await _create(client, auth_headers, project.id, taxRate="101")).status_code == 422
+    assert (await _create(client, auth_headers, project.id, taxes=[{"name": "X", "rate": "101"}])).status_code == 422
     assert (await _create(client, auth_headers, project.id, currency="RIYAL")).status_code == 422
 
 
@@ -298,7 +299,8 @@ async def test_time_entries_from_another_project_are_refused(
 async def test_invoice_from_milestones(client, auth_headers, project, make_milestone):
     m1 = await make_milestone(project_id=project.id, name="Phase 1", amount=Decimal("500"))
     body = await _create_ok(
-        client, auth_headers, project.id, items=[], milestoneIds=[str(m1.id)], taxRate="15"
+        client, auth_headers, project.id, items=[], milestoneIds=[str(m1.id)],
+        taxes=[{"name": "VAT", "rate": "15"}],
     )
     assert Decimal(body["subtotal"]) == Decimal("500.00")
     assert Decimal(body["total"]) == Decimal("575.00")
@@ -369,7 +371,7 @@ async def test_update_draft_recomputes_totals_and_sent_is_immutable(client, auth
     invoice = await _create_ok(client, auth_headers, project.id)
     resp = await client.patch(
         f"{INVOICES_URL}/{invoice['id']}",
-        json={"taxRate": "15", "discountRate": "10", "notes": "Thanks"},
+        json={"taxes": [{"name": "VAT", "rate": "15"}], "discountRate": "10", "notes": "Thanks"},
         headers=auth_headers,
     )
     assert resp.status_code == 200, resp.text
@@ -605,3 +607,66 @@ async def test_cancelling_revokes_the_client_link(client, auth_headers, project)
     await client.post(f"{INVOICES_URL}/{invoice['id']}/cancel", headers=auth_headers)
     resp = await client.get(f"{PORTAL_URL}/invoice/{invoice['id']}", params={"token": token})
     assert resp.status_code == 401
+
+
+# ---------------------------------------------------------------------------
+# Country-neutral behaviour
+# ---------------------------------------------------------------------------
+
+
+async def test_invoice_requires_a_currency_somewhere(client, auth_headers, project, freelancer_profile, db_session):
+    freelancer_profile.currency = None
+    await db_session.commit()
+    assert (await _create(client, auth_headers, project.id)).status_code == 422
+    ok = await _create(client, auth_headers, project.id, currency="EUR")
+    assert ok.status_code == 201 and ok.json()["currency"] == "EUR"
+
+
+async def test_zero_and_three_decimal_currencies_round_to_their_minor_unit(client, auth_headers, project):
+    yen = await _create_ok(
+        client, auth_headers, project.id, currency="JPY",
+        items=[{"description": "x", "quantity": "1", "unitPrice": "1000"}],
+        taxes=[{"name": "Consumption tax", "rate": "10"}],
+    )
+    assert Decimal(yen["taxAmount"]) == 100 and Decimal(yen["total"]) == 1100
+
+    dinar = await _create_ok(
+        client, auth_headers, project.id, currency="KWD",
+        items=[{"description": "x", "quantity": "1", "unitPrice": "10.005"}],
+    )
+    assert Decimal(dinar["total"]) == Decimal("10.005")
+
+
+async def test_multiple_taxes_inclusive_and_withholding(client, auth_headers, project):
+    body = await _create_ok(
+        client, auth_headers, project.id,
+        items=[{"description": "x", "quantity": "1", "unitPrice": "1000"}],
+        taxes=[
+            {"name": "GST", "rate": "5"},
+            {"name": "PST", "rate": "10", "isCompound": True},
+            {"name": "WHT", "rate": "2", "isWithholding": True},
+        ],
+        taxNote="Reverse charge not applicable",
+    )
+    assert [Decimal(t["amount"]) for t in body["taxes"]] == [50, Decimal("105"), 20]
+    assert Decimal(body["taxAmount"]) == 155 and Decimal(body["withholdingAmount"]) == 20
+    assert Decimal(body["total"]) == 1135 and body["taxNote"] == "Reverse charge not applicable"
+
+    inclusive = await _create_ok(
+        client, auth_headers, project.id,
+        items=[{"description": "x", "quantity": "1", "unitPrice": "115"}],
+        taxes=[{"name": "VAT", "rate": "15", "isInclusive": True}],
+    )
+    assert Decimal(inclusive["taxAmount"]) == 15 and Decimal(inclusive["total"]) == 115
+
+    exempt = await _create_ok(client, auth_headers, project.id, taxes=[])
+    assert exempt["taxes"] == [] and Decimal(exempt["total"]) == 1000
+
+
+async def test_invoice_number_format_is_configurable(client, auth_headers, project):
+    resp = await client.patch(
+        "/api/v1/profile", json={"invoiceNumberFormat": "{year}/{seq:03d}"}, headers=auth_headers
+    )
+    assert resp.status_code == 200, resp.text
+    body = await _create_ok(client, auth_headers, project.id)
+    assert body["invoiceNumber"] == f"{datetime.now(timezone.utc).year}/001"

@@ -146,7 +146,7 @@ async def _make_user(
     db.add(user)
     await db.flush()
     if with_freelancer:
-        db.add(FreelancerProfile(user_id=user.id))
+        db.add(FreelancerProfile(user_id=user.id, currency="USD"))
     await db.commit()
     await db.refresh(user)
     return user
