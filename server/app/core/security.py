@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta, timezone
 from typing import Any
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import jwt
 from pwdlib import PasswordHash
@@ -36,6 +36,10 @@ def _create_token(
         "type": token_type,
         "exp": expire,
         "iat": datetime.now(timezone.utc),
+        # Unique per token: `iat`/`exp` have one-second precision, so without
+        # it two tokens minted in the same second would be identical and the
+        # second refresh token would violate RefreshToken.token's UNIQUE.
+        "jti": str(uuid4()),
     }
     return jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 
