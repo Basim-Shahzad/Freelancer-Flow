@@ -19,7 +19,7 @@ from app.db.crud.projects import get_project_by_id
 from app.models.FreelancerProfile import FreelancerProfile
 from app.db.crud.currency import resolve_currency
 from app.models.Invoice import Invoice, InvoiceStatus, InvoiceTax
-from app.models.invoice_item import InvoiceItem
+from server.app.models.InvoiceItem import InvoiceItem
 from app.models.InvoiceEvent import InvoiceEvent, InvoiceEventType
 from app.models.Milestone import Milestone, MilestoneStatus
 from app.models.PortalAccessToken import PortalAccessToken, ScopeType

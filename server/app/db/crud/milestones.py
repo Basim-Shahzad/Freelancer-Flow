@@ -11,7 +11,7 @@ from app.db.crud.portal_tokens import issue_portal_token
 from app.db.crud.activity import diff_changes, log_activity
 from app.db.crud.projects import get_project_by_id
 from app.models.Invoice import Invoice, InvoiceStatus
-from app.models.invoice_item import InvoiceItem
+from server.app.models.InvoiceItem import InvoiceItem
 from app.models.Milestone import Milestone, MilestoneStatus
 from app.models.PortalAccessToken import ScopeType
 from app.models.Project import Project

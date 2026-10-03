@@ -24,7 +24,7 @@ if TYPE_CHECKING:
     from app.models.ClientProfile import ClientProfile
     from app.models.Project import Project
     from app.models.FreelancerProfile import FreelancerProfile
-    from app.models.invoice_item import InvoiceItem
+    from server.app.models.InvoiceItem import InvoiceItem
     from app.models.Payment import Payment
 
 
