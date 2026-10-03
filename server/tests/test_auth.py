@@ -1,4 +1,3 @@
-import asyncio
 import jwt
 import pytest
 from datetime import datetime, timedelta, timezone
@@ -209,23 +208,26 @@ async def test_me_returns_current_user(client, user, auth_headers):
     assert resp.json()["email"] == user.email
 
 
-def test_tokens_minted_in_the_same_second_for_the_same_subject_collide():
-    """create_access_token()/create_refresh_token() build their JWT payload
-    from `sub`, `type`, `exp` and `iat` only -- no jti/nonce. PyJWT encodes
-    `iat`/`exp` at whole-second precision, so two tokens minted for the same
-    user within the same wall-clock second are byte-for-byte identical.
-    Since RefreshToken.token has a UNIQUE constraint, a user who logs in (or
-    refreshes) twice within the same second gets an unhandled IntegrityError
-    (500) on the second call instead of a working second session.
-    Root cause: app/core/security.py _create_token() should include a
-    unique jti claim (as issue_portal_token() already does for portal
-    tokens)."""
+def test_tokens_minted_in_the_same_second_for_the_same_subject_are_unique():
+    """`iat`/`exp` have whole-second precision, so each token carries a unique
+    `jti`; otherwise two logins in the same second would mint identical
+    refresh tokens and hit RefreshToken.token's UNIQUE constraint."""
     import uuid
 
     user_id = uuid.uuid4()
     token_a = create_refresh_token(user_id)
     token_b = create_refresh_token(user_id)
     assert token_a != token_b
+    assert create_access_token(user_id) != create_access_token(user_id)
+
+
+async def test_two_logins_in_the_same_second_both_succeed(client):
+    await client.post(REGISTER_URL, json=_register_payload(email="twice@example.com"))
+    creds = {"email": "twice@example.com", "password": "Passw0rd1"}
+    first = await client.post(LOGIN_URL, json=creds)
+    second = await client.post(LOGIN_URL, json=creds)
+    assert first.status_code == 200 and second.status_code == 200, second.text
+    assert first.cookies["refresh_token"] != second.cookies["refresh_token"]
 
 
 # ---------------------------------------------------------------------------
@@ -250,11 +252,6 @@ async def test_refresh_rotates_token_and_returns_new_access_token(client):
     )
     old_refresh_cookie = login_resp.cookies["refresh_token"]
 
-    # See test_tokens_minted_in_the_same_second_for_the_same_subject_collide:
-    # without this gap, the rotated token can be minted in the same second
-    # as the login token and collide on the refresh_tokens.token UNIQUE
-    # constraint, which isn't what this test is about.
-    await asyncio.sleep(1.05)
     refresh_resp = await client.post(REFRESH_URL, cookies={"refresh_token": old_refresh_cookie})
     assert refresh_resp.status_code == 200, refresh_resp.text
     assert "accessToken" in refresh_resp.json()
@@ -271,7 +268,6 @@ async def test_refresh_rejects_reuse_of_already_rotated_token(client):
     )
     old_refresh_cookie = login_resp.cookies["refresh_token"]
 
-    await asyncio.sleep(1.05)  # avoid the same-second token collision (see dedicated test above)
     first = await client.post(REFRESH_URL, cookies={"refresh_token": old_refresh_cookie})
     assert first.status_code == 200
 
@@ -315,11 +311,8 @@ async def test_logout_requires_authentication(client):
 
 
 async def test_logout_all_revokes_every_session(client, user, auth_headers, db_session):
-    """Two sessions are seeded directly via create_refresh_token_record
-    (rather than two real logins back to back) to keep this test about
-    logout-all's revoke-count/effect, independent of the same-second JWT
-    collision covered by test_tokens_minted_in_the_same_second_for_the_
-    same_subject_collide."""
+    """Two sessions are seeded directly via create_refresh_token_record to
+    keep this test about logout-all's revoke-count/effect."""
     from app.db.crud.auth import create_refresh_token_record
 
     record1 = await create_refresh_token_record(db_session, user_id=user.id, token="session-token-1")
@@ -363,8 +356,6 @@ async def test_change_password_success(client):
     )
     assert old_login.status_code == 401
 
-    # avoid the same-second token collision (see dedicated test above)
-    await asyncio.sleep(1.05)
     new_login = await client.post(
         LOGIN_URL, json={"email": "changepw@example.com", "password": "NewPassw0rd2"}
     )
