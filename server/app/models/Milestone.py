@@ -53,7 +53,7 @@ class Milestone(Base):
         Enum(MilestoneStatus), default=MilestoneStatus.PENDING
     )
     due_date: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=True)
-    # Fixed-price billing is milestone-based, so the milestone carries the money.
+    # Price billed when this milestone is invoiced; NULL for unpriced stages.
     amount: Mapped[Optional[Decimal]] = mapped_column(
         Numeric(precision=18, scale=4), nullable=True
     )

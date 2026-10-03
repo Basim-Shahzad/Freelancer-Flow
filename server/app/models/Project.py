@@ -32,8 +32,12 @@ class ProjectStatus(enum.Enum):
     CANCELLED = "CANCELLED"
 
 class BudgetType(enum.Enum):
+    """How the project is billed. Milestones are optional for every type."""
+
     FIXED = "FIXED"
     HOURLY = "HOURLY"
+    RETAINER = "RETAINER"
+    MILESTONE = "MILESTONE"
 
 
 class Project(Base):

@@ -26,6 +26,21 @@ async def test_create_project_success(client, auth_headers, client_profile):
     assert body["budget"] == "1000.00"
 
 
+async def test_create_project_with_each_billing_type(client, auth_headers, client_profile):
+    for budget_type in ("FIXED", "HOURLY", "RETAINER", "MILESTONE"):
+        resp = await client.post(
+            PROJECTS_URL,
+            json={
+                "name": f"{budget_type} project",
+                "clientId": str(client_profile.id),
+                "budgetType": budget_type,
+            },
+            headers=auth_headers,
+        )
+        assert resp.status_code == 201, resp.text
+        assert resp.json()["budgetType"] == budget_type
+
+
 async def test_create_project_for_nonexistent_client_returns_422_not_500(client, auth_headers):
     """create_project() has no existence check on client_id -- a bad FK
     value should be a clean validation error, not an unhandled
