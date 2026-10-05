@@ -13,6 +13,7 @@ from app.db.database import init_db, async_session
 from app.models.User import UserRole
 from app.schemas.AuthSchema import UserCreate
 from app.db.crud.auth import create_user, get_user_by_email
+from app.db.crud.reference import seed_reference_settings
 
 # ---------------------------------------------------------------------------
 # Startup — create tables + seed superuser
@@ -37,12 +38,18 @@ async def _seed_superuser() -> None:
             )
 
 
+async def _seed_reference_data() -> None:
+    async with async_session() as db:
+        await seed_reference_settings(db)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     from app import models
 
     # await init_db()
     await _seed_superuser()
+    await _seed_reference_data()
     yield
 
 
