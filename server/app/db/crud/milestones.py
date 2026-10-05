@@ -67,6 +67,8 @@ async def create_milestone(
     db: AsyncSession, data: MilestoneCreate, user_id: uuid.UUID
 ) -> Milestone:
     project = await get_project_by_id(db, data.project_id, user_id)
+    if not project.milestones_enabled:
+        raise Unprocessable("Milestones are not enabled for this project")
 
     next_order = (
         await db.execute(

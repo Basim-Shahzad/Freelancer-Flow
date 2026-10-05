@@ -1,17 +1,19 @@
 from __future__ import annotations
 
 import uuid
-from typing import Optional
+from datetime import date
+from typing import Any, Optional
 
 from sqlalchemy import select, func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.errors import Conflict, NotFound, Unprocessable
+from app.core.errors import Conflict, Forbidden, NotFound, Unprocessable
 from app.db.crud.activity import diff_changes, log_activity
 from app.db.crud.clients import get_client_by_id
-from app.models.Project import Project, ProjectStatus
+from app.db.crud.freelancers import get_freelancer_by_user
+from app.models.Project import BillingType, Project, ProjectStatus
 from app.schemas.ProjectsSchema import ProjectCreate, ProjectUpdate
 
 
@@ -70,6 +72,54 @@ async def get_projects(
     return list(projects), total
 
 
+_RETAINER_FIELDS = ("retainer_amount", "retainer_interval", "retainer_start_date")
+
+
+async def _billing_adjustments(
+    db: AsyncSession,
+    user_id: uuid.UUID,
+    state: dict[str, Any],
+    supplied: dict[str, Any],
+    existing_milestones: int = 0,
+) -> dict[str, Any]:
+    """Validate the merged billing state and return derived field changes.
+
+    ``state`` is the project as it will be after the write; ``supplied`` is
+    only what the caller sent (so retainer fields on a non-retainer project
+    are rejected when sent, but cleared when merely left over from a switch).
+    """
+    billing_type = state["billing_type"]
+    out: dict[str, Any] = {}
+
+    if billing_type == BillingType.RETAINER:
+        if state.get("retainer_amount") is None or state.get("retainer_interval") is None:
+            raise Unprocessable("RETAINER projects require retainer_amount and retainer_interval")
+        if state.get("retainer_start_date") is None:
+            out["retainer_start_date"] = date.today()
+    else:
+        if any(supplied.get(f) is not None for f in _RETAINER_FIELDS):
+            raise Unprocessable("Retainer fields are only valid for RETAINER projects")
+        for f in _RETAINER_FIELDS:
+            if state.get(f) is not None:
+                out[f] = None
+
+    if billing_type == BillingType.MILESTONE:
+        if supplied.get("milestones_enabled") is False:
+            raise Unprocessable("MILESTONE projects always have milestones enabled")
+        out["milestones_enabled"] = True
+    elif state.get("milestones_enabled") is False and existing_milestones > 0:
+        raise Conflict("Project has milestones; delete them before disabling milestones")
+
+    if billing_type == BillingType.HOURLY and state.get("hourly_rate") is None:
+        try:
+            freelancer = await get_freelancer_by_user(db, user_id)
+        except Forbidden:
+            freelancer = None
+        if freelancer is not None and freelancer.hourly_rate is not None:
+            out["hourly_rate"] = freelancer.hourly_rate
+    return out
+
+
 async def create_project(
     db: AsyncSession,
     data: ProjectCreate,
@@ -79,6 +129,11 @@ async def create_project(
     client = await get_client_by_id(db, data.client_id, user_id)
 
     values = data.model_dump()
+    values.update(
+        await _billing_adjustments(
+            db, user_id, values, data.model_dump(exclude_unset=True)
+        )
+    )
     if values["currency"] is None:
         values["currency"] = client.currency  # may still be None: falls back later
     project = Project(**values, created_by=user_id)
@@ -105,11 +160,29 @@ async def update_project(
     project = await get_project_by_id(db, project_id, user_id)
 
     update_data = data.model_dump(exclude_unset=True)
-    for required in ("name", "status", "budget_type", "client_id"):
+    for required in ("name", "status", "billing_type", "client_id"):
         if required in update_data and update_data[required] is None:
             raise Unprocessable(f"{required} cannot be null")
     if update_data.get("client_id") not in (None, project.client_id):
         await get_client_by_id(db, update_data["client_id"], user_id)
+
+    state = {
+        f: getattr(project, f)
+        for f in (
+            "billing_type",
+            "milestones_enabled",
+            "hourly_rate",
+            *_RETAINER_FIELDS,
+        )
+    }
+    state.update(update_data)
+    if state["milestones_enabled"] is None:
+        raise Unprocessable("milestones_enabled cannot be null")
+    update_data.update(
+        await _billing_adjustments(
+            db, user_id, state, update_data, existing_milestones=project.milestone_total
+        )
+    )
 
     changes = diff_changes(project, update_data)
     for field, value in update_data.items():

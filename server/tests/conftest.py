@@ -37,7 +37,7 @@ from app.models.ClientProfile import ClientProfile
 from app.models.FreelancerProfile import FreelancerProfile
 from app.models.Milestone import Milestone, MilestoneStatus
 from app.models.PortalAccessToken import PortalAccessToken, ScopeType
-from app.models.Project import BudgetType, Project, ProjectStatus
+from app.models.Project import BillingType, Project, ProjectStatus
 from app.models.User import User, UserRole
 
 # ---------------------------------------------------------------------------
@@ -232,7 +232,8 @@ async def make_project(db_session):
     async def _factory(*, client_id: uuid.UUID, created_by: uuid.UUID, **kwargs) -> Project:
         kwargs.setdefault("name", "Website Revamp")
         kwargs.setdefault("status", ProjectStatus.ACTIVE)
-        kwargs.setdefault("budget_type", BudgetType.FIXED)
+        kwargs.setdefault("billing_type", BillingType.FIXED)
+        kwargs.setdefault("milestones_enabled", True)
         project = Project(client_id=client_id, created_by=created_by, **kwargs)
         db_session.add(project)
         await db_session.commit()
@@ -249,7 +250,8 @@ async def project(db_session, client_profile: ClientProfile, user: User) -> Proj
         client_id=client_profile.id,
         created_by=user.id,
         status=ProjectStatus.ACTIVE,
-        budget_type=BudgetType.FIXED,
+        billing_type=BillingType.FIXED,
+        milestones_enabled=True,
     )
     db_session.add(p)
     await db_session.commit()
