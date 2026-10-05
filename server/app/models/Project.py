@@ -1,19 +1,20 @@
 from __future__ import annotations
 import uuid
 from typing import TYPE_CHECKING
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from decimal import Decimal
 import enum
 
 
 from typing import Optional
 
-from sqlalchemy import DateTime, ForeignKey, String, Text, Enum
+from sqlalchemy import Boolean, Date, DateTime, ForeignKey, String, Text, Enum
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy import Numeric
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.database import Base
+from app.models.Expense import RecurrenceInterval
 
 if TYPE_CHECKING:
     from app.models.ClientProfile import ClientProfile
@@ -31,7 +32,7 @@ class ProjectStatus(enum.Enum):
     ARCHIVED = "ARCHIVED"
     CANCELLED = "CANCELLED"
 
-class BudgetType(enum.Enum):
+class BillingType(enum.Enum):
     """How the project is billed. Milestones are optional for every type."""
 
     FIXED = "FIXED"
@@ -61,9 +62,21 @@ class Project(Base):
     hourly_rate: Mapped[Optional[Decimal]] = mapped_column(
         Numeric(precision=18, scale=4), nullable=True
     )
-    budget_type: Mapped[BudgetType] = mapped_column(
-        Enum(BudgetType), default=BudgetType.FIXED
+    billing_type: Mapped[BillingType] = mapped_column(
+        Enum(BillingType), default=BillingType.FIXED
     )
+    # Optional for every billing type; forced True for MILESTONE.
+    milestones_enabled: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="false"
+    )
+    # RETAINER only: fixed amount billed every `retainer_interval`.
+    retainer_amount: Mapped[Optional[Decimal]] = mapped_column(
+        Numeric(precision=18, scale=4), nullable=True
+    )
+    retainer_interval: Mapped[Optional[RecurrenceInterval]] = mapped_column(
+        Enum(RecurrenceInterval), nullable=True
+    )
+    retainer_start_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
     due_date: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # `total_time_spent_minutes` (SUM of time_entries.duration_minutes) is a

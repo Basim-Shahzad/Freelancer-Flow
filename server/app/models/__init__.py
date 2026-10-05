@@ -6,7 +6,7 @@ from .ClientProfile import ClientProfile
 from .Project import Project
 from .RefreshToken import RefreshToken
 from .TimeEntry import TimeEntry
-from .Milestone import Milestone
+from .Milestone import Milestone, MilestoneStatus
 from .MilestoneApproval import MilestoneApproval
 from .FreelancerProfile import FreelancerProfile
 from .PortalAccessToken import PortalAccessToken
@@ -28,5 +28,26 @@ Project.total_time_spent_minutes = column_property(
     select(func.coalesce(func.sum(TimeEntry.duration_minutes), 0))
     .where(TimeEntry.project_id == Project.id)
     .correlate_except(TimeEntry)
+    .scalar_subquery()
+)
+
+
+# Milestone counts for `progress_percent` (derived, never stored; scalar
+# subqueries avoid an N+1 on project lists).
+Project.milestone_total = column_property(
+    select(func.count(Milestone.id))
+    .where(Milestone.project_id == Project.id)
+    .correlate_except(Milestone)
+    .scalar_subquery()
+)
+Project.milestone_done = column_property(
+    select(func.count(Milestone.id))
+    .where(
+        Milestone.project_id == Project.id,
+        Milestone.status.in_(
+            [MilestoneStatus.APPROVED, MilestoneStatus.SUBMITTED]
+        ),
+    )
+    .correlate_except(Milestone)
     .scalar_subquery()
 )
