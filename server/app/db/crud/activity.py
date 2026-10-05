@@ -33,7 +33,7 @@ def _same(old: Any, new: Any) -> bool:
 
 
 # Encrypted columns: the audit feed records that they changed, never the values.
-_REDACTED_FIELDS = frozenset({"tax_id", "tax_registration_number"})
+_REDACTED_FIELDS = frozenset({"tax_id", "tax_registration_number", "details"})
 _REDACTED = "[redacted]"
 
 
