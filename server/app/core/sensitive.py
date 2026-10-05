@@ -19,6 +19,7 @@ from cryptography.fernet import Fernet, InvalidToken
 from sqlalchemy import Text
 from sqlalchemy.types import TypeDecorator
 
+from app.core.bank_validators import iban_mod97_ok
 from app.core.config import settings
 
 # ── Detection ─────────────────────────────────────────────────────────────────
@@ -53,10 +54,7 @@ def contains_card_number(text: str) -> bool:
 def contains_iban(text: str) -> bool:
     """An IBAN that passes the mod-97 check."""
     for match in _IBAN.finditer(text.upper()):
-        iban = match.group().replace(" ", "")
-        rearranged = iban[4:] + iban[:4]
-        numeric = "".join(str(int(c, 36)) for c in rearranged)
-        if int(numeric) % 97 == 1:
+        if iban_mod97_ok(match.group().replace(" ", "")):
             return True
     return False
 
