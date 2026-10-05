@@ -18,6 +18,7 @@ os.environ["APP_ENV"] = "development"
 os.environ["DEBUG"] = "false"
 os.environ["CORS_ORIGINS"] = ""
 os.environ["ALLOWED_HOSTS"] = ""
+os.environ["FX_AUTO_FETCH"] = "false"
 
 import uuid
 from datetime import datetime, timedelta, timezone

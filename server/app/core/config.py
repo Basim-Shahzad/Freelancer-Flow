@@ -43,6 +43,16 @@ class Settings(BaseSettings):
     # Guards against nagging a client: minimum gap between reminders.
     INVOICE_REMINDER_MIN_INTERVAL_HOURS: int = 24
 
+    # Reference data / exchange rates (display-only, never used in totals)
+    FX_API_URL: str = "https://open.er-api.com/v6/latest/USD"
+    FX_MAX_AGE_HOURS: int = 24
+    FX_CURRENCIES: str = "PKR,EUR,GBP,AED"
+    FX_AUTO_FETCH: bool = True
+
+    @property
+    def fx_currencies_list(self) -> list[str]:
+        return [c.strip().upper() for c in self.FX_CURRENCIES.split(",") if c.strip()]
+
     # CORS — stored as a plain string, parsed into a list via the property below
     # We use str here to bypass pydantic-settings' JSON-parsing for list fields
     CORS_ORIGINS: str = ""
