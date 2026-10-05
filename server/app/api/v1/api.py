@@ -11,6 +11,7 @@ from app.api.v1.endpoints import (
     payments,
     profile,
     projects,
+    reference,
     time_entries,
     tax,
 )
@@ -29,4 +30,5 @@ api_router.include_router(payments.router)
 api_router.include_router(expenses.router)
 api_router.include_router(tax.router)
 api_router.include_router(activity.router)
+api_router.include_router(reference.router)
 api_router.include_router(client_portal.router)
