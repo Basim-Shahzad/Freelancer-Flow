@@ -1,5 +1,8 @@
-import ProjectsPageClient from "@/features/projects/components/ProjectsPage";
+import type { Metadata } from "next";
+import { ProjectsView } from "@/components/projects/projects-view";
+
+export const metadata: Metadata = { title: "Projects" };
 
 export default function ProjectsPage() {
-   return <ProjectsPageClient />;
+  return <ProjectsView />;
 }
