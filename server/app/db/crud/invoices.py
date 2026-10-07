@@ -15,11 +15,13 @@ from app.core.errors import Conflict, NotFound, RateLimited, Unprocessable
 from app.db.crud.portal_tokens import issue_portal_token
 from app.core.config import settings
 from app.db.crud.activity import diff_changes, log_activity
+from app.db.crud.payment_methods import list_methods
 from app.db.crud.projects import get_project_by_id
 from app.models.FreelancerProfile import FreelancerProfile
 from app.db.crud.currency import resolve_currency
 from app.models.Invoice import Invoice, InvoiceStatus, InvoiceTax
 from app.models.InvoiceItem import InvoiceItem
+from app.models.InvoicePaymentMethod import InvoicePaymentMethod
 from app.models.InvoiceEvent import InvoiceEvent, InvoiceEventType
 from app.models.Milestone import Milestone, MilestoneStatus
 from app.models.PortalAccessToken import PortalAccessToken, ScopeType
@@ -278,6 +280,38 @@ def _tax_rows(totals: Totals) -> list[InvoiceTax]:
     ]
 
 
+async def _payment_method_snapshots(
+    db: AsyncSession,
+    freelancer: FreelancerProfile,
+    method_ids: Optional[list[uuid.UUID]],
+) -> list[InvoicePaymentMethod]:
+    """Copy payment methods onto an invoice (``None`` = the active defaults)."""
+    available = await list_methods(db, freelancer.id, include_inactive=False)
+    if method_ids is None:
+        chosen = [m for m in available if m.is_default]
+    else:
+        if len(set(method_ids)) != len(method_ids):
+            raise Unprocessable("payment_method_ids contains duplicates")
+        by_id = {m.id: m for m in available}
+        unknown = [str(i) for i in method_ids if i not in by_id]
+        if unknown:
+            raise Unprocessable(
+                "Unknown or inactive payment method(s): " + ", ".join(unknown)
+            )
+        chosen = [by_id[i] for i in method_ids]
+    return [
+        InvoicePaymentMethod(
+            sort_order=i,
+            type=m.type,
+            label=m.label,
+            currency=m.currency,
+            details=m.details,
+            source_method_id=m.id,
+        )
+        for i, m in enumerate(chosen)
+    ]
+
+
 async def create_invoice(
     db: AsyncSession,
     data: InvoiceCreate,
@@ -333,6 +367,9 @@ async def create_invoice(
         client_id=client.id,
         project_id=project.id,
         items=items,
+        payment_methods=await _payment_method_snapshots(
+            db, freelancer, data.payment_method_ids
+        ),
         subtotal=subtotal,
         discount_rate=data.discount_rate,
         discount_amount=totals.discount_amount,
@@ -379,7 +416,13 @@ async def update_invoice(
         raise Conflict("Only draft invoices can be edited")
 
     update_data = data.model_dump(exclude_unset=True)
-    for required in ("issue_date", "due_date", "taxes", "discount_rate"):
+    for required in (
+        "issue_date",
+        "due_date",
+        "taxes",
+        "discount_rate",
+        "payment_method_ids",
+    ):
         if required in update_data and update_data[required] is None:
             raise Unprocessable(f"{required} cannot be null")
 
@@ -389,7 +432,20 @@ async def update_invoice(
         raise Unprocessable("due_date cannot be before issue_date")
 
     new_taxes = update_data.pop("taxes", None)
+    new_method_ids = update_data.pop("payment_method_ids", None)
     changes = diff_changes(invoice, update_data)
+    if new_method_ids is not None:
+        old_labels = [m.label for m in invoice.payment_methods]
+        invoice.payment_methods = await _payment_method_snapshots(
+            db, freelancer, new_method_ids
+        )
+        new_labels = [m.label for m in invoice.payment_methods]
+        if old_labels != new_labels:
+            # Labels only: the details (IBANs...) never enter the audit feed.
+            changes = {
+                **changes,
+                "payment_methods": {"old": old_labels, "new": new_labels},
+            }
     for field, value in update_data.items():
         setattr(invoice, field, value)
     if new_taxes is not None or "discount_rate" in update_data:

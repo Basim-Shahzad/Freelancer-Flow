@@ -1,18 +1,27 @@
 from __future__ import annotations
 import enum
+import json
 import uuid
 from decimal import Decimal
-from typing import Optional
+from typing import Any, Optional
 
-from pydantic import Field, computed_field, model_validator
+from pydantic import Field, computed_field, field_validator, model_validator
 
 from app.models.Invoice import InvoiceStatus
 from app.models.InvoiceEvent import InvoiceEventType
+from app.models.PaymentMethodConfig import PaymentMethodType
 
 from .Base import Base
 from .PaymentSchema import PaymentResponse
 from .TaxSchema import TaxInput, TaxLineResponse
 from .types import ClientFacingText, CurrencyCode, Money, Percent, UTCDateTime
+
+
+# Money Rule: shown with every payment-instructions block.
+PAYMENT_DISCLAIMER = (
+    "Paylancr does not process payments. "
+    "Pay the freelancer directly using the details below."
+)
 
 
 class InvoiceDisplayStatus(str, enum.Enum):
@@ -74,6 +83,12 @@ class InvoiceCreate(Base):
         description="How the client should pay (e.g. bank account / IBAN). "
         "Omit to use the profile's default; null for none.",
     )
+    payment_method_ids: Optional[list[uuid.UUID]] = Field(
+        default=None,
+        max_length=20,
+        description="Payment methods to show the client (snapshotted). Omit to use "
+        "your active default methods; [] for none.",
+    )
     items: list[InvoiceItemCreate] = Field(default_factory=list, max_length=200)
     time_entry_ids: list[uuid.UUID] = Field(default_factory=list, max_length=1000)
     milestone_ids: list[uuid.UUID] = Field(default_factory=list, max_length=200)
@@ -103,6 +118,11 @@ class InvoiceUpdate(Base):
     discount_rate: Optional[Percent] = None
     notes: Optional[ClientFacingText] = Field(default=None, max_length=5000)
     payment_instructions: Optional[ClientFacingText] = Field(default=None, max_length=2000)
+    payment_method_ids: Optional[list[uuid.UUID]] = Field(
+        default=None,
+        max_length=20,
+        description="Replaces the snapshotted payment methods. [] for none.",
+    )
 
 
 class InvoiceWriteOff(Base):
@@ -122,6 +142,29 @@ class InvoiceItemResponse(Base):
     amount: Money
     time_entry_id: Optional[uuid.UUID] = None
     milestone_id: Optional[uuid.UUID] = None
+
+
+class InvoicePaymentMethodResponse(Base):
+    """A snapshotted payment method (details are the freelancer's, as issued)."""
+
+    id: uuid.UUID
+    type: PaymentMethodType
+    label: str
+    currency: Optional[str] = None
+    details: dict[str, Any]
+
+    @field_validator("details", mode="before")
+    @classmethod
+    def _parse_details(cls, v):
+        return json.loads(v) if isinstance(v, str) else v
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def pay_link(self) -> Optional[str]:
+        """Payoneer payment-request link: a link-out only, never a charge."""
+        if self.type == PaymentMethodType.PAYONEER:
+            return self.details.get("paymentRequestUrl")
+        return None
 
 
 class InvoiceParty(Base):
@@ -154,6 +197,7 @@ class InvoiceResponse(Base):
     issuer: InvoiceIssuer
     items: list[InvoiceItemResponse]
     payments: list[PaymentResponse]
+    payment_methods: list[InvoicePaymentMethodResponse]
     subtotal: Money
     discount_rate: Decimal
     discount_amount: Money
@@ -174,6 +218,11 @@ class InvoiceResponse(Base):
     )
     created_at: UTCDateTime
     updated_at: UTCDateTime
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def payment_disclaimer(self) -> str:
+        return PAYMENT_DISCLAIMER
 
     @computed_field  # type: ignore[prop-decorator]
     @property

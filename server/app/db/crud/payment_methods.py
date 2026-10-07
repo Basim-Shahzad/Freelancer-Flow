@@ -10,13 +10,14 @@ import json
 import uuid
 from typing import Optional
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import NotFound, Unprocessable
 from app.db.crud.activity import log_activity
 from app.db.crud.reference import get_esfca_purpose_of_payment
 from app.models.FreelancerProfile import FreelancerProfile
+from app.models.InvoicePaymentMethod import InvoicePaymentMethod
 from app.models.PaymentMethodConfig import PaymentMethodConfig, PaymentMethodType
 from app.schemas.PaymentMethodSchema import (
     PaymentMethodCreate,
@@ -157,9 +158,15 @@ async def update_method(
 async def delete_method(
     db: AsyncSession, method_id: uuid.UUID, freelancer: FreelancerProfile
 ) -> None:
-    # Hard delete is safe: invoice snapshots (Step 5) are self-contained copies
-    # whose `source_method_id` is SET NULL. Use `is_active=false` to retire.
+    # Hard delete is safe: invoice snapshots are self-contained copies. Their
+    # `source_method_id` is SET NULL by the FK; we also do it explicitly so it
+    # holds on databases that don't enforce FKs. Use `is_active=false` to retire.
     method = await get_method_by_id(db, method_id, freelancer.id)
+    await db.execute(
+        update(InvoicePaymentMethod)
+        .where(InvoicePaymentMethod.source_method_id == method.id)
+        .values(source_method_id=None)
+    )
     log_activity(
         db,
         user_id=freelancer.user_id,
