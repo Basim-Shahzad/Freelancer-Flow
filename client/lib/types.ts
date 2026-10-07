@@ -122,7 +122,6 @@ export interface Payment {
   date: string;
   method: string;
   reference: string;
-  attachmentName?: string;
   recordedAt: string;
 }
 

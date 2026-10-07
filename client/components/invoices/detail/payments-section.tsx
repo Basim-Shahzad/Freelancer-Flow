@@ -1,6 +1,5 @@
 "use client";
 
-import { Paperclip } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -38,7 +37,6 @@ export function PaymentsSection({ invoice, canReverse, offline }: Props) {
             </div>
             <div className="flex flex-col items-end gap-1 text-xs text-muted-foreground">
               {p.reference && <span>Ref {p.reference}</span>}
-              {p.attachmentName && <span className="inline-flex items-center gap-1"><Paperclip className="size-3.5" aria-hidden="true" />{p.attachmentName}</span>}
               {canReverse && (
                 <Button variant="link" disabled={offline} onClick={() => setTarget(p)} className="min-h-9 text-xs text-error-ink">
                   Reverse<span className="sr-only"> payment of {formatMoney(p.amount, invoice.currency)}</span>

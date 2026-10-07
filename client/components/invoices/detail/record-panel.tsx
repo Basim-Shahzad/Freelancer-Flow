@@ -1,14 +1,13 @@
 "use client";
 
-import { Paperclip } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input, InputAffix } from "@/components/ui/input";
 import { FormSelect } from "@/components/ui/select";
-import { Field, Label } from "@/components/ui/label";
+import { Field } from "@/components/ui/label";
 import { Notice } from "@/components/ui/notice";
 import { todayISO } from "@/lib/dates";
 import { formatAmount, formatMoney, parseAmount } from "@/lib/money";
@@ -23,7 +22,6 @@ interface Props { invoice: Invoice; balance: number; methods: PaymentMethod[]; o
 export function RecordPanel({ invoice, balance, methods, onClose }: Props) {
   const recordPayment = useAppStore((s) => s.recordPayment);
   const ref = useRef<HTMLElement>(null);
-  const [fileName, setFileName] = useState<string>();
   const options = [...new Set([...methods.map((m) => methodTitle(m)), "Other"])];
   const preferred = methods.find((m) => invoice.paymentMethodIds[0] === m.id);
 
@@ -35,7 +33,7 @@ export function RecordPanel({ invoice, balance, methods, onClose }: Props) {
 
   const submit = handleSubmit((v) => {
     const amount = parseAmount(v.amount) ?? 0;
-    recordPayment(invoice.id, { amount, date: v.date, method: v.method, reference: v.reference, attachmentName: fileName });
+    recordPayment(invoice.id, { amount, date: v.date, method: v.method, reference: v.reference });
     toast.success(`Payment recorded · ${formatMoney(amount, invoice.currency)}`);
     onClose();
   });
@@ -53,17 +51,6 @@ export function RecordPanel({ invoice, balance, methods, onClose }: Props) {
             <FormSelect id="rp-m" control={control} name="method" options={options.map((o) => ({ value: o, label: o }))} />
           </Field>
           <Field label="Reference" htmlFor="rp-r" optional error={errors.reference?.message}><Input id="rp-r" placeholder="Transaction ID" {...register("reference")} /></Field>
-          <div className="flex flex-col gap-2 @2xl:col-span-2">
-            <span className="text-sm font-semibold">Attachment <span className="font-normal text-muted-foreground">(optional)</span></span>
-            <div className="flex flex-wrap items-center gap-3">
-              <Label className="inline-flex min-h-9 cursor-pointer items-center gap-2 rounded-lg border border-rule px-3 text-xs font-semibold hover:bg-hover focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-ring">
-                <Paperclip className="size-4" aria-hidden="true" />{fileName ? "Change file" : "Attach receipt"}
-                <Input type="file" accept="application/pdf,image/*" className="sr-only min-h-0" onChange={(e) => setFileName(e.target.files?.[0]?.name)} />
-              </Label>
-              {fileName && <span className="text-sm">{fileName}</span>}
-            </div>
-            <span className="text-xs text-muted-foreground">PDF or image, up to 10 MB. Only the file name is kept in this demo.</span>
-          </div>
         </div>
         <Notice>If your client withheld tax, record the full invoice amount and note the withholding. Withholding is recorded at receipt, not on the invoice.</Notice>
         <div className="flex flex-wrap gap-2">

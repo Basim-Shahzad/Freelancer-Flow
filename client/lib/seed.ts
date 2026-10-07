@@ -89,7 +89,7 @@ export const seedInvoices: Invoice[] = [
     id: "inv-41", number: "INV-0041", clientId: "c-harbor", projectId: "p-harbor", currency: "USD", status: "unpaid",
     issueDate: d(-32), dueDate: d(-18), lines: [line("l41a", "Mobile app · Sep sprint", 44, 4500, "manual")],
     taxPercent: 0, discount: 0, paymentMethodIds: ["pm-payoneer", "pm-esfca"], note: "", shareToken: "inv41-Vb8D",
-    payments: [{ id: "pay41a", amount: 198000, date: d(-10), method: "ESFCA wire", reference: "SCB-220914", attachmentName: "swift-copy.pdf", recordedAt: ts(-10, "08:20") }],
+    payments: [{ id: "pay41a", amount: 198000, date: d(-10), method: "ESFCA wire", reference: "SCB-220914", recordedAt: ts(-10, "08:20") }],
     events: [ev("e41a", "created", -32, "Invoice created"), ev("e41b", "sent", -32, "Sent by email"), ev("e41c", "payment", -10, "Payment recorded · USD 1,980.00", "08:20"), ev("e41d", "paid", -10, "Marked paid", "08:20")],
   },
   {
