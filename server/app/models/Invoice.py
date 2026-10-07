@@ -26,6 +26,7 @@ if TYPE_CHECKING:
     from app.models.FreelancerProfile import FreelancerProfile
     from app.models.InvoiceItem import InvoiceItem
     from app.models.Payment import Payment
+    from app.models.InvoicePaymentMethod import InvoicePaymentMethod
 
 
 class InvoiceStatus(str, enum.Enum):
@@ -101,6 +102,12 @@ class Invoice(Base):
         cascade="all, delete-orphan",
         lazy="selectin",
         order_by="InvoiceTax.sort_order",
+    )
+    payment_methods: Mapped[list["InvoicePaymentMethod"]] = relationship(
+        back_populates="invoice",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+        order_by="InvoicePaymentMethod.sort_order",
     )
     # Shown on the invoice when no/zero tax applies (reverse charge, exempt...).
     tax_note: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)

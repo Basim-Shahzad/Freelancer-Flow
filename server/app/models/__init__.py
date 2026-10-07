@@ -20,6 +20,7 @@ from .ChangeRequest import ChangeRequest
 from .ActivityEvent import ActivityEvent
 from .ReferenceSetting import ReferenceSetting
 from .PaymentMethodConfig import PaymentMethodConfig
+from .InvoicePaymentMethod import InvoicePaymentMethod
 
 # Derived, never stored: total tracked minutes per project (replaces the old
 # `Project.total_time_spent` column, which duplicated this SUM and drifted).
