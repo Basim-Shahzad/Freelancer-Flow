@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
+import { useSession } from "@/lib/hooks/auth";
 import { useHydrated } from "@/lib/hooks/use-hydrated";
 import { useAppStore } from "@/lib/store";
 
@@ -9,9 +10,9 @@ import { useAppStore } from "@/lib/store";
 export function useSignedInRedirect(): void {
   const router = useRouter();
   const hydrated = useHydrated();
-  const signedIn = useAppStore((s) => s.session.signedIn);
+  const { isAuthenticated } = useSession();
   const onboarded = useAppStore((s) => s.session.onboarded);
   useEffect(() => {
-    if (hydrated && signedIn && onboarded) router.replace("/dashboard");
-  }, [hydrated, signedIn, onboarded, router]);
+    if (hydrated && isAuthenticated && onboarded) router.replace("/dashboard");
+  }, [hydrated, isAuthenticated, onboarded, router]);
 }

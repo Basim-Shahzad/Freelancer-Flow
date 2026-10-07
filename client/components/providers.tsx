@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider } from "next-themes";
 import { Toaster } from "sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { useAuthBootstrap } from "@/lib/hooks/auth";
 import { useOnlineSync } from "@/lib/hooks/use-online";
 import { useAppStore } from "@/lib/store";
 
@@ -16,11 +18,16 @@ function StoreBootstrap() {
     else done();
   }, []);
   useOnlineSync();
+  useAuthBootstrap();
   return null;
 }
 
 export function Providers({ children }: { children: React.ReactNode }) {
+  const [queryClient] = useState(
+    () => new QueryClient({ defaultOptions: { queries: { retry: false, refetchOnWindowFocus: false } } }),
+  );
   return (
+    <QueryClientProvider client={queryClient}>
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
       <TooltipProvider delayDuration={200}>
         <StoreBootstrap />
@@ -36,5 +43,6 @@ export function Providers({ children }: { children: React.ReactNode }) {
         />
       </TooltipProvider>
     </ThemeProvider>
+    </QueryClientProvider>
   );
 }

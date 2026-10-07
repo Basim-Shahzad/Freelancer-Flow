@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { PageSkeleton } from "@/components/ui/skeleton";
+import { useSession } from "@/lib/hooks/auth";
 import { useHydrated } from "@/lib/hooks/use-hydrated";
 import { useAppStore } from "@/lib/store";
 import { sleep } from "../form-bits";
@@ -28,17 +29,18 @@ const HEADS: [string, string][] = [
 export function OnboardingFlow() {
   const router = useRouter();
   const hydrated = useHydrated();
-  const signedIn = useAppStore((s) => s.session.signedIn);
+  const { status, user } = useSession();
+  const signedIn = status === "authenticated";
   const onboarded = useAppStore((s) => s.session.onboarded);
-  const name = useAppStore((s) => s.session.user?.name);
-  const email = useAppStore((s) => s.session.user?.email);
+  const name = user?.fullName ?? undefined;
+  const email = user?.email;
   const finishing = useRef(false);
 
   useEffect(() => {
     if (!hydrated || finishing.current) return;
-    if (!signedIn) router.replace("/login");
-    else if (onboarded) router.replace("/dashboard");
-  }, [hydrated, signedIn, onboarded, router]);
+    if (status === "unauthenticated") router.replace("/login");
+    else if (signedIn && onboarded) router.replace("/dashboard");
+  }, [hydrated, status, signedIn, onboarded, router]);
 
   if (!hydrated || !signedIn || onboarded) return <main id="main" tabIndex={-1} className="outline-none"><PageSkeleton /></main>;
   return <Wizard name={name} email={email ?? ""} finishing={finishing} />;

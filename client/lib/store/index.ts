@@ -58,10 +58,8 @@ interface Actions {
   setOnline(v: boolean): void;
   markSynced(): void;
 
-  // session (mock auth: replace with real provider)
-  signUp(input: { name: string; email: string }): void;
-  logIn(input: { email: string }): void;
-  logOut(): void;
+  /** Onboarding is not tracked by the backend yet, so it is a local flag. */
+  setOnboarded(v: boolean): void;
   completeOnboarding(input: { business: Partial<BusinessProfile>; client?: Omit<Client, "id" | "createdAt">; method?: Omit<PaymentMethod, "id" | "isDefault" | "enabled"> }): void;
 
   updateBusiness(patch: Partial<BusinessProfile>): void;
@@ -115,7 +113,7 @@ export type AppStore = State & Actions;
 const initial = (): State => ({
   hydrated: false,
   online: true,
-  session: { signedIn: true, onboarded: true, user: { name: "Ayesha Malik", email: "ayesha@maliks.studio" } },
+  session: { onboarded: true },
   business: seedBusiness,
   clients: seedClients,
   projects: seedProjects,
@@ -145,9 +143,7 @@ export const useAppStore = create<AppStore>()(
         setOnline: (online) => set({ online }),
         markSynced: () => set((s) => ({ time: s.time.map((t) => (t.unsynced ? { ...t, unsynced: false } : t)) })),
 
-        signUp: ({ name, email }) => set({ session: { signedIn: true, onboarded: false, user: { name, email } } }),
-        logIn: ({ email }) => set((s) => ({ session: { signedIn: true, onboarded: true, user: s.session.user ?? { name: email.split("@")[0] ?? "You", email } } })),
-        logOut: () => set((s) => ({ session: { ...s.session, signedIn: false } })),
+        setOnboarded: (v) => set({ session: { onboarded: v } }),
         completeOnboarding: ({ business, client, method }) => {
           set((s) => ({ business: { ...s.business, ...business }, session: { ...s.session, onboarded: true } }));
           if (client) get().addClient(client);

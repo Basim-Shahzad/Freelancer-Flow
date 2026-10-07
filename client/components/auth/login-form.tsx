@@ -12,24 +12,23 @@ import { Input } from "@/components/ui/input";
 import { Notice } from "@/components/ui/notice";
 import { Switch } from "@/components/ui/switch";
 import { useIsOnline } from "@/lib/hooks/use-online";
-import { useAppStore } from "@/lib/store";
-import { OfflineNotice, PasswordInput, describedBy, sleep } from "./form-bits";
+import { useLogin } from "@/lib/hooks/auth";
+import { getApiErrorMessage, getApiErrorStatus } from "@/lib/services/api.service";
+import { OfflineNotice, PasswordInput, describedBy } from "./form-bits";
 import { logInSchema, type LogInValues } from "./schemas";
 import { useSignedInRedirect } from "./use-signed-in-redirect";
 
 const linkCls = "font-medium text-primary-ink underline decoration-1 underline-offset-[3px]";
 
-/** Mock credential check (replace with the auth provider): passwords under 8 characters are rejected. */
-export const credentialsOk = (_email: string, password: string) => password.length >= 8;
-
 export function LogInForm() {
   const router = useRouter();
   const online = useIsOnline();
-  const logIn = useAppStore((s) => s.logIn);
+  const login = useLogin();
   const [bad, setBad] = useState(false);
+  const [serverError, setServerError] = useState<string | null>(null);
   useSignedInRedirect();
 
-  const { register, control, handleSubmit, formState: { errors, isSubmitting } } = useForm<LogInValues>({
+  const { register, control, handleSubmit, formState: { errors } } = useForm<LogInValues>({
     resolver: zodResolver(logInSchema),
     defaultValues: { email: "", password: "", keep: true },
     mode: "onTouched",
@@ -37,20 +36,17 @@ export function LogInForm() {
 
   const onSubmit = handleSubmit(async (v) => {
     setBad(false);
-    await sleep(600);
-    if (!credentialsOk(v.email, v.password)) { setBad(true); return; }
-    const { session } = useAppStore.getState();
-    const pending = session.user?.email.toLowerCase() === v.email.toLowerCase() && !session.onboarded;
-    if (pending) {
-      // Signed up but never finished setup: resume onboarding instead of marking it done.
-      useAppStore.setState((s) => ({ session: { ...s.session, signedIn: true } }));
-      toast.success("Welcome back. Let’s finish setting up.");
-      router.push("/onboarding");
+    setServerError(null);
+    try {
+      await login.mutateAsync({ email: v.email, password: v.password });
+    } catch (e) {
+      const status = getApiErrorStatus(e);
+      if (status === 401 || status === 400) setBad(true);
+      else setServerError(getApiErrorMessage(e));
       return;
     }
-    logIn({ email: v.email });
     toast.success("Welcome back.");
-    router.push("/dashboard");
+    router.push("/dashboard"); // AppShell sends un-onboarded users on to /onboarding
   });
 
   const invalid = bad || undefined;
@@ -62,6 +58,7 @@ export function LogInForm() {
       </div>
 
       {bad && <Notice tone="error">That email and password don’t match. Check them and try again, or <Link href="/forgot-password" className={linkCls}>reset your password</Link>.</Notice>}
+      {serverError && <Notice tone="error">{serverError}</Notice>}
       {!online && <OfflineNotice>You’re offline. If you’re already logged in on this device, the timer keeps running and syncs later.</OfflineNotice>}
 
       <Field label="Email" htmlFor="li-email" error={errors.email?.message}>
@@ -81,7 +78,7 @@ export function LogInForm() {
         <Switch label="Keep me logged in on this device" checked={field.value} onCheckedChange={field.onChange} />
       )} />
 
-      <Button type="submit" block loading={isSubmitting} disabled={!online}>{isSubmitting ? "Logging in…" : "Log in"}</Button>
+      <Button type="submit" block loading={login.isPending} disabled={!online}>{login.isPending ? "Logging in…" : "Log in"}</Button>
       <hr className="m-0 border-0 border-t border-rule" />
       <p className="text-sm text-muted-foreground">New to Paylancr? <Link href="/signup" className={linkCls}>Create your studio</Link></p>
     </form>

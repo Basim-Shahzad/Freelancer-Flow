@@ -8,6 +8,7 @@ import { Logo } from "@/components/brand";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { PageSkeleton } from "@/components/ui/skeleton";
+import { useSession } from "@/lib/hooks/auth";
 import { useAppStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
 import { GlobalTimer } from "./global-timer";
@@ -23,13 +24,14 @@ const COLLAPSE_KEY = "paylancr-sidebar-collapsed";
 function useAuthGate() {
   const router = useRouter();
   const hydrated = useAppStore((s) => s.hydrated);
-  const session = useAppStore((s) => s.session);
+  const onboarded = useAppStore((s) => s.session.onboarded);
+  const { status, isAuthenticated } = useSession();
   useEffect(() => {
     if (!hydrated) return;
-    if (!session.signedIn) router.replace("/login");
-    else if (!session.onboarded) router.replace("/onboarding");
-  }, [hydrated, session.signedIn, session.onboarded, router]);
-  return hydrated && session.signedIn && session.onboarded;
+    if (status === "unauthenticated") router.replace("/login");
+    else if (isAuthenticated && !onboarded) router.replace("/onboarding");
+  }, [hydrated, status, isAuthenticated, onboarded, router]);
+  return hydrated && isAuthenticated && onboarded;
 }
 
 export function AppShell({ children }: { children: React.ReactNode }) {

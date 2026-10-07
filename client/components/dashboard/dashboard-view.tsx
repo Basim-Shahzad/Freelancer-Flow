@@ -12,6 +12,7 @@ import { PageSkeleton } from "@/components/ui/skeleton";
 import { todayISO } from "@/lib/dates";
 import { useHydrated } from "@/lib/hooks/use-hydrated";
 import { useAppStore } from "@/lib/store";
+import { useAuthStore } from "@/lib/store/auth";
 import { byDateDesc, toInvoiceView } from "@/lib/selectors";
 import { AttentionSection, PaymentsSection } from "./activity-sections";
 import { attentionInvoices, cashIn, monthRange, recentPayments, unbilledSummary } from "./aggregate";
@@ -31,7 +32,7 @@ export function DashboardView() {
   const invoices = useAppStore((s) => s.invoices);
   const time = useAppStore((s) => s.time);
   const base = useAppStore((s) => s.business.defaultCurrency);
-  const userName = useAppStore((s) => s.session.user?.name);
+  const userName = useAuthStore((s) => s.user?.fullName ?? undefined);
 
   const data = useMemo(() => {
     const today = todayISO();

@@ -10,10 +10,13 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Field, Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { Notice } from "@/components/ui/notice";
 import { FormSelect } from "@/components/ui/select";
 import { useIsOnline } from "@/lib/hooks/use-online";
+import { useRegister } from "@/lib/hooks/auth";
+import { getApiErrorMessage, getApiErrorStatus } from "@/lib/services/api.service";
 import { useAppStore } from "@/lib/store";
-import { InlineError, OfflineNotice, PasswordInput, describedBy, sleep } from "./form-bits";
+import { InlineError, OfflineNotice, PasswordInput, describedBy } from "./form-bits";
 import { COUNTRIES, COUNTRY_HINT_KEY, signUpSchema, type SignUpValues } from "./schemas";
 import { useSignedInRedirect } from "./use-signed-in-redirect";
 
@@ -22,8 +25,10 @@ const linkCls = "font-medium text-primary-ink underline decoration-1 underline-o
 export function SignUpForm() {
   const router = useRouter();
   const online = useIsOnline();
-  const signUp = useAppStore((s) => s.signUp);
+  const setOnboarded = useAppStore((s) => s.setOnboarded);
+  const register_ = useRegister();
   const [exists, setExists] = useState(false);
+  const [serverError, setServerError] = useState<string | null>(null);
   useSignedInRedirect();
 
   const form = useForm<SignUpValues>({
@@ -31,20 +36,22 @@ export function SignUpForm() {
     defaultValues: { name: "", email: "", password: "", country: "PK", terms: false },
     mode: "onTouched",
   });
-  const { register, control, handleSubmit, formState: { errors, isSubmitting } } = form;
+  const { register, control, handleSubmit, formState: { errors } } = form;
 
   const onSubmit = handleSubmit(async (v) => {
     setExists(false);
-    await sleep(600);
-    const st = useAppStore.getState();
-    const taken = [st.session.user?.email, st.business.email].filter(Boolean).map((e) => e?.toLowerCase());
-    if (taken.includes(v.email.toLowerCase())) {
-      setExists(true);
-      form.setError("email", { type: "exists", message: "An account with this email already exists." });
+    setServerError(null);
+    try {
+      await register_.mutateAsync({ fullName: v.name, email: v.email, password: v.password });
+    } catch (e) {
+      if (getApiErrorStatus(e) === 409) {
+        setExists(true);
+        form.setError("email", { type: "exists", message: "An account with this email already exists." });
+      } else setServerError(getApiErrorMessage(e));
       return;
     }
     try { sessionStorage.setItem(COUNTRY_HINT_KEY, v.country); } catch { /* optional hint only */ }
-    signUp({ name: v.name, email: v.email });
+    setOnboarded(false);
     toast.success("Account created. Let’s set up your studio.");
     router.push("/onboarding");
   });
@@ -56,6 +63,7 @@ export function SignUpForm() {
         <p className="text-sm text-muted-foreground">Free for up to two clients. No card needed.</p>
       </div>
 
+      {serverError && <Notice tone="error">{serverError}</Notice>}
       {!online && <OfflineNotice>You’re offline. Creating an account needs a connection.</OfflineNotice>}
 
       <Field label="Full name" htmlFor="su-name" error={errors.name?.message}>
@@ -91,7 +99,7 @@ export function SignUpForm() {
         {errors.terms?.message && <InlineError id="su-terms-error">{errors.terms.message}</InlineError>}
       </div>
 
-      <Button type="submit" block loading={isSubmitting} disabled={!online}>{isSubmitting ? "Creating account…" : "Create account"}</Button>
+      <Button type="submit" block loading={register_.isPending} disabled={!online}>{register_.isPending ? "Creating account…" : "Create account"}</Button>
       <hr className="m-0 border-0 border-t border-rule" />
       <p className="text-sm text-muted-foreground">Already have an account? <Link href="/login" className={linkCls}>Log in</Link></p>
     </form>

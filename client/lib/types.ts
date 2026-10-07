@@ -214,10 +214,9 @@ export interface TimerState {
   startedAt?: string;
 }
 
+/** Local-only app state. Identity (user, tokens) lives in `lib/store/auth.ts`. */
 export interface Session {
-  signedIn: boolean;
   onboarded: boolean;
-  user?: { name: string; email: string };
 }
 
 export interface DataExport {
