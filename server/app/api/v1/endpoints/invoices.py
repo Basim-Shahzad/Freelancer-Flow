@@ -3,7 +3,7 @@ from __future__ import annotations
 import uuid
 from typing import Optional
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Query, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies.auth import CurrentFreelancer
@@ -21,6 +21,8 @@ from app.db.crud.invoices import (
     write_off_invoice,
 )
 from app.db.database import get_db
+from app.services import fx_fetch
+from app.services.pdf import pdf_response
 from app.schemas.InvoiceSchema import (
     InvoiceCreate,
     InvoiceDisplayStatus,
@@ -102,6 +104,26 @@ async def get_invoice(
     db: AsyncSession = Depends(get_db),
 ):
     return await get_invoice_by_id(db, invoice_id, freelancer.id)
+
+
+@router.get(
+    "/{invoice_id}/pdf",
+    response_class=Response,
+    responses={
+        200: {"content": {"application/pdf": {}}, "description": "The invoice PDF."},
+        **errors(401, 403, 404),
+    },
+    summary="Download an invoice as PDF",
+    description="Drafts are marked DRAFT. PKR/USD invoices carry a reference-rate "
+    "line (an estimate, never used in totals).",
+)
+async def get_invoice_pdf(
+    invoice_id: uuid.UUID,
+    freelancer: CurrentFreelancer,
+    db: AsyncSession = Depends(get_db),
+):
+    invoice = await get_invoice_by_id(db, invoice_id, freelancer.id)
+    return pdf_response(invoice, await fx_fetch.get_exchange_rates(db))
 
 
 @router.patch(

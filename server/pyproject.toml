@@ -26,11 +26,13 @@ dependencies = [
     "tzdata>=2026.4",
     "uvicorn[standard]==0.48.0",
     "websockets==16.0",
+    "xhtml2pdf>=0.2.23",
 ]
 
 [dependency-groups]
 dev = [
     "aiosqlite>=0.22.1",
+    "pypdf>=6.19.0",
 ]
 
 [tool.pytest.ini_options]

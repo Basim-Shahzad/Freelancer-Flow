@@ -3,12 +3,12 @@ from uuid import UUID
 
 from typing import Optional
 
-from fastapi import APIRouter, Body, Depends, Request
+from fastapi import APIRouter, Body, Depends, Request, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies.client_portal import PortalSession, get_portal_session
 from app.api.v1.openapi import errors
-from app.db.crud.invoices import mark_invoice_viewed
+from app.db.crud.invoices import get_client_invoice, mark_invoice_viewed
 from app.db.crud import portal as portal_crud
 from app.db.database import get_db
 from app.schemas.MilestoneSchema import MilestoneDecision, MilestoneResponse
@@ -19,6 +19,7 @@ from app.schemas.PortalSchema import (
     PortalProjectResponse,
 )
 from app.services import fx_fetch
+from app.services.pdf import pdf_response
 from app.models.MilestoneApproval import MilestoneApprovalDecision
 from app.models.PortalAccessToken import ScopeType
 
@@ -145,6 +146,27 @@ async def get_portal_invoice(
         await fx_fetch.get_exchange_rates(db)
     )
     return response
+
+
+@router.get(
+    "/invoice/{invoice_id}/pdf",
+    response_class=Response,
+    responses={
+        200: {"content": {"application/pdf": {}}, "description": "The invoice PDF."},
+        **errors(401, 403, 404),
+    },
+    summary="Download an invoice as PDF (client portal)",
+    description="Requires an invoice-scoped link, like the invoice view. Does not "
+    "count as a view.",
+)
+async def get_portal_invoice_pdf(
+    invoice_id: UUID,
+    session: PortalSession = Depends(get_portal_session),
+    db: AsyncSession = Depends(get_db),
+):
+    portal_crud.require_scope(session.token, ScopeType.INVOICE, invoice_id)
+    invoice = await get_client_invoice(db, invoice_id, session.client.id)
+    return pdf_response(invoice, await fx_fetch.get_exchange_rates(db))
 
 
 # ---------------------------------------------------------------------------

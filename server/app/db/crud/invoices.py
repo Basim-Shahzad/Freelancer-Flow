@@ -723,13 +723,10 @@ async def write_off_invoice(
     return await get_invoice_by_id(db, invoice.id, freelancer.id, refresh=True)
 
 
-async def mark_invoice_viewed(
-    db: AsyncSession,
-    invoice_id: uuid.UUID,
-    client_id: uuid.UUID,
-    ip_address: Optional[str],
+async def get_client_invoice(
+    db: AsyncSession, invoice_id: uuid.UUID, client_id: uuid.UUID
 ) -> Invoice:
-    """Portal read: return the invoice and stamp the first view."""
+    """Portal read without side effects: a non-draft invoice owned by the client."""
     invoice = (
         await db.execute(
             select(Invoice)
@@ -743,6 +740,17 @@ async def mark_invoice_viewed(
     ).scalar_one_or_none()
     if invoice is None:
         raise NotFound("Invoice not found")
+    return invoice
+
+
+async def mark_invoice_viewed(
+    db: AsyncSession,
+    invoice_id: uuid.UUID,
+    client_id: uuid.UUID,
+    ip_address: Optional[str],
+) -> Invoice:
+    """Portal read: return the invoice and stamp the first view."""
+    invoice = await get_client_invoice(db, invoice_id, client_id)
     if invoice.viewed_at is None:
         invoice.viewed_at = _now()
         add_event(db, invoice.id, InvoiceEventType.VIEWED, ip_address=ip_address)
