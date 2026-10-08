@@ -1,0 +1,9 @@
+Hi {{ client_name }},
+
+{{ issuer_name }} sent you invoice {{ invoice_number }} for {{ total }}, due {{ due_date }}.
+
+View it here: {{ portal_url }}
+{% if has_attachment %}
+The invoice is also attached as a PDF.
+{% endif %}
+Paylancr does not process payments; pay the sender directly using the details on the invoice.

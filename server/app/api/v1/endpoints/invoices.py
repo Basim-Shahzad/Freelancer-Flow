@@ -163,8 +163,10 @@ async def delete_draft_invoice(
     response_model=InvoiceSendResponse,
     summary="Send an invoice to the client",
     description="DRAFT -> SENT (stamps `sentAt`, logs a SENT event) and emails the "
-    "client a link scoped to this invoice. Calling it again on an open invoice "
-    "re-sends with a fresh link.",
+    "client a link scoped to this invoice, with the PDF attached. Calling it again "
+    "on an open invoice re-sends with a fresh link. If the email cannot be "
+    "delivered the status change still stands: `emailDelivered` is false and an "
+    "EMAIL_FAILED event is recorded; send again to retry.",
     responses=errors(401, 403, 404, 409),
 )
 async def send_existing_invoice(
@@ -172,8 +174,8 @@ async def send_existing_invoice(
     freelancer: CurrentFreelancer,
     db: AsyncSession = Depends(get_db),
 ):
-    invoice, url = await send_invoice(db, invoice_id, freelancer)
-    return InvoiceSendResponse(invoice=invoice, portal_url=url)
+    invoice, url, delivered = await send_invoice(db, invoice_id, freelancer)
+    return InvoiceSendResponse(invoice=invoice, portal_url=url, email_delivered=delivered)
 
 
 @router.post(
@@ -189,8 +191,8 @@ async def remind_existing_invoice(
     freelancer: CurrentFreelancer,
     db: AsyncSession = Depends(get_db),
 ):
-    invoice, url = await remind_invoice(db, invoice_id, freelancer)
-    return InvoiceSendResponse(invoice=invoice, portal_url=url)
+    invoice, url, delivered = await remind_invoice(db, invoice_id, freelancer)
+    return InvoiceSendResponse(invoice=invoice, portal_url=url, email_delivered=delivered)
 
 
 @router.post(

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import asyncio
+import logging
 import uuid
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
@@ -31,10 +33,13 @@ from app.schemas.InvoiceSchema import (
     InvoiceDisplayStatus,
     InvoiceUpdate,
 )
+from app.services import fx_fetch
 from app.services.email_service import (
+    Attachment,
     send_invoice_email,
     send_invoice_reminder_email,
 )
+from app.services.pdf import render_invoice_pdf
 from app.services.invoicing import (
     TaxSpec,
     Totals,
@@ -43,6 +48,10 @@ from app.services.invoicing import (
     line_amount,
     time_entry_amount,
 )
+
+logger = logging.getLogger(__name__)
+
+REMINDER_EMAIL_LABEL = "Reminder email"
 
 # Statuses in which an invoice is awaiting money.
 OPEN_STATUSES = (InvoiceStatus.SENT, InvoiceStatus.PARTIALLY_PAID)
@@ -542,13 +551,75 @@ def portal_url(invoice_id: uuid.UUID, token: str) -> str:
     return f"{base}/portal/invoices/{invoice_id}?token={token}"
 
 
+def _issuer_name(invoice: Invoice) -> str:
+    return invoice.issuer["name"] or "Your freelancer"
+
+
+def _reply_to(invoice: Invoice) -> Optional[str]:
+    user = invoice.freelancer.user
+    return user.email if user else None
+
+
+async def _email_invoice(db: AsyncSession, invoice: Invoice, url: str) -> None:
+    """Email the invoice link with the PDF attached (link-only if the PDF fails)."""
+    attachments: list[Attachment] = []
+    try:
+        rates = await fx_fetch.get_exchange_rates(db)
+        pdf = await asyncio.to_thread(render_invoice_pdf, invoice, rates)
+        attachments.append(Attachment(f"{invoice.invoice_number}.pdf", pdf))
+    except Exception:
+        logger.exception("Could not render PDF for invoice %s; sending without it", invoice.id)
+    await send_invoice_email(
+        to_email=invoice.client.email,
+        client_name=invoice.client.name,
+        invoice_number=invoice.invoice_number,
+        total=str(invoice.total),
+        currency=invoice.currency,
+        due_date=invoice.due_date,
+        portal_url=url,
+        issuer_name=_issuer_name(invoice),
+        reply_to=_reply_to(invoice),
+        attachments=attachments,
+    )
+
+
+async def _email_reminder(invoice: Invoice, url: str) -> None:
+    await send_invoice_reminder_email(
+        to_email=invoice.client.email,
+        client_name=invoice.client.name,
+        invoice_number=invoice.invoice_number,
+        balance_due=str(invoice.balance_due),
+        currency=invoice.currency,
+        due_date=invoice.due_date,
+        overdue=invoice.is_overdue,
+        portal_url=url,
+        issuer_name=_issuer_name(invoice),
+        reply_to=_reply_to(invoice),
+    )
+
+
+async def _try_email(db: AsyncSession, invoice_id: uuid.UUID, label: str, send) -> bool:
+    """Run ``send`` after the status change is committed. A failure never undoes
+    that change: it is logged and recorded as an EMAIL_FAILED event instead."""
+    try:
+        await send()
+        return True
+    except Exception as exc:
+        logger.exception("%s failed for invoice %s", label, invoice_id)
+        reason = f"{label} failed: {type(exc).__name__}: {exc}"
+        add_event(db, invoice_id, InvoiceEventType.EMAIL_FAILED, reason[:255])
+        await db.commit()
+        return False
+
+
 async def send_invoice(
     db: AsyncSession, invoice_id: uuid.UUID, freelancer: FreelancerProfile
-) -> tuple[Invoice, str]:
+) -> tuple[Invoice, str, bool]:
     """Issue (or re-send) an invoice to the client.
 
     DRAFT becomes SENT and stamps ``sent_at``. Re-sending an open invoice
-    issues a fresh link without changing its state.
+    issues a fresh link without changing its state. Returns the invoice, the
+    client link and whether the email was delivered.
     """
     invoice = await get_invoice_by_id(db, invoice_id, freelancer.id, for_update=True)
     if invoice.status not in (InvoiceStatus.DRAFT, *OPEN_STATUSES):
@@ -577,21 +648,16 @@ async def send_invoice(
     await db.commit()
 
     url = portal_url(invoice.id, token)
-    await send_invoice_email(
-        to_email=invoice.client.email,
-        client_name=invoice.client.name,
-        invoice_number=invoice.invoice_number,
-        total=str(invoice.total),
-        currency=invoice.currency,
-        due_date=invoice.due_date,
-        portal_url=url,
+    invoice = await get_invoice_by_id(db, invoice.id, freelancer.id, refresh=True)
+    delivered = await _try_email(
+        db, invoice.id, "Invoice email", lambda: _email_invoice(db, invoice, url)
     )
-    return await get_invoice_by_id(db, invoice.id, freelancer.id, refresh=True), url
+    return invoice, url, delivered
 
 
 async def remind_invoice(
     db: AsyncSession, invoice_id: uuid.UUID, freelancer: FreelancerProfile
-) -> tuple[Invoice, str]:
+) -> tuple[Invoice, str, bool]:
     invoice = await get_invoice_by_id(db, invoice_id, freelancer.id, for_update=True)
     if invoice.status not in OPEN_STATUSES:
         raise Conflict("Reminders can only be sent for unpaid, sent invoices")
@@ -607,8 +673,21 @@ async def remind_invoice(
         )
     ).scalars().all()
     if reminders:
+        # A reminder whose email failed never reached the client: allow a retry.
+        last_failure = (
+            await db.execute(
+                select(func.max(InvoiceEvent.occurred_at)).where(
+                    InvoiceEvent.invoice_id == invoice.id,
+                    InvoiceEvent.event_type == InvoiceEventType.EMAIL_FAILED,
+                    InvoiceEvent.detail.like(f"{REMINDER_EMAIL_LABEL}%"),
+                )
+            )
+        ).scalar_one_or_none()
+        undelivered = last_failure is not None and _aware(last_failure) >= _aware(reminders[0])
         gap = _now() - _aware(reminders[0])
-        if gap < timedelta(hours=settings.INVOICE_REMINDER_MIN_INTERVAL_HOURS):
+        if not undelivered and gap < timedelta(
+            hours=settings.INVOICE_REMINDER_MIN_INTERVAL_HOURS
+        ):
             raise RateLimited("A reminder was sent recently; try again later")
 
     token = await issue_portal_token(
@@ -629,17 +708,11 @@ async def remind_invoice(
     await db.commit()
 
     url = portal_url(invoice.id, token)
-    await send_invoice_reminder_email(
-        to_email=invoice.client.email,
-        client_name=invoice.client.name,
-        invoice_number=invoice.invoice_number,
-        balance_due=str(invoice.balance_due),
-        currency=invoice.currency,
-        due_date=invoice.due_date,
-        overdue=invoice.is_overdue,
-        portal_url=url,
+    invoice = await get_invoice_by_id(db, invoice.id, freelancer.id, refresh=True)
+    delivered = await _try_email(
+        db, invoice.id, REMINDER_EMAIL_LABEL, lambda: _email_reminder(invoice, url)
     )
-    return await get_invoice_by_id(db, invoice.id, freelancer.id, refresh=True), url
+    return invoice, url, delivered
 
 
 async def cancel_invoice(

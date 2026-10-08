@@ -1,0 +1,8 @@
+Hi {{ client_name }},
+
+{% if overdue %}Invoice {{ invoice_number }} from {{ issuer_name }} is OVERDUE. {{ balance_due }} is still outstanding (it was due {{ due_date }}).{% else %}A friendly reminder that invoice {{ invoice_number }} from {{ issuer_name }} has {{ balance_due }} outstanding, due {{ due_date }}.{% endif %}
+
+View it here: {{ portal_url }}
+
+If you have already paid, please ignore this message.
+Paylancr does not process payments; pay the sender directly using the details on the invoice.

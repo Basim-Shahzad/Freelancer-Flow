@@ -1,0 +1,5 @@
+Hi {{ client_name }},
+
+{{ issuer_name }} submitted the milestone "{{ milestone_name }}" on {{ project_name }} for your approval.
+
+Review it here: {{ portal_url }}

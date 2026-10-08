@@ -19,6 +19,8 @@ class InvoiceEventType(str, enum.Enum):
     PAID = "PAID"
     WRITTEN_OFF = "WRITTEN_OFF"
     CANCELLED = "CANCELLED"
+    # An invoice/reminder email could not be delivered (detail has the reason).
+    EMAIL_FAILED = "EMAIL_FAILED"
 
 
 class InvoiceEvent(Base):

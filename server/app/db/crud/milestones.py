@@ -1,15 +1,18 @@
 from __future__ import annotations
 
+import logging
 import uuid
 from datetime import datetime, timezone
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.core.errors import Conflict, NotFound, Unprocessable
 from app.db.crud.portal_tokens import issue_portal_token
 from app.db.crud.activity import diff_changes, log_activity
 from app.db.crud.projects import get_project_by_id
+from app.models.FreelancerProfile import FreelancerProfile
 from app.models.Invoice import Invoice, InvoiceStatus
 from app.models.InvoiceItem import InvoiceItem
 from app.models.Milestone import Milestone, MilestoneStatus
@@ -17,6 +20,8 @@ from app.models.PortalAccessToken import ScopeType
 from app.models.Project import Project
 from app.schemas.MilestoneSchema import MilestoneCreate, MilestoneUpdate
 from app.services.email_service import send_portal_approval_email
+
+logger = logging.getLogger(__name__)
 
 # Statuses a freelancer may move a milestone to by hand. SUBMITTED goes through
 # submit_milestone(); a client's APPROVED / REJECTED comes from the portal.
@@ -241,10 +246,30 @@ async def submit_milestone(
     await db.commit()
     await db.refresh(milestone)
 
-    await send_portal_approval_email(
-        to_client_id=project.client_id,
-        project_id=project.id,
-        milestone_id=milestone.id,
-        portal_token=token,
-    )
+    # Best effort: the submission is already committed.
+    try:
+        freelancer = (
+            await db.execute(
+                select(FreelancerProfile)
+                .where(FreelancerProfile.user_id == user_id)
+                .options(selectinload(FreelancerProfile.user))
+            )
+        ).scalar_one_or_none()
+        user = freelancer.user if freelancer else None
+        await send_portal_approval_email(
+            to_client_id=project.client_id,
+            project_id=project.id,
+            milestone_id=milestone.id,
+            portal_token=token,
+            to_email=project.client.email,
+            client_name=project.client.name,
+            issuer_name=(freelancer.business_name if freelancer else None)
+            or (user.full_name if user else None)
+            or "Your freelancer",
+            project_name=project.name,
+            milestone_name=milestone.name,
+            reply_to=user.email if user else None,
+        )
+    except Exception:
+        logger.exception("Approval email failed for milestone %s", milestone.id)
     return milestone

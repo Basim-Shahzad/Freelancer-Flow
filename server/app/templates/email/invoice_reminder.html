@@ -1,0 +1,12 @@
+{% extends "email/_layout.html" %}
+{% block body %}
+<p>Hi {{ client_name }},</p>
+{% if overdue %}
+<p>Invoice <b>{{ invoice_number }}</b> from <b>{{ issuer_name }}</b> is <b>overdue</b>. <b>{{ balance_due }}</b> is still outstanding (it was due {{ due_date }}).</p>
+{% else %}
+<p>A friendly reminder that invoice <b>{{ invoice_number }}</b> from <b>{{ issuer_name }}</b> has <b>{{ balance_due }}</b> outstanding, due {{ due_date }}.</p>
+{% endif %}
+<p><a href="{{ portal_url }}" style="display:inline-block;padding:10px 18px;background:#111;color:#fff;text-decoration:none;border-radius:4px;">View invoice</a></p>
+<p>If the button does not work, open this link:<br><span style="word-break:break-all;">{{ portal_url }}</span></p>
+<p>If you have already paid, please ignore this message.</p>
+{% endblock %}

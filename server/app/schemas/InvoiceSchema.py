@@ -252,3 +252,8 @@ class InvoiceEventListResponse(Base):
 class InvoiceSendResponse(Base):
     invoice: InvoiceResponse
     portal_url: str = Field(description="Client-facing link that opens the invoice.")
+    email_delivered: bool = Field(
+        default=True,
+        description="False when the email could not be sent (see the EMAIL_FAILED "
+        "event). The link still works, so it can be shared another way.",
+    )

@@ -43,6 +43,18 @@ class Settings(BaseSettings):
     # Guards against nagging a client: minimum gap between reminders.
     INVOICE_REMINDER_MIN_INTERVAL_HOURS: int = 24
 
+    # Outgoing email. `console` only logs; `smtp` delivers via aiosmtplib.
+    EMAIL_BACKEND: Literal["console", "smtp"] = "console"
+    SMTP_HOST: str = ""
+    SMTP_PORT: int = 587
+    SMTP_USER: str = ""
+    SMTP_PASSWORD: str = ""
+    # Envelope/header sender, e.g. "Paylancr <invoices@example.com>".
+    SMTP_FROM: str = ""
+    # True: implicit TLS on port 465, STARTTLS otherwise. False: plain (Mailpit).
+    SMTP_USE_TLS: bool = True
+    SMTP_TIMEOUT_SECONDS: int = 15
+
     # Reference data / exchange rates (display-only, never used in totals)
     FX_API_URL: str = "https://open.er-api.com/v6/latest/USD"
     FX_MAX_AGE_HOURS: int = 24
@@ -95,6 +107,12 @@ class Settings(BaseSettings):
     def _require_encryption_key_in_production(self) -> "Settings":
         if self.is_production and not self.FIELD_ENCRYPTION_KEY:
             raise ValueError("FIELD_ENCRYPTION_KEY must be set in production")
+        return self
+
+    @model_validator(mode="after")
+    def _require_smtp_settings(self) -> "Settings":
+        if self.EMAIL_BACKEND == "smtp" and not (self.SMTP_HOST and self.SMTP_FROM):
+            raise ValueError("SMTP_HOST and SMTP_FROM must be set when EMAIL_BACKEND=smtp")
         return self
 
 

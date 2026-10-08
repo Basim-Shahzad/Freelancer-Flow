@@ -1,0 +1,8 @@
+{% extends "email/_layout.html" %}
+{% block body %}
+<p>Hi {{ client_name }},</p>
+<p><b>{{ issuer_name }}</b> sent you invoice <b>{{ invoice_number }}</b> for <b>{{ total }}</b>, due {{ due_date }}.</p>
+<p><a href="{{ portal_url }}" style="display:inline-block;padding:10px 18px;background:#111;color:#fff;text-decoration:none;border-radius:4px;">View invoice</a></p>
+{% if has_attachment %}<p>The invoice is also attached as a PDF.</p>{% endif %}
+<p>If the button does not work, open this link:<br><span style="word-break:break-all;">{{ portal_url }}</span></p>
+{% endblock %}
