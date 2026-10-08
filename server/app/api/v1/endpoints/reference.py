@@ -2,13 +2,31 @@ from __future__ import annotations
 
 from fastapi import APIRouter
 
-from app.api.dependencies.auth import AdminUser, DBSession
+from app.api.dependencies.auth import AdminUser, CurrentUser, DBSession
 from app.api.v1.openapi import errors
 from app.db.crud import reference as crud
-from app.schemas.ReferenceSchema import ReferenceSettingOut, ReferenceSettingUpdate
+from app.schemas.ReferenceSchema import (
+    PublicExchangeRates,
+    ReferenceSettingOut,
+    ReferenceSettingUpdate,
+)
 from app.services import fx_fetch
 
 router = APIRouter(prefix="/admin/reference", tags=["Reference data"])
+public_router = APIRouter(prefix="/reference", tags=["Reference data"])
+
+
+@public_router.get(
+    "/exchange-rates",
+    response_model=PublicExchangeRates,
+    summary="Current exchange rates",
+    description="Display-only reference rates (units per 1 `base`). `asOf` is the "
+    "provider's own date, so a stale cache shows its real, older date. Never use "
+    "these in totals.",
+    responses=errors(401),
+)
+async def get_public_exchange_rates(db: DBSession, user: CurrentUser):
+    return await fx_fetch.get_exchange_rates(db)
 
 
 @router.get(

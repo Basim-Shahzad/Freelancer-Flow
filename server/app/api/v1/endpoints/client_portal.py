@@ -11,9 +11,14 @@ from app.api.v1.openapi import errors
 from app.db.crud.invoices import mark_invoice_viewed
 from app.db.crud import portal as portal_crud
 from app.db.database import get_db
-from app.schemas.InvoiceSchema import InvoiceResponse
 from app.schemas.MilestoneSchema import MilestoneDecision, MilestoneResponse
-from app.schemas.PortalSchema import PortalConvertRequest, PortalProjectResponse
+from app.schemas.ReferenceSchema import PublicExchangeRates
+from app.schemas.PortalSchema import (
+    PortalConvertRequest,
+    PortalInvoiceResponse,
+    PortalProjectResponse,
+)
+from app.services import fx_fetch
 from app.models.MilestoneApproval import MilestoneApprovalDecision
 from app.models.PortalAccessToken import ScopeType
 
@@ -121,7 +126,7 @@ async def reject_portal_milestone(
 
 @router.get(
     "/invoice/{invoice_id}",
-    response_model=InvoiceResponse,
+    response_model=PortalInvoiceResponse,
     summary="View an invoice (client portal)",
     description="Requires an invoice-scoped link. The first view stamps the "
     "invoice's `viewedAt` and logs a VIEWED event.",
@@ -134,7 +139,12 @@ async def get_portal_invoice(
     db: AsyncSession = Depends(get_db),
 ):
     portal_crud.require_scope(session.token, ScopeType.INVOICE, invoice_id)
-    return await mark_invoice_viewed(db, invoice_id, session.client.id, _ip(request))
+    invoice = await mark_invoice_viewed(db, invoice_id, session.client.id, _ip(request))
+    response = PortalInvoiceResponse.model_validate(invoice)
+    response.exchange_rates = PublicExchangeRates.model_validate(
+        await fx_fetch.get_exchange_rates(db)
+    )
+    return response
 
 
 # ---------------------------------------------------------------------------

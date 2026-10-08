@@ -7,6 +7,7 @@ from typing import Any, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from .Base import Base
 from .types import UTCDateTime
 
 
@@ -38,6 +39,15 @@ class ExchangeRatesValue(BaseModel):
                 raise ValueError(f"Rate for {code} must be positive")
             out[code.upper()] = str(raw)
         return out
+
+
+class PublicExchangeRates(Base):
+    """Rates as shown to API clients: no fetch bookkeeping."""
+
+    base: str
+    rates: dict[str, str]
+    as_of: Optional[date] = None
+    source: Optional[str] = None
 
 
 class PaymentTextsValue(BaseModel):
