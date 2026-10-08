@@ -72,3 +72,23 @@ and list it in your final report. Never delete or rename existing exports.
 - Cards: `Card` / `CardHead title sub action` / `CardBody` / `CardFoot` and `KpiStrip` in `components/ui/section.tsx` (14px radius, hairline border, white surface). Use for every new panel.
 - Keep our fonts (Hanken + Newsreader), spine sidebar, tokens only, Money Rule, container queries, logical properties.
 - Reference UI is at /mnt/user-data/uploads/paylancer-ui (html/js/css) with renders in the scratchpad `ref/*.png`.
+
+## Data layer (API integration)
+Domains migrate from the mock zustand store to the REST API one at a time (see `plans/PLAN_FRONTEND.MD`). Unmigrated domains keep using `useAppStore`.
+
+Per domain `<d>`:
+- `lib/api/<d>.types.ts` — wire types as sent by the API (camelCase). Money fields are decimal **strings**.
+- `lib/services/<d>.service.ts` — plain functions over the shared `api` instance (`lib/services/api.service.ts`); return unwrapped `data`.
+- `lib/hooks/<d>/` — react-query hooks (`use<D>List`, `use<D>`, `useCreate<D>`…) and a `<d>Keys` factory. Mutations invalidate affected keys; money/status changes also invalidate `activity` + dashboard keys.
+- `lib/api/mappers/<d>.ts` — pure wire ⇄ view-model conversion (unit-tested). Components consume `lib/types.ts` view models, never wire types.
+
+Shared helpers (Step 1):
+- `lib/api/money.ts` — `toMinor("1250.50", cur)` / `toDecimal(125050, cur)`. The only place decimal strings become minor units; no float math on money.
+- `lib/api/pagination.ts` — `ListParams`, `ListResult<T>`, `nextSkip` (for `useInfiniteQuery`), `cleanParams`, `toListResult`.
+- `lib/api/field-errors.ts` — `applyApiFieldErrors(form, error)` maps a 422 onto react-hook-form fields (unmatched → `errors.root`); returns whether it handled the error. Other statuses: `getApiErrorMessage` / `getApiErrorStatus` (409 = conflict, 404 = not-found state).
+- `components/domain/query-boundary.tsx` — `<QueryBoundary query={…}>` renders loading / offline / error+retry / 404 / empty, then `children(data)`.
+- `lib/hooks/use-api-toast.ts` — `useApiToast()` → `{ success, error }` for mutation toasts.
+
+Testing (`lib/test`): `renderWithProviders(ui, { auth })` gives a fresh `QueryClient` (retries off) and seeds the auth store; `mockApi()` returns `{ mock, refresh, reset, restore }` — axios-mock-adapter on the `api` instance and on the bare refresh client. Always `restore()` in `afterEach`. Cover success, 401→refresh→retry, 422, 404, 409 and network error for each service/hook.
+
+Per-step gate: `pnpm typecheck && pnpm lint && pnpm test && pnpm build`.

@@ -12,7 +12,7 @@ export const api = axios.create({
 });
 
 /** Bare instance (no interceptors) so refreshing can never recurse into itself. */
-const bare = axios.create({ baseURL: API_URL, withCredentials: true });
+export const bare = axios.create({ baseURL: API_URL, withCredentials: true });
 
 let refreshing: Promise<string> | null = null;
 
