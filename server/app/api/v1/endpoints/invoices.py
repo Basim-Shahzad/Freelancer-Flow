@@ -17,6 +17,8 @@ from app.db.crud.invoices import (
     get_invoices,
     remind_invoice,
     send_invoice,
+    share_invoice,
+    share_links,
     update_invoice,
     write_off_invoice,
 )
@@ -29,7 +31,9 @@ from app.schemas.InvoiceSchema import (
     InvoiceEventListResponse,
     InvoiceListResponse,
     InvoiceResponse,
+    InvoiceSendRequest,
     InvoiceSendResponse,
+    InvoiceShareLinks,
     InvoiceUpdate,
     InvoiceWriteOff,
 )
@@ -162,20 +166,24 @@ async def delete_draft_invoice(
     "/{invoice_id}/send",
     response_model=InvoiceSendResponse,
     summary="Send an invoice to the client",
-    description="DRAFT -> SENT (stamps `sentAt`, logs a SENT event) and emails the "
-    "client a link scoped to this invoice, with the PDF attached. Calling it again "
-    "on an open invoice re-sends with a fresh link. If the email cannot be "
-    "delivered the status change still stands: `emailDelivered` is false and an "
-    "EMAIL_FAILED event is recorded; send again to retry.",
+    description="DRAFT -> SENT (stamps `sentAt`, logs a SENT event) for every `channel`; "
+    "only `email` sends mail (with the PDF attached). Calling it on an invoice that is "
+    "already sent changes nothing and sends nothing: it returns fresh links. Use "
+    "`/remind` to chase the client. If the email cannot be delivered the status change "
+    "still stands: `emailDelivered` is false and an EMAIL_FAILED event is recorded.",
     responses=errors(401, 403, 404, 409),
 )
 async def send_existing_invoice(
     invoice_id: uuid.UUID,
     freelancer: CurrentFreelancer,
+    payload: InvoiceSendRequest = InvoiceSendRequest(),
     db: AsyncSession = Depends(get_db),
 ):
-    invoice, url, delivered = await send_invoice(db, invoice_id, freelancer)
-    return InvoiceSendResponse(invoice=invoice, portal_url=url, email_delivered=delivered)
+    result = await send_invoice(db, invoice_id, freelancer, payload.channel)
+    links = await share_links(db, result.invoice, result.token)
+    return InvoiceSendResponse(
+        invoice=result.invoice, email_delivered=result.delivered, **links
+    )
 
 
 @router.post(
@@ -183,16 +191,38 @@ async def send_existing_invoice(
     response_model=InvoiceSendResponse,
     summary="Send a payment reminder",
     description="Only for sent, unpaid invoices. Rate-limited to one reminder per "
-    "`INVOICE_REMINDER_MIN_INTERVAL_HOURS` (default 24h).",
+    "`INVOICE_REMINDER_MIN_INTERVAL_HOURS` (default 24h). `channel=whatsapp` (or "
+    "`link`) sends no email; `whatsappUrl` carries the reminder message.",
     responses=errors(401, 403, 404, 409, 429),
 )
 async def remind_existing_invoice(
     invoice_id: uuid.UUID,
     freelancer: CurrentFreelancer,
+    payload: InvoiceSendRequest = InvoiceSendRequest(),
     db: AsyncSession = Depends(get_db),
 ):
-    invoice, url, delivered = await remind_invoice(db, invoice_id, freelancer)
-    return InvoiceSendResponse(invoice=invoice, portal_url=url, email_delivered=delivered)
+    result = await remind_invoice(db, invoice_id, freelancer, payload.channel)
+    links = await share_links(db, result.invoice, result.token, reminder=True)
+    return InvoiceSendResponse(
+        invoice=result.invoice, email_delivered=result.delivered, **links
+    )
+
+
+@router.get(
+    "/{invoice_id}/share",
+    response_model=InvoiceShareLinks,
+    summary="Get share links for an issued invoice",
+    description="Any invoice that is not a draft or cancelled. Changes no state and "
+    "logs nothing; each call issues a fresh client link.",
+    responses=errors(401, 403, 404, 409),
+)
+async def get_invoice_share_links(
+    invoice_id: uuid.UUID,
+    freelancer: CurrentFreelancer,
+    db: AsyncSession = Depends(get_db),
+):
+    result = await share_invoice(db, invoice_id, freelancer)
+    return InvoiceShareLinks(**await share_links(db, result.invoice, result.token))
 
 
 @router.post(

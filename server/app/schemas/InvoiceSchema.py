@@ -3,7 +3,7 @@ import enum
 import json
 import uuid
 from decimal import Decimal
-from typing import Any, Optional
+from typing import Any, Literal, Optional
 
 from pydantic import Field, computed_field, field_validator, model_validator
 
@@ -249,11 +249,30 @@ class InvoiceEventListResponse(Base):
     events: list[InvoiceEventResponse]
 
 
-class InvoiceSendResponse(Base):
-    invoice: InvoiceResponse
+ShareChannel = Literal["email", "whatsapp", "link"]
+
+
+class InvoiceSendRequest(Base):
+    channel: ShareChannel = Field(
+        default="email",
+        description="`email` sends mail; `whatsapp` and `link` only return links. "
+        "All three move a DRAFT to SENT.",
+    )
+
+
+class InvoiceShareLinks(Base):
     portal_url: str = Field(description="Client-facing link that opens the invoice.")
-    email_delivered: bool = Field(
-        default=True,
-        description="False when the email could not be sent (see the EMAIL_FAILED "
-        "event). The link still works, so it can be shared another way.",
+    pdf_url: str = Field(description="Token-based PDF link the client can open.")
+    whatsapp_url: str = Field(
+        description="`wa.me` link with the message prefilled (no number if the "
+        "client has no WhatsApp number)."
+    )
+
+
+class InvoiceSendResponse(InvoiceShareLinks):
+    invoice: InvoiceResponse
+    email_delivered: Optional[bool] = Field(
+        default=None,
+        description="Null when no email was attempted. False when it could not be "
+        "sent (see the EMAIL_FAILED event); the links still work.",
     )

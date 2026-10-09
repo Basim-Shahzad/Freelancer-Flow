@@ -100,13 +100,15 @@ async def test_send_emails_client_with_link_pdf_and_reply_to(
     assert data.startswith(b"%PDF")
 
 
-async def test_resend_sends_again_with_fresh_link(client, auth_headers, project, outbox):
+async def test_resend_of_sent_invoice_sends_no_email_and_returns_links(
+    client, auth_headers, project, outbox
+):
     inv = await _invoice(client, auth_headers, project.id)
-    first = (await client.post(f"{INVOICES_URL}/{inv['id']}/send", headers=auth_headers)).json()
+    await client.post(f"{INVOICES_URL}/{inv['id']}/send", headers=auth_headers)
     second = (await client.post(f"{INVOICES_URL}/{inv['id']}/send", headers=auth_headers)).json()
-    assert len(outbox) == 2
-    assert first["portalUrl"] != second["portalUrl"]
-    assert second["portalUrl"] in outbox[1].get_body(preferencelist=("plain",)).get_content()
+    assert len(outbox) == 1
+    assert second["emailDelivered"] is None
+    assert second["portalUrl"] and second["pdfUrl"] and second["whatsappUrl"]
 
 
 async def test_send_failure_keeps_status_and_records_event(

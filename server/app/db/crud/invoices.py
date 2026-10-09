@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import uuid
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from typing import Optional
@@ -32,6 +33,7 @@ from app.schemas.InvoiceSchema import (
     InvoiceCreate,
     InvoiceDisplayStatus,
     InvoiceUpdate,
+    ShareChannel,
 )
 from app.services import fx_fetch
 from app.services.email_service import (
@@ -40,6 +42,7 @@ from app.services.email_service import (
     send_invoice_reminder_email,
 )
 from app.services.pdf import render_invoice_pdf
+from app.services.sharing import build_whatsapp_url, invoice_message
 from app.services.invoicing import (
     TaxSpec,
     Totals,
@@ -551,6 +554,11 @@ def portal_url(invoice_id: uuid.UUID, token: str) -> str:
     return f"{base}/portal/invoices/{invoice_id}?token={token}"
 
 
+def portal_pdf_url(invoice_id: uuid.UUID, token: str) -> str:
+    base = settings.BACKEND_URL.rstrip("/")
+    return f"{base}{settings.API_V1_STR}/portal/invoice/{invoice_id}/pdf?token={token}"
+
+
 def _issuer_name(invoice: Invoice) -> str:
     return invoice.issuer["name"] or "Your freelancer"
 
@@ -612,52 +620,141 @@ async def _try_email(db: AsyncSession, invoice_id: uuid.UUID, label: str, send) 
         return False
 
 
-async def send_invoice(
-    db: AsyncSession, invoice_id: uuid.UUID, freelancer: FreelancerProfile
-) -> tuple[Invoice, str, bool]:
-    """Issue (or re-send) an invoice to the client.
+async def _email_undelivered(db: AsyncSession, invoice_id: uuid.UUID) -> bool:
+    """True when the latest invoice email failed after the latest SENT event."""
+    last_failure, last_sent = (
+        await db.execute(
+            select(
+                func.max(InvoiceEvent.occurred_at).filter(
+                    InvoiceEvent.event_type == InvoiceEventType.EMAIL_FAILED,
+                    InvoiceEvent.detail.like("Invoice email%"),
+                ),
+                func.max(InvoiceEvent.occurred_at).filter(
+                    InvoiceEvent.event_type == InvoiceEventType.SENT
+                ),
+            ).where(InvoiceEvent.invoice_id == invoice_id)
+        )
+    ).one()
+    return last_failure is not None and (
+        last_sent is None or _aware(last_failure) >= _aware(last_sent)
+    )
 
-    DRAFT becomes SENT and stamps ``sent_at``. Re-sending an open invoice
-    issues a fresh link without changing its state. Returns the invoice, the
-    client link and whether the email was delivered.
-    """
-    invoice = await get_invoice_by_id(db, invoice_id, freelancer.id, for_update=True)
-    if invoice.status not in (InvoiceStatus.DRAFT, *OPEN_STATUSES):
-        raise Conflict(f"Cannot send an invoice in status {invoice.status.value}")
 
-    first_send = invoice.status == InvoiceStatus.DRAFT
-    if first_send:
-        invoice.status = InvoiceStatus.SENT
-        invoice.sent_at = _now()
+@dataclass
+class SendResult:
+    invoice: Invoice
+    token: str
+    delivered: Optional[bool]  # None when no email was attempted
 
-    token = await issue_portal_token(
+
+async def _mint_token(db: AsyncSession, invoice: Invoice) -> str:
+    return await issue_portal_token(
         db,
         client_id=invoice.client_id,
         scope_type=ScopeType.INVOICE,
         scope_id=invoice.id,
     )
-    add_event(db, invoice.id, InvoiceEventType.SENT, "Sent" if first_send else "Re-sent")
+
+
+async def send_invoice(
+    db: AsyncSession,
+    invoice_id: uuid.UUID,
+    freelancer: FreelancerProfile,
+    channel: ShareChannel = "email",
+) -> SendResult:
+    """Issue an invoice to the client over ``channel``.
+
+    DRAFT becomes SENT (stamps ``sent_at``, logs an event and activity) for all
+    channels; only ``email`` sends mail. Calling it on an invoice that is
+    already open changes no state and sends nothing: it just returns a link
+    (use ``remind_invoice`` to chase the client).
+    """
+    invoice = await get_invoice_by_id(db, invoice_id, freelancer.id, for_update=True)
+    if invoice.status not in (InvoiceStatus.DRAFT, *OPEN_STATUSES):
+        raise Conflict(f"Cannot send an invoice in status {invoice.status.value}")
+
+    token = await _mint_token(db, invoice)
+    if invoice.status != InvoiceStatus.DRAFT:
+        # The one exception to "nothing happens": the first email never arrived.
+        retry = channel == "email" and await _email_undelivered(db, invoice.id)
+        if retry:
+            add_event(db, invoice.id, InvoiceEventType.SENT, "Re-sent via email (retry)")
+        await db.commit()
+        invoice = await get_invoice_by_id(db, invoice.id, freelancer.id, refresh=True)
+        if not retry:
+            return SendResult(invoice, token, None)
+        url = portal_url(invoice.id, token)
+        delivered = await _try_email(
+            db, invoice.id, "Invoice email", lambda: _email_invoice(db, invoice, url)
+        )
+        return SendResult(invoice, token, delivered)
+
+    invoice.status = InvoiceStatus.SENT
+    invoice.sent_at = _now()
+    add_event(db, invoice.id, InvoiceEventType.SENT, f"Sent via {channel}")
     log_activity(
         db,
         user_id=freelancer.user_id,
         entity_type="invoice",
         entity_id=invoice.id,
-        action="sent" if first_send else "resent",
-        summary=f"Sent invoice {invoice.invoice_number} to {invoice.client.name}",
+        action="sent",
+        summary=f"Sent invoice {invoice.invoice_number} to {invoice.client.name} via {channel}",
     )
     await db.commit()
 
-    url = portal_url(invoice.id, token)
     invoice = await get_invoice_by_id(db, invoice.id, freelancer.id, refresh=True)
+    if channel != "email":
+        return SendResult(invoice, token, None)
+    url = portal_url(invoice.id, token)
     delivered = await _try_email(
         db, invoice.id, "Invoice email", lambda: _email_invoice(db, invoice, url)
     )
-    return invoice, url, delivered
+    return SendResult(invoice, token, delivered)
+
+
+async def share_invoice(
+    db: AsyncSession, invoice_id: uuid.UUID, freelancer: FreelancerProfile
+) -> SendResult:
+    """Links for any issued invoice. No state change, event or activity."""
+    invoice = await get_invoice_by_id(db, invoice_id, freelancer.id)
+    if invoice.status in (InvoiceStatus.DRAFT, InvoiceStatus.CANCELLED):
+        raise Conflict(f"Cannot share an invoice in status {invoice.status.value}")
+    token = await _mint_token(db, invoice)
+    await db.commit()
+    return SendResult(invoice, token, None)
+
+
+async def share_links(
+    db: AsyncSession, invoice: Invoice, token: str, *, reminder: bool = False
+) -> dict[str, str]:
+    """``portal_url``, ``pdf_url`` and ``whatsapp_url`` for a freshly issued token."""
+    url = portal_url(invoice.id, token)
+    rates = await fx_fetch.get_exchange_rates(db)
+    text = invoice_message(
+        client_name=invoice.client.name,
+        invoice_number=invoice.invoice_number,
+        amount=invoice.balance_due if reminder else invoice.total,
+        currency=invoice.currency,
+        due_date=invoice.due_date,
+        portal_link=url,
+        issuer_name=_issuer_name(invoice),
+        rates=rates,
+        reminder=reminder,
+        overdue=bool(invoice.is_overdue),
+    )
+    return {
+        "portal_url": url,
+        "pdf_url": portal_pdf_url(invoice.id, token),
+        "whatsapp_url": build_whatsapp_url(invoice.client.whatsapp_number, text),
+    }
 
 
 async def remind_invoice(
-    db: AsyncSession, invoice_id: uuid.UUID, freelancer: FreelancerProfile
-) -> tuple[Invoice, str, bool]:
+    db: AsyncSession,
+    invoice_id: uuid.UUID,
+    freelancer: FreelancerProfile,
+    channel: ShareChannel = "email",
+) -> SendResult:
     invoice = await get_invoice_by_id(db, invoice_id, freelancer.id, for_update=True)
     if invoice.status not in OPEN_STATUSES:
         raise Conflict("Reminders can only be sent for unpaid, sent invoices")
@@ -690,12 +787,7 @@ async def remind_invoice(
         ):
             raise RateLimited("A reminder was sent recently; try again later")
 
-    token = await issue_portal_token(
-        db,
-        client_id=invoice.client_id,
-        scope_type=ScopeType.INVOICE,
-        scope_id=invoice.id,
-    )
+    token = await _mint_token(db, invoice)
     add_event(db, invoice.id, InvoiceEventType.REMINDED, f"Reminder #{len(reminders) + 1}")
     log_activity(
         db,
@@ -707,12 +799,14 @@ async def remind_invoice(
     )
     await db.commit()
 
-    url = portal_url(invoice.id, token)
     invoice = await get_invoice_by_id(db, invoice.id, freelancer.id, refresh=True)
+    if channel != "email":
+        return SendResult(invoice, token, None)
+    url = portal_url(invoice.id, token)
     delivered = await _try_email(
         db, invoice.id, REMINDER_EMAIL_LABEL, lambda: _email_reminder(invoice, url)
     )
-    return invoice, url, delivered
+    return SendResult(invoice, token, delivered)
 
 
 async def cancel_invoice(

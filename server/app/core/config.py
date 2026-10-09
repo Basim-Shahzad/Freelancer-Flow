@@ -35,6 +35,8 @@ class Settings(BaseSettings):
     # Client portal / invoicing
     # Public URL of the web client; used to build links in outgoing emails.
     FRONTEND_URL: str = "http://localhost:3000"
+    # Public URL of this API; used for token-based PDF links shared with clients.
+    BACKEND_URL: str = "http://localhost:8000"
     PORTAL_TOKEN_EXPIRE_DAYS: int = 14
     # Minimum seconds between `last_used_at` writes for one portal token.
     PORTAL_TOKEN_TOUCH_INTERVAL_SECONDS: int = 60
