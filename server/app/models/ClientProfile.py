@@ -35,6 +35,8 @@ class ClientProfile(Base):
 
     company_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     phone: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    # E.164, normalized on input (see app/services/phone.py).
+    whatsapp_number: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
     address: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     # Encrypted at rest (may be an NTN/CNIC); masked in list responses.
     tax_id: Mapped[Optional[str]] = mapped_column(EncryptedText, nullable=True)
