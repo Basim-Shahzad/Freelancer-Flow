@@ -1,10 +1,9 @@
 from __future__ import annotations
 
 import uuid
-from datetime import date, datetime, time, timedelta, timezone
+from datetime import date, datetime, timezone
 from decimal import Decimal
 from typing import Optional
-from zoneinfo import ZoneInfo
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -18,6 +17,7 @@ from app.models.Payment import Payment
 from app.models.TaxRemittance import TaxRemittance
 from app.schemas.TaxRemittanceSchema import TaxRemittanceCreate, TaxSummaryResponse
 from app.services.invoicing import quantize_money
+from app.services.periods import local_window
 
 # Tax is owed on invoices that were actually issued to the client.
 _ISSUED_STATUSES = (
@@ -152,16 +152,6 @@ async def _cash_basis_collected(
     )
 
 
-def _local_window(period_start: date, period_end: date, tz_name: str):
-    tz = ZoneInfo(tz_name)
-    return (
-        datetime.combine(period_start, time.min, tzinfo=tz).astimezone(timezone.utc),
-        datetime.combine(period_end + timedelta(days=1), time.min, tzinfo=tz).astimezone(
-            timezone.utc
-        ),
-    )
-
-
 async def tax_summary(
     db: AsyncSession,
     freelancer: FreelancerProfile,
@@ -171,7 +161,7 @@ async def tax_summary(
     tax_name: Optional[str] = None,
 ) -> TaxSummaryResponse:
     currency = resolve_currency(currency, freelancer.currency)
-    start_dt, end_dt = _local_window(period_start, period_end, freelancer.timezone)
+    start_dt, end_dt = local_window(period_start, period_end, freelancer.timezone)
     cash = freelancer.tax_basis == "cash"
 
     filters = [Invoice.freelancer_id == freelancer.id, Invoice.currency == currency]
