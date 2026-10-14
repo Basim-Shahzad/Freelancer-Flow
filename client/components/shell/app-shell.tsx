@@ -1,15 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Menu } from "lucide-react";
 import { Logo } from "@/components/brand";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { PageSkeleton } from "@/components/ui/skeleton";
-import { useSession } from "@/lib/hooks/auth";
-import { useAppStore } from "@/lib/store";
+import { useAuthGate } from "@/lib/hooks/auth";
 import { cn } from "@/lib/utils";
 import { GlobalTimer } from "./global-timer";
 import { NAV, isActive } from "./nav";
@@ -20,22 +19,8 @@ import { UserMenu } from "./user-menu";
 
 const COLLAPSE_KEY = "paylancr-sidebar-collapsed";
 
-/** Redirects signed-out users to /login and un-onboarded users to /onboarding. */
-function useAuthGate() {
-  const router = useRouter();
-  const hydrated = useAppStore((s) => s.hydrated);
-  const onboarded = useAppStore((s) => s.session.onboarded);
-  const { status, isAuthenticated } = useSession();
-  useEffect(() => {
-    if (!hydrated) return;
-    if (status === "unauthenticated") router.replace("/login");
-    else if (isAuthenticated && !onboarded) router.replace("/onboarding");
-  }, [hydrated, status, isAuthenticated, onboarded, router]);
-  return hydrated && isAuthenticated && onboarded;
-}
-
 export function AppShell({ children }: { children: React.ReactNode }) {
-  const ready = useAuthGate();
+  const ready = useAuthGate({ require: "app" });
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -47,6 +32,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     { href: "/dashboard", label: "Overview", icon: NAV[0]!.items[0]!.icon },
     ...NAV[1]!.items.filter((i) => i.href === "/time" || i.href === "/invoices" || i.href === "/projects"),
   ];
+
+  // Never render protected chrome (user menu, timer, nav) until the session is confirmed.
+  if (!ready) return <main id="main" tabIndex={-1} className="min-h-dvh outline-none"><PageSkeleton /></main>;
 
   return (
     <div className="flex min-h-dvh">
@@ -79,7 +67,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </Dialog>
 
         <main id="main" tabIndex={-1} className="min-w-0 flex-1 pb-16 outline-none lg:pb-0">
-          {ready ? children : <PageSkeleton />}
+          {children}
         </main>
 
         <nav aria-label="Primary" className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-4 border-t border-border bg-background lg:hidden">

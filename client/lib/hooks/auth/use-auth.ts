@@ -76,7 +76,7 @@ export function useLogin() {
     },
     onSuccess: (user) => {
       qc.setQueryData(authKeys.me, user);
-      useAuthStore.setState({ user, status: "authenticated" });
+      useAuthStore.setState({ user, status: "authenticated", signOutReason: null });
     },
   });
 }
@@ -95,7 +95,7 @@ export function useRegister() {
 function useSignedOut() {
   const qc = useQueryClient();
   return () => {
-    useAuthStore.getState().clear();
+    useAuthStore.getState().clear("manual");
     qc.clear();
   };
 }

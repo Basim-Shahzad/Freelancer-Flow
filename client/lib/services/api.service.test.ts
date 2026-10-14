@@ -67,6 +67,28 @@ describe("401 refresh flow", () => {
     expect(s.status).toBe("unauthenticated");
   });
 
+  it("marks the session as expired when a refresh fails mid-session", async () => {
+    m.mock.onGet("/clients").reply(401);
+    m.refresh.onPost("/auth/refresh").reply(401);
+    await expect(api.get("/clients")).rejects.toBeDefined();
+    expect(useAuthStore.getState().signOutReason).toBe("expired");
+  });
+
+  it("does not mark expiry when there was no authenticated session", async () => {
+    seedAuth("unauthenticated");
+    m.mock.onGet("/clients").reply(401);
+    m.refresh.onPost("/auth/refresh").reply(401);
+    await expect(api.get("/clients")).rejects.toBeDefined();
+    expect(useAuthStore.getState().signOutReason).toBeNull();
+  });
+
+  it("does not refresh when change-password answers 401 (wrong current password)", async () => {
+    m.mock.onPost("/auth/change-password").reply(401, { detail: "Incorrect password" });
+    await expect(api.post("/auth/change-password", {})).rejects.toMatchObject({ response: { status: 401 } });
+    expect(m.refresh.history.post).toHaveLength(0);
+    expect(useAuthStore.getState().status).toBe("authenticated");
+  });
+
   it("does not loop when the retried request is still 401", async () => {
     m.mock.onGet("/clients").reply(401);
     m.refresh.onPost("/auth/refresh").reply(200, { accessToken: "new-token" });

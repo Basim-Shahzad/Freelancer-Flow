@@ -34,7 +34,23 @@ export const logInSchema = z.object({
 });
 export type LogInValues = z.infer<typeof logInSchema>;
 
-export const forgotSchema = z.object({ email });
+export const changePasswordSchema = z
+  .object({
+    currentPassword: z.string().min(1, "Enter your current password."),
+    newPassword: z.string().min(8, "Use 8 characters or more.").max(128, "Use 128 characters or fewer."),
+    confirmPassword: z.string().min(1, "Re-enter your new password."),
+  })
+  .superRefine((v, ctx) => {
+    if (v.newPassword && v.newPassword === v.currentPassword) {
+      ctx.addIssue({ code: "custom", path: ["newPassword"], message: "Choose a password different from your current one." });
+    }
+    if (v.confirmPassword && v.confirmPassword !== v.newPassword) {
+      ctx.addIssue({ code: "custom", path: ["confirmPassword"], message: "The passwords don’t match." });
+    }
+  });
+export type ChangePasswordValues = z.infer<typeof changePasswordSchema>;
+
+export const forgotSchema =z.object({ email });
 export type ForgotValues = z.infer<typeof forgotSchema>;
 
 /* ----------------------------------------------------------- Onboarding */

@@ -16,7 +16,7 @@ import { useLogin } from "@/lib/hooks/auth";
 import { getApiErrorMessage, getApiErrorStatus } from "@/lib/services/api.service";
 import { OfflineNotice, PasswordInput, describedBy } from "./form-bits";
 import { logInSchema, type LogInValues } from "./schemas";
-import { useSignedInRedirect } from "./use-signed-in-redirect";
+import { readNext, useSignedInRedirect } from "./use-signed-in-redirect";
 
 const linkCls = "font-medium text-primary-ink underline decoration-1 underline-offset-[3px]";
 
@@ -46,7 +46,7 @@ export function LogInForm() {
       return;
     }
     toast.success("Welcome back.");
-    router.push("/dashboard"); // AppShell sends un-onboarded users on to /onboarding
+    router.push(readNext()); // AppShell sends un-onboarded users on to /onboarding
   });
 
   const invalid = bad || undefined;

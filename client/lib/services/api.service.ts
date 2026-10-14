@@ -34,7 +34,7 @@ export function refreshAccessToken(): Promise<string> {
 }
 
 // Endpoints where a 401 means "bad credentials / no session", not "expired token".
-const NO_REFRESH = ["/auth/login", "/auth/register", "/auth/refresh"];
+const NO_REFRESH = ["/auth/login", "/auth/register", "/auth/refresh", "/auth/change-password"];
 
 api.interceptors.request.use((config) => {
   const token = useAuthStore.getState().accessToken;
@@ -52,12 +52,15 @@ api.interceptors.response.use(
       return Promise.reject(error);
     }
     original._retried = true;
+    const wasAuthenticated = useAuthStore.getState().status === "authenticated";
     try {
       const token = await refreshAccessToken();
       original.headers.set("Authorization", `Bearer ${token}`);
       return api(original);
     } catch (refreshError) {
-      useAuthStore.getState().clear();
+      // Concurrent 401s each land here; only the first one still sees an authenticated session, so the gate toasts once.
+      const stillAuthenticated = useAuthStore.getState().status === "authenticated";
+      useAuthStore.getState().clear(wasAuthenticated && stillAuthenticated ? "expired" : useAuthStore.getState().signOutReason);
       return Promise.reject(refreshError);
     }
   },

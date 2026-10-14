@@ -4,8 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { PageSkeleton } from "@/components/ui/skeleton";
-import { useSession } from "@/lib/hooks/auth";
-import { useHydrated } from "@/lib/hooks/use-hydrated";
+import { useAuthGate, useSession } from "@/lib/hooks/auth";
 import { useAppStore } from "@/lib/store";
 import { sleep } from "../form-bits";
 import { buildCompletion, initialData, STEP_COUNT, type OnboardingData } from "../onboarding-logic";
@@ -27,22 +26,13 @@ const HEADS: [string, string][] = [
 
 /** Gate: waits for the persisted store, then redirects or mounts the wizard. */
 export function OnboardingFlow() {
-  const router = useRouter();
-  const hydrated = useHydrated();
-  const { status, user } = useSession();
-  const signedIn = status === "authenticated";
-  const onboarded = useAppStore((s) => s.session.onboarded);
+  const { user } = useSession();
   const name = user?.fullName ?? undefined;
   const email = user?.email;
   const finishing = useRef(false);
+  const ready = useAuthGate({ require: "onboarding", suspended: finishing });
 
-  useEffect(() => {
-    if (!hydrated || finishing.current) return;
-    if (status === "unauthenticated") router.replace("/login");
-    else if (signedIn && onboarded) router.replace("/dashboard");
-  }, [hydrated, status, signedIn, onboarded, router]);
-
-  if (!hydrated || !signedIn || onboarded) return <main id="main" tabIndex={-1} className="outline-none"><PageSkeleton /></main>;
+  if (!ready) return <main id="main" tabIndex={-1} className="outline-none"><PageSkeleton /></main>;
   return <Wizard name={name} email={email ?? ""} finishing={finishing} />;
 }
 

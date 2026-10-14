@@ -9,6 +9,7 @@ import { useAppStore } from "@/lib/store";
 export const SETTINGS_TABS = [
   { href: "/settings/business", label: "Business profile" },
   { href: "/settings/payment-methods", label: "Payment methods" },
+  { href: "/settings/account", label: "Account" },
   { href: "/settings/export", label: "Export my data" },
   { href: "/settings/activity", label: "Activity log" },
 ] as const;
