@@ -2,18 +2,21 @@ from __future__ import annotations
 import uuid
 import enum
 from typing import TYPE_CHECKING, Optional
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from decimal import Decimal
 
 from sqlalchemy import (
     Boolean,
+    Date,
     DateTime,
     Enum,
     ForeignKey,
+    Index,
     Numeric,
     String,
     Text,
     UniqueConstraint,
+    text,
 )
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -53,6 +56,16 @@ class Invoice(Base):
         UniqueConstraint(
             "freelancer_id", "invoice_number", name="uq_invoice_freelancer_number"
         ),
+        # One live invoice per retainer period; only CANCELLED frees a period
+        # (WRITTEN_OFF still blocks it).
+        Index(
+            "uq_invoices_project_retainer_period",
+            "project_id",
+            "retainer_period_start",
+            unique=True,
+            postgresql_where=text("status != 'CANCELLED'"),
+            sqlite_where=text("status != 'CANCELLED'"),
+        ),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(
@@ -83,6 +96,8 @@ class Invoice(Base):
         ForeignKey("projects.id", ondelete="RESTRICT"), nullable=False
     )
     project: Mapped["Project"] = relationship(back_populates="invoices")
+    # RETAINER invoices only: start date of the period this invoice bills.
+    retainer_period_start: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
     items: Mapped[list["InvoiceItem"]] = relationship(
         back_populates="invoice", cascade="all, delete-orphan", lazy="selectin"
     )

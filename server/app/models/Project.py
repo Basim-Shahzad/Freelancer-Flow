@@ -77,6 +77,8 @@ class Project(Base):
         Enum(RecurrenceInterval), nullable=True
     )
     retainer_start_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
+    # No retainer period starts after this date (no proration in Phase 1).
+    retainer_end_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
     due_date: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # `total_time_spent_minutes` (SUM of time_entries.duration_minutes) is a
