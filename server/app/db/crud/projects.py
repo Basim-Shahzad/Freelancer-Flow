@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import uuid
-from datetime import date
+from datetime import date, datetime
 from typing import Any, Optional
+from zoneinfo import ZoneInfo
 
 from sqlalchemy import select, func
 from sqlalchemy.exc import IntegrityError
@@ -13,8 +14,11 @@ from app.core.errors import Conflict, Forbidden, NotFound, Unprocessable
 from app.db.crud.activity import diff_changes, log_activity
 from app.db.crud.clients import get_client_by_id
 from app.db.crud.freelancers import get_freelancer_by_user
+from app.models.FreelancerProfile import FreelancerProfile
+from app.models.Invoice import Invoice, InvoiceStatus
 from app.models.Project import BillingType, Project, ProjectStatus
 from app.schemas.ProjectsSchema import ProjectCreate, ProjectUpdate
+from app.services.retainer import period_end, period_label, period_starts
 
 
 async def get_project_by_id(
@@ -72,7 +76,12 @@ async def get_projects(
     return list(projects), total
 
 
-_RETAINER_FIELDS = ("retainer_amount", "retainer_interval", "retainer_start_date")
+_RETAINER_FIELDS = (
+    "retainer_amount",
+    "retainer_interval",
+    "retainer_start_date",
+    "retainer_end_date",
+)
 
 
 async def _billing_adjustments(
@@ -94,8 +103,12 @@ async def _billing_adjustments(
     if billing_type == BillingType.RETAINER:
         if state.get("retainer_amount") is None or state.get("retainer_interval") is None:
             raise Unprocessable("RETAINER projects require retainer_amount and retainer_interval")
-        if state.get("retainer_start_date") is None:
-            out["retainer_start_date"] = date.today()
+        start = state.get("retainer_start_date")
+        if start is None:
+            start = out["retainer_start_date"] = date.today()
+        end = state.get("retainer_end_date")
+        if end is not None and end <= start:
+            raise Unprocessable("retainer_end_date must be after retainer_start_date")
     else:
         if any(supplied.get(f) is not None for f in _RETAINER_FIELDS):
             raise Unprocessable("Retainer fields are only valid for RETAINER projects")
@@ -200,6 +213,46 @@ async def update_project(
 
     await db.commit()
     return await _reload(db, project.id, user_id)
+
+
+async def get_retainer_periods(
+    db: AsyncSession,
+    project_id: uuid.UUID,
+    freelancer: FreelancerProfile,
+) -> list[dict[str, Any]]:
+    """Periods from the retainer start through the current one (billing is in
+    advance), each with the live invoice that bills it, if any."""
+    project = await get_project_by_id(db, project_id, freelancer.user_id)
+    if (
+        project.billing_type != BillingType.RETAINER
+        or project.retainer_interval is None
+        or project.retainer_start_date is None
+    ):
+        raise Unprocessable("Only RETAINER projects have retainer periods")
+    today = datetime.now(ZoneInfo(freelancer.timezone)).date()
+    starts = period_starts(
+        project.retainer_start_date,
+        project.retainer_interval,
+        today,
+        project.retainer_end_date,
+    )
+    billed = await db.execute(
+        select(Invoice.retainer_period_start, Invoice.id).where(
+            Invoice.project_id == project.id,
+            Invoice.retainer_period_start.is_not(None),
+            Invoice.status != InvoiceStatus.CANCELLED,
+        )
+    )
+    invoice_by_period = {start: inv_id for start, inv_id in billed.all()}
+    return [
+        {
+            "period_start": s,
+            "period_end": period_end(s, project.retainer_start_date, project.retainer_interval),
+            "label": period_label(s, project.retainer_interval),
+            "invoice_id": invoice_by_period.get(s),
+        }
+        for s in starts
+    ]
 
 
 async def _reload(db: AsyncSession, project_id: uuid.UUID, user_id: uuid.UUID) -> Project:

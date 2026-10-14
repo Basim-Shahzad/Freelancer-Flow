@@ -14,9 +14,11 @@ from app.db.crud.projects import (
     delete_project,
     get_project_by_id,
     get_projects,
+    get_retainer_periods,
     update_project,
 )
 from app.db.database import get_db
+from app.models.FreelancerProfile import FreelancerProfile
 from app.models.Project import ProjectStatus
 from app.models.User import User
 from app.schemas.MilestoneSchema import (
@@ -28,6 +30,7 @@ from app.schemas.ProjectsSchema import (
     ProjectListResponse,
     ProjectResponse,
     ProjectUpdate,
+    RetainerPeriodListResponse,
 )
 
 router = APIRouter(prefix="/projects", tags=["Projects"])
@@ -124,6 +127,24 @@ async def delete_existing_project(
     current_user: User = Depends(get_current_user),
 ):
     await delete_project(db=db, project_id=project_id, user_id=current_user.id)
+
+
+@router.get(
+    "/{project_id}/retainer-periods",
+    response_model=RetainerPeriodListResponse,
+    summary="List a retainer project's billing periods",
+    description="From `retainerStartDate` through the current period (billing is in "
+    "advance), no later than `retainerEndDate`. `invoiceId` is null for unbilled "
+    "periods; a cancelled invoice frees its period.",
+    responses=errors(401, 403, 404, 422),
+)
+async def list_retainer_periods(
+    project_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    freelancer: FreelancerProfile = Depends(get_current_freelancer),
+):
+    periods = await get_retainer_periods(db, project_id, freelancer)
+    return RetainerPeriodListResponse(periods=periods)
 
 
 @router.get(

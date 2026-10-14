@@ -45,6 +45,11 @@ class ProjectCreate(_BillingRules):
     retainer_start_date: Optional[date] = Field(
         default=None, description="RETAINER only; defaults to today."
     )
+    retainer_end_date: Optional[date] = Field(
+        default=None,
+        description="RETAINER only; must be after the start date. No period starts "
+        "after it.",
+    )
     currency: Optional[CurrencyCode] = Field(
         default=None, description="Defaults to the client's, then the freelancer's currency."
     )
@@ -66,6 +71,7 @@ class ProjectUpdate(_BillingRules):
     retainer_amount: Optional[PositiveMoney] = None
     retainer_interval: Optional[RecurrenceInterval] = None
     retainer_start_date: Optional[date] = None
+    retainer_end_date: Optional[date] = None
     currency: Optional[CurrencyCode] = None
     hourly_rate: Optional[Money] = None
     due_date: Optional[UTCDateTime] = None
@@ -87,6 +93,7 @@ class ProjectResponse(Base):
     retainer_amount: Optional[Decimal] = None
     retainer_interval: Optional[RecurrenceInterval] = None
     retainer_start_date: Optional[date] = None
+    retainer_end_date: Optional[date] = None
     currency: Optional[str] = None
     hourly_rate: Optional[Decimal] = None
     due_date: Optional[datetime] = None
@@ -115,6 +122,19 @@ class ProjectResponse(Base):
             hourly_rate=self.hourly_rate,
             total_minutes=self.total_time_spent_minutes,
         )
+
+
+class RetainerPeriodResponse(Base):
+    period_start: date
+    period_end: date
+    label: str
+    invoice_id: Optional[uuid.UUID] = Field(
+        default=None, description="The live invoice billing this period; null if unbilled."
+    )
+
+
+class RetainerPeriodListResponse(Base):
+    periods: list[RetainerPeriodResponse]
 
 
 class ProjectListResponse(Base):

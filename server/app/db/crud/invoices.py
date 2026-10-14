@@ -4,7 +4,7 @@ import asyncio
 import logging
 import uuid
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from typing import Optional
 from zoneinfo import ZoneInfo
@@ -27,6 +27,7 @@ from app.models.InvoiceItem import InvoiceItem
 from app.models.InvoicePaymentMethod import InvoicePaymentMethod
 from app.models.InvoiceEvent import InvoiceEvent, InvoiceEventType
 from app.models.Milestone import Milestone, MilestoneStatus
+from app.models.Project import BillingType, Project
 from app.models.PortalAccessToken import PortalAccessToken, ScopeType
 from app.models.TimeEntry import TimeEntry
 from app.schemas.InvoiceSchema import (
@@ -42,6 +43,7 @@ from app.services.email_service import (
     send_invoice_reminder_email,
 )
 from app.services.pdf import render_invoice_pdf
+from app.services.retainer import period_label, period_starts
 from app.services.sharing import build_whatsapp_url, invoice_message
 from app.services.invoicing import (
     TaxSpec,
@@ -324,6 +326,57 @@ async def _payment_method_snapshots(
     ]
 
 
+async def _retainer_period_invoiced(
+    db: AsyncSession, project_id: uuid.UUID, period_start: date
+) -> bool:
+    """True when a non-cancelled invoice already bills this retainer period
+    (a written-off invoice still blocks it)."""
+    found = await db.execute(
+        select(Invoice.id).where(
+            Invoice.project_id == project_id,
+            Invoice.retainer_period_start == period_start,
+            Invoice.status != InvoiceStatus.CANCELLED,
+        )
+    )
+    return found.first() is not None
+
+
+async def _retainer_item(
+    db: AsyncSession,
+    project: Project,
+    period_start: date,
+    freelancer: FreelancerProfile,
+    currency: str,
+) -> InvoiceItem:
+    """Validate a retainer period and build its 'Retainer — <period>' line."""
+    if (
+        project.billing_type != BillingType.RETAINER
+        or project.retainer_amount is None
+        or project.retainer_interval is None
+        or project.retainer_start_date is None
+    ):
+        raise Unprocessable("retainer_period_start is only valid for RETAINER projects")
+    today = datetime.now(ZoneInfo(freelancer.timezone)).date()
+    if period_start not in period_starts(
+        project.retainer_start_date,
+        project.retainer_interval,
+        today,
+        project.retainer_end_date,
+    ):
+        raise Unprocessable(
+            "retainer_period_start must be the start of a retainer period that has "
+            "already begun"
+        )
+    if await _retainer_period_invoiced(db, project.id, period_start):
+        raise Conflict("This retainer period has already been invoiced")
+    return InvoiceItem(
+        description=f"Retainer — {period_label(period_start, project.retainer_interval)}",
+        quantity=Decimal("1"),
+        unit_price=project.retainer_amount,
+        amount=line_amount(Decimal("1"), project.retainer_amount, currency),
+    )
+
+
 async def create_invoice(
     db: AsyncSession,
     data: InvoiceCreate,
@@ -348,7 +401,14 @@ async def create_invoice(
         else _specs_from_profile(freelancer)
     )
 
-    items: list[InvoiceItem] = [
+    items: list[InvoiceItem] = []
+    if data.retainer_period_start is not None:
+        items.append(
+            await _retainer_item(
+                db, project, data.retainer_period_start, freelancer, currency
+            )
+        )
+    items += [
         InvoiceItem(
             description=i.description,
             quantity=i.quantity,
@@ -378,6 +438,7 @@ async def create_invoice(
         freelancer_id=freelancer.id,
         client_id=client.id,
         project_id=project.id,
+        retainer_period_start=data.retainer_period_start,
         items=items,
         payment_methods=await _payment_method_snapshots(
             db, freelancer, data.payment_method_ids
@@ -413,6 +474,12 @@ async def create_invoice(
         await db.commit()
     except IntegrityError:
         await db.rollback()
+        # Two unique indexes can trip: a concurrent request billing the same
+        # retainer period, or an invoice-number clash.
+        if data.retainer_period_start is not None and await _retainer_period_invoiced(
+            db, project.id, data.retainer_period_start
+        ):
+            raise Conflict("This retainer period has already been invoiced")
         raise Conflict("Could not allocate an invoice number; please retry")
     return await get_invoice_by_id(db, invoice.id, freelancer.id, refresh=True)
 

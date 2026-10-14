@@ -2,6 +2,7 @@ from __future__ import annotations
 import enum
 import json
 import uuid
+from datetime import date
 from decimal import Decimal
 from typing import Any, Literal, Optional
 
@@ -92,12 +93,24 @@ class InvoiceCreate(Base):
     items: list[InvoiceItemCreate] = Field(default_factory=list, max_length=200)
     time_entry_ids: list[uuid.UUID] = Field(default_factory=list, max_length=1000)
     milestone_ids: list[uuid.UUID] = Field(default_factory=list, max_length=200)
+    retainer_period_start: Optional[date] = Field(
+        default=None,
+        description="RETAINER projects only: start date of the period to bill. Adds "
+        "a 'Retainer — <period>' line at the retainer amount. Must be one of the "
+        "project's period starts that has already begun (billing is in advance).",
+    )
 
     @model_validator(mode="after")
     def _validate(self) -> "InvoiceCreate":
-        if not (self.items or self.time_entry_ids or self.milestone_ids):
+        if not (
+            self.items
+            or self.time_entry_ids
+            or self.milestone_ids
+            or self.retainer_period_start
+        ):
             raise ValueError(
-                "An invoice needs at least one item, time entry or milestone"
+                "An invoice needs at least one item, time entry, milestone or "
+                "retainer period"
             )
         if (
             self.issue_date is not None
@@ -194,6 +207,7 @@ class InvoiceResponse(Base):
     project_id: uuid.UUID
     client: InvoiceParty
     project: InvoiceParty
+    retainer_period_start: Optional[date] = None
     issuer: InvoiceIssuer
     items: list[InvoiceItemResponse]
     payments: list[PaymentResponse]
