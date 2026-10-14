@@ -5,6 +5,7 @@ from app.api.v1.endpoints import (
     change_requests,
     client_portal,
     clients,
+    dashboard,
     expenses,
     invoices,
     milestones,
@@ -27,6 +28,7 @@ api_router.include_router(time_entries.router)
 api_router.include_router(milestones.router)
 api_router.include_router(change_requests.router)
 api_router.include_router(invoices.router)
+api_router.include_router(dashboard.router)
 api_router.include_router(payment_methods.router)
 api_router.include_router(payments.router)
 api_router.include_router(expenses.router)
