@@ -57,6 +57,10 @@ class Settings(BaseSettings):
     SMTP_USE_TLS: bool = True
     SMTP_TIMEOUT_SECONDS: int = 15
 
+    # Full data export (POST /export): attempts allowed per user per window.
+    EXPORT_RATE_LIMIT: int = 3
+    EXPORT_RATE_WINDOW_SECONDS: int = 3600
+
     # Reference data / exchange rates (display-only, never used in totals)
     FX_API_URL: str = "https://open.er-api.com/v6/latest/USD"
     FX_MAX_AGE_HOURS: int = 24

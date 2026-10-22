@@ -7,6 +7,7 @@ from app.api.v1.endpoints import (
     clients,
     dashboard,
     expenses,
+    export,
     invoices,
     milestones,
     payment_methods,
@@ -34,6 +35,7 @@ api_router.include_router(payments.router)
 api_router.include_router(expenses.router)
 api_router.include_router(tax.router)
 api_router.include_router(activity.router)
+api_router.include_router(export.router)
 api_router.include_router(reference.router)
 api_router.include_router(reference.public_router)
 api_router.include_router(client_portal.router)
