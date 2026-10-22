@@ -18,6 +18,7 @@ from app.core.errors import Conflict, NotFound, RateLimited, Unprocessable
 from app.db.crud.portal_tokens import issue_portal_token
 from app.core.config import settings
 from app.db.crud.activity import diff_changes, log_activity
+from app.db.crud.time_entries import ID_CAP
 from app.db.crud.payment_methods import list_methods
 from app.db.crud.projects import get_project_by_id
 from app.models.FreelancerProfile import FreelancerProfile
@@ -463,6 +464,9 @@ async def create_invoice(
         entry.is_invoiced = True
     try:
         await db.flush()
+        _log_time_links(
+            db, freelancer.user_id, invoice, [e.id for e in billed_entries], "linked"
+        )
         log_activity(
             db,
             user_id=freelancer.user_id,
@@ -559,9 +563,38 @@ async def update_invoice(
     return await get_invoice_by_id(db, invoice.id, freelancer.id, refresh=True)
 
 
-async def _release_time_entries(db: AsyncSession, invoice: Invoice) -> None:
+def _log_time_links(
+    db: AsyncSession,
+    user_id: uuid.UUID,
+    invoice: Invoice,
+    entry_ids: list[uuid.UUID],
+    action: str,
+) -> None:
+    """One summary row when time entries are linked to / released from an invoice."""
+    if not entry_ids:
+        return
+    verb = "Billed" if action == "linked" else "Released"
+    log_activity(
+        db,
+        user_id=user_id,
+        entity_type="time_entry",
+        entity_id=entry_ids[0],
+        action=action,
+        summary=f"{verb} {len(entry_ids)} time entries on {invoice.invoice_number}",
+        changes={
+            "invoice_id": str(invoice.id),
+            "count": len(entry_ids),
+            "ids": [str(i) for i in entry_ids[:ID_CAP]],
+        },
+    )
+
+
+async def _release_time_entries(
+    db: AsyncSession, invoice: Invoice, user_id: uuid.UUID
+) -> None:
     """Make an invoice's time entries billable again."""
     entry_ids = [i.time_entry_id for i in invoice.items if i.time_entry_id]
+    _log_time_links(db, user_id, invoice, entry_ids, "unlinked")
     if entry_ids:
         await db.execute(
             update(TimeEntry).where(TimeEntry.id.in_(entry_ids)).values(is_invoiced=False)
@@ -574,7 +607,7 @@ async def delete_invoice(
     invoice = await get_invoice_by_id(db, invoice_id, freelancer.id, for_update=True)
     if invoice.status != InvoiceStatus.DRAFT:
         raise Conflict("Only draft invoices can be deleted; cancel it instead")
-    await _release_time_entries(db, invoice)
+    await _release_time_entries(db, invoice, freelancer.user_id)
     log_activity(
         db,
         user_id=freelancer.user_id,
@@ -890,7 +923,7 @@ async def cancel_invoice(
         raise Conflict("Invoice has payments; void them before cancelling")
 
     invoice.status = InvoiceStatus.CANCELLED
-    await _release_time_entries(db, invoice)
+    await _release_time_entries(db, invoice, freelancer.user_id)
     # Kill any outstanding client links to this invoice.
     await db.execute(
         update(PortalAccessToken)

@@ -9,7 +9,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import Conflict, NotFound, Unprocessable
-from app.db.crud.activity import diff_changes, log_activity
+from app.db.crud.activity import log_activity
 from app.db.crud.freelancers import get_freelancer_by_user
 from app.db.crud.projects import get_project_by_id
 from app.models.Milestone import Milestone
@@ -135,15 +135,6 @@ async def create_time_entry(
         user_id=user_id,
     )
     db.add(entry)
-    await db.flush()
-    log_activity(
-        db,
-        user_id=user_id,
-        entity_type="time_entry",
-        entity_id=entry.id,
-        action="created",
-        summary=f"Logged {entry.duration_minutes} min on {project.name}",
-    )
     await db.commit()
     await db.refresh(entry)
     return entry
@@ -180,14 +171,6 @@ async def start_timer(
     except IntegrityError:
         await db.rollback()
         raise Conflict("A timer is already running; stop it first")
-    log_activity(
-        db,
-        user_id=user_id,
-        entity_type="time_entry",
-        entity_id=entry.id,
-        action="timer_started",
-        summary=f"Started timer on {project.name}",
-    )
     await db.commit()
     await db.refresh(entry)
     return entry
@@ -202,14 +185,6 @@ async def stop_timer(
     end = max(_now(), _aware(entry.start_time))
     entry.end_time = end
     entry.duration_minutes = duration_minutes(_aware(entry.start_time), end)
-    log_activity(
-        db,
-        user_id=user_id,
-        entity_type="time_entry",
-        entity_id=entry.id,
-        action="timer_stopped",
-        summary=f"Stopped timer after {entry.duration_minutes} min",
-    )
     await db.commit()
     await db.refresh(entry)
     return entry
@@ -237,20 +212,10 @@ async def update_time_entry(
     if end is not None and end > _now() + _FUTURE_TOLERANCE:
         raise Unprocessable("end_time cannot be in the future")
 
-    changes = diff_changes(entry, update_data)
+    # Routine edits are not audited; only invoice linking, deletes and batches are.
     for field, value in update_data.items():
         setattr(entry, field, value)
     entry.duration_minutes = duration_minutes(start, end) if end else 0
-    if changes:
-        log_activity(
-            db,
-            user_id=user_id,
-            entity_type="time_entry",
-            entity_id=entry.id,
-            action="updated",
-            summary="Edited time entry",
-            changes=changes,
-        )
     try:
         await db.commit()
     except IntegrityError:
@@ -278,7 +243,7 @@ async def delete_time_entry(
     await db.commit()
 
 
-_ID_CAP = 20  # ids kept in a batch summary row
+ID_CAP = 20  # ids kept in a batch summary row
 
 
 async def bulk_update_time_entries(
@@ -351,7 +316,7 @@ async def bulk_update_time_entries(
                 for k, v in changes.items()
             },
             "count": len(entries),
-            "ids": [str(i) for i in ids[:_ID_CAP]],
+            "ids": [str(i) for i in ids[:ID_CAP]],
         },
     )
     try:
@@ -557,7 +522,7 @@ async def sync_time_entries(
             entity_id=touched[0],
             action="synced",
             summary=f"Synced {len(touched)} time entries",
-            changes={**counts, "ids": [str(i) for i in touched[:_ID_CAP]]},
+            changes={**counts, "ids": [str(i) for i in touched[:ID_CAP]]},
         )
     await db.commit()
     return results
