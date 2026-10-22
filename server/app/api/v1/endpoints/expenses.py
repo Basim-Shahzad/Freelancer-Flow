@@ -7,6 +7,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.api.dependencies.auth import CurrentFreelancer
 from app.api.v1.openapi import errors
 from app.db.crud.expenses import (
@@ -38,7 +39,7 @@ router = APIRouter(prefix="/expenses", tags=["Expenses"])
 async def list_expenses(
     freelancer: CurrentFreelancer,
     skip: int = Query(0, ge=0),
-    limit: int = Query(20, ge=1, le=100),
+    limit: int = Query(20, ge=1, le=settings.MAX_PAGE_SIZE),
     project_id: Optional[uuid.UUID] = Query(None),
     category: Optional[str] = Query(None, max_length=100),
     is_recurring: Optional[bool] = Query(None),

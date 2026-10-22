@@ -6,6 +6,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.api.dependencies.auth import get_current_freelancer, get_current_user
 from app.api.v1.openapi import errors
 from app.db.crud.milestones import get_milestones, reorder_milestones
@@ -44,7 +45,7 @@ router = APIRouter(prefix="/projects", tags=["Projects"])
 )
 async def list_projects(
     skip: int = Query(0, ge=0),
-    limit: int = Query(20, ge=1, le=100),
+    limit: int = Query(20, ge=1, le=settings.MAX_PAGE_SIZE),
     client_id: Optional[uuid.UUID] = Query(None),
     status: Optional[ProjectStatus] = Query(None),
     search: Optional[str] = Query(None, max_length=100),

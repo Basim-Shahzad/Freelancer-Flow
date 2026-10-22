@@ -5,6 +5,7 @@ import uuid
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.api.dependencies.auth import get_current_user
 from app.api.v1.openapi import errors
 from app.db.crud.projects import get_project_by_id
@@ -92,7 +93,7 @@ async def stop_time_entry_timer(
 async def list_time_entries(
     project_id: uuid.UUID,
     skip: int = Query(0, ge=0),
-    limit: int = Query(20, ge=1, le=100),
+    limit: int = Query(20, ge=1, le=settings.MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):

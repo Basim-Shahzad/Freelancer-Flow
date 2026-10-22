@@ -7,6 +7,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.api.dependencies.auth import CurrentFreelancer
 from app.api.v1.openapi import errors
 from app.db.crud.tax_remittances import (
@@ -63,7 +64,7 @@ async def get_tax_summary(
 async def list_remittances(
     freelancer: CurrentFreelancer,
     skip: int = Query(0, ge=0),
-    limit: int = Query(20, ge=1, le=100),
+    limit: int = Query(20, ge=1, le=settings.MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db),
 ):
     remittances, total = await get_remittances(db, freelancer.id, skip=skip, limit=limit)

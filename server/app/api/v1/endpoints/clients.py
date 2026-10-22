@@ -6,6 +6,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.db.database import get_db
 from app.db.crud.clients import (
     get_client_by_id,
@@ -29,7 +30,7 @@ router = APIRouter(prefix="/clients", tags=["Clients"])
 @router.get("", response_model=ClientListResponse)
 async def list_clients(
     skip: int = Query(0, ge=0),
-    limit: int = Query(20, ge=1, le=100),
+    limit: int = Query(20, ge=1, le=settings.MAX_PAGE_SIZE),
     search: Optional[str] = Query(None),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),

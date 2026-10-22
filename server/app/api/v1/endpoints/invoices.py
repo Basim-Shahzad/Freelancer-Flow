@@ -6,6 +6,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, Query, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.api.dependencies.auth import CurrentFreelancer
 from app.api.v1.openapi import errors
 from app.db.crud.invoices import (
@@ -53,7 +54,7 @@ router = APIRouter(prefix="/invoices", tags=["Invoices"])
 async def list_invoices(
     freelancer: CurrentFreelancer,
     skip: int = Query(0, ge=0),
-    limit: int = Query(20, ge=1, le=100),
+    limit: int = Query(20, ge=1, le=settings.MAX_PAGE_SIZE),
     status_filter: Optional[InvoiceDisplayStatus] = Query(None, alias="status"),
     client_id: Optional[uuid.UUID] = Query(None),
     project_id: Optional[uuid.UUID] = Query(None),
