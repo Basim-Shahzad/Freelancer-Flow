@@ -207,16 +207,18 @@ export interface BusinessProfile {
   hourlyRate?: number;
 }
 
+/**
+ * Business fields the profile API has no home for yet (no phone / footer note / logo upload, and
+ * `invoiceNumberFormat` is not a prefix + counter). They stay in the local store, so they do NOT follow
+ * the user across devices. Revisit once the backend models them (invoice numbering: steps 8-9).
+ */
+export type BusinessLocal = Pick<BusinessProfile, "phone" | "footerNote" | "invoicePrefix" | "nextInvoiceNumber" | "logoName">;
+
 export interface TimerState {
   running: boolean;
   projectId?: string;
   description: string;
   startedAt?: string;
-}
-
-/** Local-only app state. Identity (user, tokens) lives in `lib/store/auth.ts`. */
-export interface Session {
-  onboarded: boolean;
 }
 
 export interface DataExport {

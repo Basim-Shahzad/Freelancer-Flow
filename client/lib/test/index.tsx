@@ -2,6 +2,7 @@ import * as React from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, type RenderOptions } from "@testing-library/react";
 import MockAdapter from "axios-mock-adapter";
+import type { ProfileResponse } from "@/lib/api/profile.types";
 import type { User } from "@/lib/api/types";
 import { api, bare } from "@/lib/services/api.service";
 import { useAuthStore } from "@/lib/store/auth";
@@ -58,5 +59,16 @@ export function mockApi() {
       mock.restore();
       refresh.restore();
     },
+  };
+}
+
+/** A completed `GET /profile` response; pass `{ businessName: null }` for a user who has not onboarded yet. */
+export function profileFixture(overrides: Partial<ProfileResponse> = {}): ProfileResponse {
+  return {
+    id: "pr1", hourlyRate: "40.00", type: null, currency: "USD", country: "PK", timezone: "Asia/Karachi",
+    businessName: "Malik Studio", businessAddress: "Gulberg III, Lahore", taxRegistrationNumber: "1234567-8", taxLabel: null,
+    taxBasis: "accrual", paymentInstructions: null, invoiceNumberFormat: "INV-{seq}", logoUrl: null, defaultPaymentTermsDays: 14,
+    defaultTaxes: [], bankBalance: null, bankBalanceUpdatedAt: null, createdAt: "2026-01-01T00:00:00Z", updatedAt: "2026-01-01T00:00:00Z",
+    ...overrides,
   };
 }
