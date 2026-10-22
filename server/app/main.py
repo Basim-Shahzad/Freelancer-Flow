@@ -8,7 +8,8 @@ from sqlalchemy import text
 
 from app.api.v1.api import api_router
 from app.core.config import settings
-from app.core.errors import DomainError
+from app.core.errors import DomainError, RateLimited
+from app.core.middleware import BodySizeLimitMiddleware
 from app.db.database import init_db, async_session
 from app.models.User import UserRole
 from app.schemas.AuthSchema import UserCreate
@@ -73,6 +74,9 @@ def create_app() -> FastAPI:
     # Middleware
     # -------------------------------------------------------------------
 
+    # Added first so it sits inside CORS: its 413 still gets CORS headers.
+    app.add_middleware(BodySizeLimitMiddleware)
+
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins_list,
@@ -130,7 +134,12 @@ def create_app() -> FastAPI:
     @app.exception_handler(DomainError)
     async def domain_error_handler(request: Request, exc: DomainError):
         # Same body shape as FastAPI's HTTPException handler.
-        return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
+        headers = None
+        if isinstance(exc, RateLimited) and exc.retry_after:
+            headers = {"Retry-After": str(exc.retry_after)}
+        return JSONResponse(
+            status_code=exc.status_code, content={"detail": exc.detail}, headers=headers
+        )
 
     # -------------------------------------------------------------------
     # Routes
