@@ -69,10 +69,20 @@ async def create_client(
     db: AsyncSession,
     data: ClientCreate,
     freelancer_id: uuid.UUID,
+    user_id: uuid.UUID,
 ) -> ClientProfile:
     client = ClientProfile(**data.model_dump(), freelancer_id=freelancer_id)
     db.add(client)
     try:
+        await db.flush()
+        log_activity(
+            db,
+            user_id=user_id,
+            entity_type="client",
+            entity_id=client.id,
+            action="created",
+            summary=f"Added client {client.name}",
+        )
         await db.commit()
     except IntegrityError:
         await db.rollback()
@@ -121,6 +131,14 @@ async def delete_client(
     user_id: uuid.UUID,
 ) -> None:
     client = await get_client_by_id(db, client_id, user_id)
+    log_activity(
+        db,
+        user_id=user_id,
+        entity_type="client",
+        entity_id=client.id,
+        action="deleted",
+        summary=f"Deleted client {client.name}",
+    )
     await db.delete(client)
     try:
         await db.commit()
