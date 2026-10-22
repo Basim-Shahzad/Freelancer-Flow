@@ -129,3 +129,30 @@ async def void_payment(
     )
     await db.commit()
     return await get_invoice_by_id(db, invoice.id, freelancer.id, refresh=True)
+
+
+async def reverse_write_off(
+    db: AsyncSession, invoice_id: uuid.UUID, freelancer: FreelancerProfile
+) -> Invoice:
+    """Undo a write-off; the status is re-derived from the payments ledger."""
+    invoice = await get_invoice_by_id(db, invoice_id, freelancer.id, for_update=True)
+    if invoice.status != InvoiceStatus.WRITTEN_OFF:
+        raise Conflict("Only written-off invoices can be reversed")
+    invoice.status = InvoiceStatus.SENT
+    sync_payment_status(invoice)
+    log_activity(
+        db,
+        user_id=freelancer.user_id,
+        entity_type="invoice",
+        entity_id=invoice.id,
+        action="write_off_reversed",
+        summary=f"Reversed the write-off on {invoice.invoice_number}",
+        changes={
+            "status": {
+                "old": InvoiceStatus.WRITTEN_OFF.value,
+                "new": invoice.status.value,
+            }
+        },
+    )
+    await db.commit()
+    return await get_invoice_by_id(db, invoice.id, freelancer.id, refresh=True)

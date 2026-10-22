@@ -22,6 +22,7 @@ from app.db.crud.invoices import (
     update_invoice,
     write_off_invoice,
 )
+from app.db.crud.payments import reverse_write_off
 from app.db.database import get_db
 from app.services import fx_fetch
 from app.services.pdf import pdf_response
@@ -256,6 +257,22 @@ async def write_off_existing_invoice(
     db: AsyncSession = Depends(get_db),
 ):
     return await write_off_invoice(db, invoice_id, payload.reason, freelancer)
+
+
+@router.post(
+    "/{invoice_id}/reverse-write-off",
+    response_model=InvoiceResponse,
+    summary="Reverse a write-off",
+    description="Reopens a written-off invoice; its status is re-derived from the "
+    "recorded payments (sent, partially paid or paid).",
+    responses=errors(401, 403, 404, 409),
+)
+async def reverse_write_off_invoice(
+    invoice_id: uuid.UUID,
+    freelancer: CurrentFreelancer,
+    db: AsyncSession = Depends(get_db),
+):
+    return await reverse_write_off(db, invoice_id, freelancer)
 
 
 @router.get(
