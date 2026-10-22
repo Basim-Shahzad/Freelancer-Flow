@@ -1,4 +1,4 @@
-/** Types mirroring the backend OpenAPI schemas (see openapi.json). */
+/** Types mirroring the backend OpenAPI schemas (the backend serves them at /api/v1/openapi.json). */
 
 export interface User {
   id: string;
