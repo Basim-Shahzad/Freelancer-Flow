@@ -22,8 +22,8 @@ const fill = (label: string, value: string) => fireEvent.change(screen.getByLabe
 const submit = () => fireEvent.click(screen.getByRole("button", { name: "Change password" }));
 const fillValid = () => {
   fill("Current password", "old-password");
-  fill("New password", "brand-new-pass");
-  fill("Confirm new password", "brand-new-pass");
+  fill("New password", "Brand-new-pass1");
+  fill("Confirm new password", "Brand-new-pass1");
 };
 
 describe("change password", () => {
@@ -49,7 +49,7 @@ describe("change password", () => {
     fillValid();
     submit();
     await waitFor(() => expect(router.replace).toHaveBeenCalledWith("/login"));
-    expect(JSON.parse(m.mock.history.post[0]!.data)).toEqual({ currentPassword: "old-password", newPassword: "brand-new-pass" });
+    expect(JSON.parse(m.mock.history.post[0]!.data)).toEqual({ currentPassword: "old-password", newPassword: "Brand-new-pass1" });
     expect(useAuthStore.getState().status).toBe("unauthenticated");
     expect(toast.success).toHaveBeenCalled();
   });
