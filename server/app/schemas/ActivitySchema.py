@@ -18,3 +18,4 @@ class ActivityEventResponse(Base):
 class ActivityListResponse(Base):
     events: list[ActivityEventResponse]
     total: int
+    next_cursor: Optional[str] = None

@@ -387,7 +387,7 @@ async def test_activity_feed_is_scoped_ordered_and_filterable(client, auth_heade
     assert only_cr["total"] == 1
 
     future = (datetime.now(timezone.utc) + timedelta(days=1)).isoformat()
-    assert (await client.get(ACTIVITY_URL, params={"since": future}, headers=auth_headers)).json()["total"] == 0
+    assert (await client.get(ACTIVITY_URL, params={"from": future}, headers=auth_headers)).json()["total"] == 0
     assert (await client.get(ACTIVITY_URL, params={"limit": 500}, headers=auth_headers)).status_code == 422
     assert (await client.get(ACTIVITY_URL)).status_code == 401
 

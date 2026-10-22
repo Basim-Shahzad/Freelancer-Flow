@@ -1,14 +1,17 @@
 from __future__ import annotations
 
+import base64
+import binascii
 import enum
 import uuid
 from datetime import date, datetime
 from decimal import Decimal
 from typing import Any, Optional
 
-from sqlalchemy import func, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.errors import Unprocessable
 from app.models.ActivityEvent import ActivityEvent
 
 
@@ -32,9 +35,47 @@ def _same(old: Any, new: Any) -> bool:
     return old == new
 
 
-# Encrypted columns: the audit feed records that they changed, never the values.
-_REDACTED_FIELDS = frozenset({"tax_id", "tax_registration_number", "details"})
-_REDACTED = "[redacted]"
+# Secrets: the audit feed records that they changed, never the values. This is
+# the single redaction list; ``log_activity`` applies it to every ``changes``
+# payload, so hand-built dicts are covered as well as ``diff_changes`` output.
+REDACTED_FIELDS = frozenset(
+    {
+        # encrypted columns
+        "tax_id",
+        "tax_registration_number",
+        "details",
+        # credentials and tokens
+        "password",
+        "hashed_password",
+        "token",
+        "refresh_token",
+        "access_token",
+        "jti",
+    }
+)
+REDACTED = "[redacted]"
+
+
+def redact_changes(changes: Optional[dict[str, Any]]) -> Optional[dict[str, Any]]:
+    """Copy of ``changes`` with the values of secret fields masked (nested too)."""
+    if not changes:
+        return changes
+
+    def walk(value: Any) -> Any:
+        if isinstance(value, dict):
+            return {
+                k: (
+                    {"old": REDACTED, "new": REDACTED}
+                    if k in REDACTED_FIELDS
+                    else walk(v)
+                )
+                for k, v in value.items()
+            }
+        if isinstance(value, list):
+            return [walk(v) for v in value]
+        return value
+
+    return walk(changes)
 
 
 def diff_changes(obj: Any, new_values: dict[str, Any]) -> dict[str, dict[str, Any]]:
@@ -46,8 +87,8 @@ def diff_changes(obj: Any, new_values: dict[str, Any]) -> dict[str, dict[str, An
     for field, new in new_values.items():
         old = getattr(obj, field, None)
         if not _same(old, new):
-            if field in _REDACTED_FIELDS:
-                changes[field] = {"old": _REDACTED, "new": _REDACTED}
+            if field in REDACTED_FIELDS:
+                changes[field] = {"old": REDACTED, "new": REDACTED}
             else:
                 changes[field] = {"old": _jsonable(old), "new": _jsonable(new)}
     return changes
@@ -75,24 +116,42 @@ def log_activity(
             entity_id=entity_id,
             action=action,
             summary=summary[:255],
-            changes=changes or None,
+            changes=redact_changes(changes) or None,
         )
     )
+
+
+def _encode_cursor(event: ActivityEvent) -> str:
+    raw = f"{event.created_at.isoformat()}|{event.id}"
+    return base64.urlsafe_b64encode(raw.encode()).decode()
+
+
+def _decode_cursor(cursor: str) -> tuple[datetime, uuid.UUID]:
+    try:
+        raw = base64.urlsafe_b64decode(cursor.encode()).decode()
+        stamp, id_ = raw.split("|")
+        return datetime.fromisoformat(stamp), uuid.UUID(id_)
+    except (ValueError, UnicodeDecodeError, binascii.Error):
+        raise Unprocessable("Invalid cursor")
 
 
 async def list_activity(
     db: AsyncSession,
     user_id: uuid.UUID,
     *,
-    since: Optional[datetime] = None,
+    date_from: Optional[datetime] = None,
+    date_to: Optional[datetime] = None,
     entity_type: Optional[str] = None,
     entity_id: Optional[uuid.UUID] = None,
-    skip: int = 0,
+    cursor: Optional[str] = None,
     limit: int = 50,
-) -> tuple[list[ActivityEvent], int]:
+) -> tuple[list[ActivityEvent], int, Optional[str]]:
+    """Newest first, ordered by ``(created_at, id)``; returns (page, total, next cursor)."""
     filters = [ActivityEvent.user_id == user_id]
-    if since is not None:
-        filters.append(ActivityEvent.created_at >= since)
+    if date_from is not None:
+        filters.append(ActivityEvent.created_at >= date_from)
+    if date_to is not None:
+        filters.append(ActivityEvent.created_at <= date_to)
     if entity_type:
         filters.append(ActivityEvent.entity_type == entity_type)
     if entity_id:
@@ -101,13 +160,28 @@ async def list_activity(
     total = (
         await db.execute(select(func.count(ActivityEvent.id)).where(*filters))
     ).scalar_one()
-    rows = (
-        await db.execute(
-            select(ActivityEvent)
-            .where(*filters)
-            .order_by(ActivityEvent.created_at.desc())
-            .offset(skip)
-            .limit(limit)
+
+    page_filters = list(filters)
+    if cursor:
+        stamp, last_id = _decode_cursor(cursor)
+        page_filters.append(
+            or_(
+                ActivityEvent.created_at < stamp,
+                and_(ActivityEvent.created_at == stamp, ActivityEvent.id < last_id),
+            )
         )
-    ).scalars().all()
-    return list(rows), total
+    rows = list(
+        (
+            await db.execute(
+                select(ActivityEvent)
+                .where(*page_filters)
+                .order_by(ActivityEvent.created_at.desc(), ActivityEvent.id.desc())
+                .limit(limit + 1)
+            )
+        ).scalars()
+    )
+    next_cursor = None
+    if len(rows) > limit:
+        rows = rows[:limit]
+        next_cursor = _encode_cursor(rows[-1])
+    return rows, total, next_cursor

@@ -22,30 +22,38 @@ router = APIRouter(prefix="/activity", tags=["Activity"])
     "",
     response_model=ActivityListResponse,
     summary="Activity feed",
-    description="Newest first. Answers \"what changed since Monday\": each event "
+    description="Newest first, cursor-paginated. Answers \"what changed since Monday\": each event "
     "carries the before/after values in `changes`. Scoped to the caller.",
     responses=errors(401),
 )
 async def get_activity_feed(
-    since: Optional[datetime] = Query(None, description="Only events at or after this time."),
+    date_from: Optional[datetime] = Query(
+        None, alias="from", description="Only events at or after this time."
+    ),
+    date_to: Optional[datetime] = Query(
+        None, alias="to", description="Only events at or before this time."
+    ),
     entity_type: Optional[str] = Query(
         None,
         max_length=50,
         description="e.g. project, milestone, invoice, time_entry, expense, client",
     ),
     entity_id: Optional[uuid.UUID] = Query(None),
-    skip: int = Query(0, ge=0),
+    cursor: Optional[str] = Query(
+        None, description="`next_cursor` from the previous page."
+    ),
     limit: int = Query(50, ge=1, le=200),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    events, total = await list_activity(
+    events, total, next_cursor = await list_activity(
         db,
         current_user.id,
-        since=since,
+        date_from=date_from,
+        date_to=date_to,
         entity_type=entity_type,
         entity_id=entity_id,
-        skip=skip,
+        cursor=cursor,
         limit=limit,
     )
-    return ActivityListResponse(events=events, total=total)
+    return ActivityListResponse(events=events, total=total, next_cursor=next_cursor)
