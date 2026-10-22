@@ -42,3 +42,9 @@ Adopted from the earlier static UI: pill buttons/chips, Card panels (14px) and K
 Deliberately NOT ported: project status/progress bars, client invoice bars, the rail sidebar, the twelve-week landing card, briefing card, "who's holding things up", invoices "days on the road", predictions ("likely payment").
 New data: `TimeEntry.startTime` (HH:MM, optional), `BusinessProfile.hourlyRate` (optional, minor units). Persist version is now 2.
 Known: dashboard "Active projects" card still has small progress bars; seed has few entries this week so the week grid looks sparse.
+
+## Business profile (API-backed since step 3)
+
+`GET/PATCH /profile` is the source of truth for the business profile; read it through `useBusiness()` (view model) / `useProfile()` (query state) in `lib/hooks/profile`. `ownerName` and `email` come from the signed-in user. "Onboarded" is derived: the profile has a `businessName` (`useOnboarded()`).
+
+The API has no home for `phone`, `footerNote`, `logoName`, `invoicePrefix` and `nextInvoiceNumber` (`invoiceNumberFormat` is a different shape). They stay in the persisted store as `businessLocal` (persist version 3), so they do **not** follow the user across devices. The token-based client portal still reads the demo `seedBusiness` until step 13. Clients and payment methods created during onboarding still go to the mock store until steps 4 and 5.

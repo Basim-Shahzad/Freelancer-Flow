@@ -10,13 +10,14 @@ import { MilestoneList, type Outcome } from "./milestone-list";
 import { InvoicesSection, MilestoneProgress, SimpleOverview } from "./project-overview";
 import { deriveProjectStage, firstName, milestoneStats, projectCaption, projectInvoices } from "./portal-logic";
 import { LinkInactive, PortalSkeleton } from "./portal-states";
+import { seedBusiness } from "@/lib/seed"; // portal stays on mock data until step 13
 
 export function ProjectPortalView({ token }: { token: string }) {
   const hydrated = useHydrated();
   const project = useAppStore((s) => s.projects.find((p) => p.shareToken === token));
   const invoices = useAppStore((s) => s.invoices);
   const clients = useAppStore((s) => s.clients);
-  const ownerName = useAppStore((s) => s.business.ownerName);
+  const ownerName = seedBusiness.ownerName;
   const online = useAppStore((s) => s.online);
   const [outcomes, setOutcomes] = useState<Record<string, Outcome | undefined>>({});
 

@@ -28,6 +28,7 @@ import { ClientDetails } from "./client-details";
 import { DeleteClientDialog } from "./delete-client-dialog";
 import { avgDaysToPay, clientAccount, clientWorth, daysText } from "./logic";
 import { termsLabel } from "./schema";
+import { useBusiness } from "@/lib/hooks/profile";
 
 const linkCls = "inline-flex min-h-11 items-center text-sm font-medium text-primary-ink underline decoration-1 underline-offset-[3px]";
 
@@ -40,9 +41,9 @@ export function ClientDetailView({ id }: { id: string }) {
   const allProjects = useAppStore((s) => s.projects);
   const invoices = useAppStore((s) => s.invoices);
   const time = useAppStore((s) => s.time);
-  const hourlyRate = useAppStore((s) => s.business.hourlyRate);
+  const hourlyRate = useBusiness().hourlyRate;
   const deleteClient = useAppStore((s) => s.deleteClient);
-  const base = useAppStore((s) => s.business.defaultCurrency);
+  const base = useBusiness().defaultCurrency;
   const [gone, setGone] = useState(false);
 
   const views = useMemo(

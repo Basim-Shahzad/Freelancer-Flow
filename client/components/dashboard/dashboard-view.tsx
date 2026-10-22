@@ -22,6 +22,7 @@ import { ProjectsSection, type ActiveProjectRow } from "./projects-section";
 import { OwedHero } from "./owed-hero";
 import { activeCurrencies, sentToPaidDays, stagesByCurrency } from "./stages";
 import { TodayCard } from "./timer-card";
+import { useBusiness } from "@/lib/hooks/profile";
 
 export const greeting = (hour: number) => (hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening");
 
@@ -31,7 +32,7 @@ export function DashboardView() {
   const projects = useAppStore((s) => s.projects);
   const invoices = useAppStore((s) => s.invoices);
   const time = useAppStore((s) => s.time);
-  const base = useAppStore((s) => s.business.defaultCurrency);
+  const base = useBusiness().defaultCurrency;
   const userName = useAuthStore((s) => s.user?.fullName ?? undefined);
 
   const data = useMemo(() => {

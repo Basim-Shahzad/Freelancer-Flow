@@ -1,6 +1,6 @@
 import { daysFromToday as d } from "./dates";
 import type {
-  ActivityEntry, BusinessProfile, Client, DataExport, Invoice, PaymentMethod, Project, TimeEntry,
+  ActivityEntry, BusinessLocal, BusinessProfile, Client, DataExport, Invoice, PaymentMethod, Project, TimeEntry,
 } from "./types";
 
 /**
@@ -10,10 +10,15 @@ import type {
 const ts = (days: number, hm = "10:00") => `${d(days)}T${hm}:00.000Z`;
 const ev = (id: string, type: Invoice["events"][number]["type"], days: number, label: string, hm = "10:00") => ({ id, type, at: ts(days, hm), label });
 
+/** Demo business for the token-based client portal, which has no account and stays on mock data until step 13. */
 export const seedBusiness: BusinessProfile = {
   businessName: "Malik Studio", ownerName: "Ayesha Malik", email: "ayesha@maliks.studio", phone: "+92 300 5550214",
   taxId: "1234567-8", address: "Gulberg III, Lahore, Pakistan", defaultCurrency: "USD", defaultTermsDays: 14,
   invoicePrefix: "INV-", nextInvoiceNumber: 46, footerNote: "Thank you for your business.", hourlyRate: 4000,
+};
+
+export const seedBusinessLocal: BusinessLocal = {
+  phone: seedBusiness.phone, footerNote: seedBusiness.footerNote, invoicePrefix: seedBusiness.invoicePrefix, nextInvoiceNumber: seedBusiness.nextInvoiceNumber,
 };
 
 export const seedClients: Client[] = [

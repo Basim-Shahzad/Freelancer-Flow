@@ -16,6 +16,7 @@ import { useAppStore } from "@/lib/store";
 import { HowToPay } from "./how-to-pay";
 import { dueLine, firstName, invoiceCaption, invoiceHero, isPortalVisible, lastPaymentDate, methodsForInvoice } from "./portal-logic";
 import { LinkInactive, PortalSkeleton } from "./portal-states";
+import { seedBusiness } from "@/lib/seed"; // portal stays on mock data until step 13
 
 export function InvoicePortalView({ token }: { token: string }) {
   const hydrated = useHydrated();
@@ -23,7 +24,7 @@ export function InvoicePortalView({ token }: { token: string }) {
   const allMethods = useAppStore((s) => s.methods);
   const clients = useAppStore((s) => s.clients);
   const projects = useAppStore((s) => s.projects);
-  const business = useAppStore((s) => s.business);
+  const business = seedBusiness;
   const online = useAppStore((s) => s.online);
   const markViewed = useAppStore((s) => s.markViewed);
 

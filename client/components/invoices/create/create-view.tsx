@@ -22,6 +22,7 @@ import { StepProject } from "./step-project";
 import { StepReview } from "./step-review";
 import { StepTax } from "./step-tax";
 import { Summary } from "./summary";
+import { useBusiness } from "@/lib/hooks/profile";
 
 const MINS_LEFT = [4, 3, 2, 1, 1];
 
@@ -40,7 +41,7 @@ function CreateFlow({ projectId, period }: Props) {
   const time = useAppStore((s) => s.time);
   const invoices = useAppStore((s) => s.invoices);
   const methods = useAppStore((s) => s.methods);
-  const business = useAppStore((s) => s.business);
+  const business = useBusiness();
   const online = useAppStore((s) => s.online);
   const createInvoice = useAppStore((s) => s.createInvoice);
 

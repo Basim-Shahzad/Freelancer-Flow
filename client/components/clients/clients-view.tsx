@@ -27,6 +27,7 @@ import { useAppStore } from "@/lib/store";
 import { addToBy } from "@/components/dashboard/aggregate";
 import { avgDaysToPay, clientAccount, clientWorth, daysText, matchesClient, matchesFilter, overdueClientCount, sortClientRows, type ClientFilter, type ClientRow, type ClientSort } from "./logic";
 import { Label } from "@/components/ui/label";
+import { useBusiness } from "@/lib/hooks/profile";
 
 const COLS = "minmax(0,1.5fr) minmax(0,.9fr) 4.5rem minmax(0,1fr) minmax(0,1.1fr) 1.25rem";
 const SORTS: { value: ClientSort; label: string }[] = [
@@ -51,8 +52,8 @@ export function ClientsView() {
   const [filter, setFilter] = useState<ClientFilter>("all");
   const [sort, setSort] = useState<ClientSort>("worth");
   const time = useAppStore((s) => s.time);
-  const hourlyRate = useAppStore((s) => s.business.hourlyRate);
-  const base = useAppStore((s) => s.business.defaultCurrency);
+  const hourlyRate = useBusiness().hourlyRate;
+  const base = useBusiness().defaultCurrency;
 
   const { rows, avgDays } = useMemo(() => {
     const today = todayISO();

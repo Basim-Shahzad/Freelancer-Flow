@@ -23,6 +23,7 @@ import {
 } from "./rate";
 import { RateLedgerRow } from "./rate-row";
 import { Label } from "@/components/ui/label";
+import { useBusiness } from "@/lib/hooks/profile";
 
 const FILTERS: { value: RateFilter; label: string }[] = [
   { value: "open", label: "Open" },
@@ -41,8 +42,8 @@ export function ProjectsView() {
   const clients = useAppStore((s) => s.clients);
   const invoices = useAppStore((s) => s.invoices);
   const time = useAppStore((s) => s.time);
-  const hourlyRate = useAppStore((s) => s.business.hourlyRate);
-  const base = useAppStore((s) => s.business.defaultCurrency);
+  const hourlyRate = useBusiness().hourlyRate;
+  const base = useBusiness().defaultCurrency;
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<RateFilter>("open");
   const [sort, setSort] = useState<RateSort>("worst");

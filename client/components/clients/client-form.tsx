@@ -18,6 +18,7 @@ import { useAppStore } from "@/lib/store";
 import { CURRENCIES, type Client, type PaymentMethodKind } from "@/lib/types";
 import { DiscardDialog, describedBy, useUnsavedChanges } from "./form-parts";
 import { clientSchema, clientToForm, COUNTRIES, emptyClientForm, formToClient, TERMS_PRESETS, termsLabel, type ClientFormValues } from "./schema";
+import { useBusiness } from "@/lib/hooks/profile";
 
 const FALLBACK_KINDS: PaymentMethodKind[] = ["payoneer", "esfca", "pkrbank", "raast"];
 const grid = "grid gap-5 @2xl:grid-cols-2";
@@ -25,7 +26,7 @@ const wide = "@2xl:col-span-2";
 
 export function ClientForm({ client }: { client?: Client }) {
   const router = useRouter();
-  const business = useAppStore((s) => s.business);
+  const business = useBusiness();
   const methods = useAppStore((s) => s.methods);
   const online = useAppStore((s) => s.online);
   const addClient = useAppStore((s) => s.addClient);

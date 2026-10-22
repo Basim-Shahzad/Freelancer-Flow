@@ -24,6 +24,7 @@ import { PaymentsSection } from "./payments-section";
 import { PrintStyles } from "./print-styles";
 import { RecordPanel } from "./record-panel";
 import { RemindPanel } from "./remind-panel";
+import { useBusiness } from "@/lib/hooks/profile";
 
 export function InvoiceDetailView({ id }: { id: string }) {
   const hydrated = useHydrated();
@@ -44,7 +45,7 @@ function DetailScreen({ id }: { id: string }) {
   const clients = useAppStore((s) => s.clients);
   const projects = useAppStore((s) => s.projects);
   const methods = useAppStore((s) => s.methods);
-  const business = useAppStore((s) => s.business);
+  const business = useBusiness();
   const online = useAppStore((s) => s.online);
   const sendInvoice = useAppStore((s) => s.sendInvoice);
   const [panel, setPanel] = useState<PanelKind | null>(null);

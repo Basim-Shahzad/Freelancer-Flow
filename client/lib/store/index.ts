@@ -7,11 +7,11 @@ import { calcTotals, deriveStatus, formatInvoiceNumber } from "../invoice";
 import { formatMoney } from "../money";
 import { methodTitle } from "../payment-methods";
 import {
-  seedActivity, seedBusiness, seedClients, seedExports, seedInvoices, seedMethods, seedProjects, seedTime,
+  seedActivity, seedBusinessLocal, seedClients, seedExports, seedInvoices, seedMethods, seedProjects, seedTime,
 } from "../seed";
 import type {
-  ActivityEntry, ActivityType, BusinessProfile, Client, DataExport, Invoice, InvoiceEvent, InvoiceEventType,
-  InvoiceLine, Payment, PaymentMethod, Project, Session, TimeEntry, TimerState,
+  ActivityEntry, ActivityType, BusinessLocal, Client, DataExport, Invoice, InvoiceEvent, InvoiceEventType,
+  InvoiceLine, Payment, PaymentMethod, Project, TimeEntry, TimerState,
 } from "../types";
 
 export const uid = (prefix: string) =>
@@ -41,8 +41,8 @@ interface State {
   /** True once persisted state has been loaded in the browser. Gate UI on this to avoid hydration mismatch. */
   hydrated: boolean;
   online: boolean;
-  session: Session;
-  business: BusinessProfile;
+  /** Business fields the profile API does not store yet; the rest lives in react-query (see `useBusiness`). */
+  businessLocal: BusinessLocal;
   clients: Client[];
   projects: Project[];
   time: TimeEntry[];
@@ -58,11 +58,7 @@ interface Actions {
   setOnline(v: boolean): void;
   markSynced(): void;
 
-  /** Onboarding is not tracked by the backend yet, so it is a local flag. */
-  setOnboarded(v: boolean): void;
-  completeOnboarding(input: { business: Partial<BusinessProfile>; client?: Omit<Client, "id" | "createdAt">; method?: Omit<PaymentMethod, "id" | "isDefault" | "enabled"> }): void;
-
-  updateBusiness(patch: Partial<BusinessProfile>): void;
+  updateBusinessLocal(patch: Partial<BusinessLocal>): void;
 
   addClient(c: Omit<Client, "id" | "createdAt">): Client;
   updateClient(id: string, patch: Partial<Client>): void;
@@ -113,8 +109,7 @@ export type AppStore = State & Actions;
 const initial = (): State => ({
   hydrated: false,
   online: true,
-  session: { onboarded: true },
-  business: seedBusiness,
+  businessLocal: seedBusinessLocal,
   clients: seedClients,
   projects: seedProjects,
   time: seedTime,
@@ -143,14 +138,7 @@ export const useAppStore = create<AppStore>()(
         setOnline: (online) => set({ online }),
         markSynced: () => set((s) => ({ time: s.time.map((t) => (t.unsynced ? { ...t, unsynced: false } : t)) })),
 
-        setOnboarded: (v) => set({ session: { onboarded: v } }),
-        completeOnboarding: ({ business, client, method }) => {
-          set((s) => ({ business: { ...s.business, ...business }, session: { ...s.session, onboarded: true } }));
-          if (client) get().addClient(client);
-          if (method) get().upsertMethod({ ...method, enabled: true, isDefault: get().methods.length === 0 });
-        },
-
-        updateBusiness: (patch) => { set((s) => ({ business: { ...s.business, ...patch } })); log("settings", "Business profile updated", "Settings", Object.keys(patch).join(", ")); },
+        updateBusinessLocal: (patch) => set((s) => ({ businessLocal: { ...s.businessLocal, ...patch } })),
 
         addClient: (c) => {
           const client: Client = { ...c, id: uid("c"), createdAt: nowISO() };
@@ -215,7 +203,7 @@ export const useAppStore = create<AppStore>()(
 
         createInvoice: (input) => {
           const s = get();
-          const number = formatInvoiceNumber(s.business.invoicePrefix, s.business.nextInvoiceNumber);
+          const number = formatInvoiceNumber(s.businessLocal.invoicePrefix, s.businessLocal.nextInvoiceNumber);
           const inv: Invoice = {
             id: uid("inv"), number, clientId: input.clientId, projectId: input.projectId, currency: input.currency,
             status: input.asDraft ? "draft" : "unpaid", issueDate: input.issueDate ?? todayISO(), dueDate: input.dueDate,
@@ -224,7 +212,7 @@ export const useAppStore = create<AppStore>()(
           };
           set((st) => ({
             invoices: [inv, ...st.invoices],
-            business: { ...st.business, nextInvoiceNumber: st.business.nextInvoiceNumber + 1 },
+            businessLocal: { ...st.businessLocal, nextInvoiceNumber: st.businessLocal.nextInvoiceNumber + 1 },
             time: st.time.map((t) => (input.timeEntryIds?.includes(t.id) ? { ...t, invoiceId: inv.id } : t)),
             projects: st.projects.map((p) => p.id !== input.projectId ? p : {
               ...p,
@@ -327,12 +315,24 @@ export const useAppStore = create<AppStore>()(
     },
     {
       name: "paylancr-v1",
-      version: 2,
-      // v1 -> v2 added optional TimeEntry.startTime; nothing to rewrite, old entries simply lack it.
-      migrate: (persisted) => persisted as never,
+      version: 3,
+      // v1 -> v2 added optional TimeEntry.startTime; old entries simply lack it.
+      // v2 -> v3 moved `business` to the API (`useBusiness`) and dropped `session`; the fields the API lacks are kept in `businessLocal`.
+      migrate: (persisted) => {
+        const { business, session: _session, ...rest } = (persisted ?? {}) as Record<string, unknown> & { business?: Partial<BusinessLocal> };
+        void _session;
+        const businessLocal: BusinessLocal = {
+          phone: business?.phone ?? seedBusinessLocal.phone,
+          footerNote: business?.footerNote ?? seedBusinessLocal.footerNote,
+          invoicePrefix: business?.invoicePrefix ?? seedBusinessLocal.invoicePrefix,
+          nextInvoiceNumber: business?.nextInvoiceNumber ?? seedBusinessLocal.nextInvoiceNumber,
+          logoName: business?.logoName,
+        };
+        return { ...rest, businessLocal } as never;
+      },
       storage: createJSONStorage(() => localStorage),
       skipHydration: true,
-      partialize: ({ session, business, clients, projects, time, invoices, methods, activity, exports, timer }) => ({ session, business, clients, projects, time, invoices, methods, activity, exports, timer }),
+      partialize: ({ businessLocal, clients, projects, time, invoices, methods, activity, exports, timer }) => ({ businessLocal, clients, projects, time, invoices, methods, activity, exports, timer }),
     },
   ),
 );

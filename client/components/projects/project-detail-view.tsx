@@ -25,6 +25,7 @@ import { LinkedInvoices, LinkedTime, ProjectClientCard } from "./project-lists";
 import { ProjectStatusChip } from "./project-status-chip";
 import { hoursText, rateRow, rateSentence, relativeDays, type RateRow } from "./rate";
 import { FixedSchedule, HourlySchedule, MilestoneSchedule, RetainerSchedule } from "./project-schedule";
+import { useBusiness } from "@/lib/hooks/profile";
 
 /** Headline numbers for one project. Money stays in the project's own currency. */
 function detailKpis(r: RateRow, views: InvoiceView[], today: string) {
@@ -52,8 +53,8 @@ export function ProjectDetailView({ id }: { id: string }) {
   const projects = useAppStore((s) => s.projects);
   const invoices = useAppStore((s) => s.invoices);
   const time = useAppStore(useShallow((s) => s.time.filter((t) => t.projectId === id)));
-  const hourlyRate = useAppStore((s) => s.business.hourlyRate);
-  const base = useAppStore((s) => s.business.defaultCurrency);
+  const hourlyRate = useBusiness().hourlyRate;
+  const base = useBusiness().defaultCurrency;
   const deleteProject = useAppStore((s) => s.deleteProject);
   const { copied, copy } = useCopy();
   const [gone, setGone] = useState(false);

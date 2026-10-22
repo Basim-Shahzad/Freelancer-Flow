@@ -20,6 +20,7 @@ import { BillingFields } from "./billing-fields";
 import { STATUS_LABEL } from "./logic";
 import { MilestonesEditor } from "./milestones-editor";
 import { emptyProjectForm, emptyRow, formToProject, projectResolver, projectToForm, type ProjectFormValues } from "./schema";
+import { useBusiness } from "@/lib/hooks/profile";
 
 const TYPES: { value: BillingType; title: string; desc: string }[] = [
   { value: "fixed", title: "Fixed price", desc: "One agreed price, invoiced in full or in stages." },
@@ -32,7 +33,7 @@ const grid = "grid gap-5 @2xl:grid-cols-2";
 export function ProjectForm({ project, clientId }: { project?: Project; clientId?: string }) {
   const router = useRouter();
   const clients = useAppStore((s) => s.clients);
-  const base = useAppStore((s) => s.business.defaultCurrency);
+  const base = useBusiness().defaultCurrency;
   const online = useAppStore((s) => s.online);
   const addProject = useAppStore((s) => s.addProject);
   const updateProject = useAppStore((s) => s.updateProject);

@@ -12,6 +12,7 @@ import { formatMoney } from "@/lib/money";
 import { useAppStore } from "@/lib/store";
 import type { Client, Invoice, InvoiceStatus } from "@/lib/types";
 import { reminderMessage, shareLink, whatsappUrl, type Tone } from "./messages";
+import { useBusiness } from "@/lib/hooks/profile";
 
 type Channel = "email" | "whatsapp";
 
@@ -19,7 +20,7 @@ interface Props { invoice: Invoice; status: InvoiceStatus; balance: number; clie
 
 export function RemindPanel({ invoice, status, balance, client, onClose }: Props) {
   const remind = useAppStore((s) => s.remindInvoice);
-  const ownerName = useAppStore((s) => s.business.ownerName);
+  const ownerName = useBusiness().ownerName;
   const ref = useRef<HTMLElement>(null);
   const [channel, setChannel] = useState<Channel>("email");
   const [tone, setTone] = useState<Tone>(status === "overdue" ? "firm" : "polite");
