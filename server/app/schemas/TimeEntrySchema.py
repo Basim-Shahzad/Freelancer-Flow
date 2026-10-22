@@ -1,5 +1,5 @@
 import uuid
-from typing import Optional
+from typing import Literal, Optional
 
 from pydantic import Field, model_validator
 
@@ -69,6 +69,73 @@ class TimeEntryResponse(Base):
     hourly_rate: Optional[Money] = None
     created_at: UTCDateTime
     updated_at: UTCDateTime
+
+
+class TimeEntryBulkSet(Base):
+    """Fields a bulk edit may change. An explicit ``milestoneId: null`` clears it."""
+
+    project_id: Optional[uuid.UUID] = None
+    milestone_id: Optional[uuid.UUID] = None
+    is_billable: Optional[bool] = None
+    description: Optional[str] = Field(default=None, min_length=1, max_length=255)
+
+    @model_validator(mode="after")
+    def _non_empty(self) -> "TimeEntryBulkSet":
+        if not self.model_fields_set:
+            raise ValueError("set must contain at least one field")
+        for name in ("project_id", "is_billable", "description"):
+            if name in self.model_fields_set and getattr(self, name) is None:
+                raise ValueError(f"{name} cannot be null")
+        return self
+
+
+class TimeEntryBulkUpdate(Base):
+    """PATCH /time-entries/bulk"""
+
+    ids: list[uuid.UUID] = Field(min_length=1, max_length=200)
+    set: TimeEntryBulkSet
+
+
+class TimeEntryBulkResult(Base):
+    updated: int
+    ids: list[uuid.UUID]
+
+
+class TimeEntrySyncItem(Base):
+    """One entry recorded offline, keyed by a client-generated UUID."""
+
+    id: uuid.UUID
+    start_time: UTCDateTime
+    end_time: Optional[UTCDateTime] = Field(
+        default=None, description="null for a still-running timer."
+    )
+    project_id: uuid.UUID
+    milestone_id: Optional[uuid.UUID] = None
+    description: str = Field(default="", max_length=255)
+    is_billable: bool = True
+    updated_at: Optional[UTCDateTime] = Field(
+        default=None,
+        description="The server version the client last saw; omit for new entries.",
+    )
+    deleted: bool = False
+
+
+class TimeEntrySyncRequest(Base):
+    entries: list[TimeEntrySyncItem] = Field(max_length=200)
+
+
+class TimeEntrySyncResult(Base):
+    id: uuid.UUID
+    status: Literal["created", "updated", "deleted", "conflict", "rejected"]
+    reason: Optional[str] = None
+    warning: Optional[Literal["overlap"]] = None
+    entry: Optional[TimeEntryResponse] = Field(
+        default=None, description="Server copy after the sync, when one exists."
+    )
+
+
+class TimeEntrySyncResponse(Base):
+    results: list[TimeEntrySyncResult]
 
 
 class TimeEntryList(Base):

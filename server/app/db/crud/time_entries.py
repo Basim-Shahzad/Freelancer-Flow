@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from typing import Optional
 
-from sqlalchemy import select, func
+from sqlalchemy import func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -16,23 +16,27 @@ from app.models.Milestone import Milestone
 from app.models.Project import Project
 from app.models.TimeEntry import TimeEntry
 from app.schemas.TimeEntrySchema import (
+    TimeEntryBulkUpdate,
     TimeEntryCreate,
+    TimeEntryResponse,
     TimeEntryStart,
+    TimeEntrySyncItem,
     TimeEntryUpdate,
 )
 from app.services.invoicing import duration_minutes
+from app.services.time_tracking import (
+    FUTURE_TOLERANCE,
+    aware,
+    overlaps,
+    validate_window,
+)
 
-# Tolerated client clock skew when validating "not in the future".
-_FUTURE_TOLERANCE = timedelta(minutes=5)
+_FUTURE_TOLERANCE = FUTURE_TOLERANCE
+_aware = aware
 
 
 def _now() -> datetime:
     return datetime.now(timezone.utc)
-
-
-def _aware(value: datetime) -> datetime:
-    """SQLite (tests) returns naive datetimes; Postgres returns aware ones."""
-    return value if value.tzinfo else value.replace(tzinfo=timezone.utc)
 
 
 async def _resolve_rate(
@@ -272,3 +276,288 @@ async def delete_time_entry(
     )
     await db.delete(entry)
     await db.commit()
+
+
+_ID_CAP = 20  # ids kept in a batch summary row
+
+
+async def bulk_update_time_entries(
+    db: AsyncSession, data: TimeEntryBulkUpdate, user_id: uuid.UUID
+) -> list[TimeEntry]:
+    """All-or-nothing edit of many entries; one summary activity row."""
+    ids = list(dict.fromkeys(data.ids))
+    entries = list(
+        (
+            await db.execute(
+                select(TimeEntry).where(
+                    TimeEntry.id.in_(ids), TimeEntry.user_id == user_id
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    if len(entries) != len(ids):
+        raise NotFound("Time entry not found")
+
+    changes = data.set.model_dump(exclude_unset=True)
+    if any(e.is_invoiced for e in entries) and set(changes) - {"description"}:
+        raise Conflict("Invoiced time entries can only have their description changed")
+
+    project: Optional[Project] = None
+    if "project_id" in changes:
+        project = await get_project_by_id(db, changes["project_id"], user_id)
+        if "milestone_id" not in changes and any(
+            e.milestone_id is not None and e.project_id != project.id for e in entries
+        ):
+            raise Unprocessable(
+                "milestone_id must be set when moving entries that have a milestone "
+                "to another project"
+            )
+
+    milestone_id = changes.get("milestone_id")
+    if milestone_id is not None:
+        milestone_project = (
+            await db.execute(
+                select(Milestone.project_id)
+                .join(Project, Project.id == Milestone.project_id)
+                .where(Milestone.id == milestone_id, Project.created_by == user_id)
+            )
+        ).scalar_one_or_none()
+        if milestone_project is None:
+            raise NotFound("Milestone not found")
+        targets = {project.id} if project else {e.project_id for e in entries}
+        if targets != {milestone_project}:
+            raise Unprocessable("Milestone does not belong to the target project")
+
+    for entry in entries:
+        if project is not None and entry.project_id != project.id:
+            entry.project_id = project.id
+            entry.hourly_rate = await _resolve_rate(db, project, user_id, None)
+        for field in ("description", "is_billable", "milestone_id"):
+            if field in changes:
+                setattr(entry, field, changes[field])
+
+    log_activity(
+        db,
+        user_id=user_id,
+        entity_type="time_entry",
+        entity_id=entries[0].id,
+        action="bulk_updated",
+        summary=f"Bulk edited {len(entries)} time entries",
+        changes={
+            "set": {
+                k: str(v) if isinstance(v, uuid.UUID) else v
+                for k, v in changes.items()
+            },
+            "count": len(entries),
+            "ids": [str(i) for i in ids[:_ID_CAP]],
+        },
+    )
+    try:
+        await db.commit()
+    except IntegrityError:
+        await db.rollback()
+        raise Conflict("Time entry conflict")
+    for entry in entries:
+        await db.refresh(entry)
+    return entries
+
+
+def _same_payload(entry: TimeEntry, item: TimeEntrySyncItem) -> bool:
+    if (entry.end_time is None) != (item.end_time is None):
+        return False
+    if entry.end_time is not None and _aware(entry.end_time) != _aware(item.end_time):
+        return False
+    return (
+        _aware(entry.start_time) == _aware(item.start_time)
+        and entry.project_id == item.project_id
+        and entry.milestone_id == item.milestone_id
+        and entry.description == item.description
+        and entry.is_billable == item.is_billable
+    )
+
+
+async def _has_overlap(
+    db: AsyncSession, entry: TimeEntry, user_id: uuid.UUID, now: datetime
+) -> bool:
+    start = _aware(entry.start_time)
+    end = _aware(entry.end_time) if entry.end_time else max(now, start)
+    candidates = (
+        await db.execute(
+            select(TimeEntry).where(
+                TimeEntry.user_id == user_id,
+                TimeEntry.id != entry.id,
+                TimeEntry.start_time < end,
+                or_(TimeEntry.end_time.is_(None), TimeEntry.end_time > start),
+            )
+        )
+    ).scalars()
+    return any(
+        overlaps(start, entry.end_time, o.start_time, o.end_time, now)
+        for o in candidates
+    )
+
+
+async def sync_time_entries(
+    db: AsyncSession, items: list[TimeEntrySyncItem], user_id: uuid.UUID
+) -> list[dict]:
+    """Apply a batch recorded offline. Idempotent; conflicts are reported per
+    entry and never fail the batch."""
+    now = _now()
+    running = await get_running_entry(db, user_id)
+    running_id = running.id if running else None
+    projects: dict[uuid.UUID, Optional[Project]] = {}
+    seen: set[uuid.UUID] = set()
+    results: list[dict] = []
+    counts = {"created": 0, "updated": 0, "deleted": 0, "conflict": 0, "rejected": 0}
+    touched: list[uuid.UUID] = []
+
+    async def project_for(project_id: uuid.UUID) -> Optional[Project]:
+        if project_id not in projects:
+            try:
+                projects[project_id] = await get_project_by_id(db, project_id, user_id)
+            except NotFound:
+                projects[project_id] = None
+        return projects[project_id]
+
+    def done(item, status, reason=None, entry=None, warning=None):
+        counts[status] += 1
+        if status in ("created", "updated", "deleted"):
+            touched.append(item.id)
+        results.append(
+            {
+                "id": item.id,
+                "status": status,
+                "reason": reason,
+                "warning": warning,
+                "entry": TimeEntryResponse.model_validate(entry) if entry else None,
+            }
+        )
+
+    for item in items:
+        if item.id in seen:
+            done(item, "rejected", "duplicate_id")
+            continue
+        seen.add(item.id)
+
+        existing = (
+            await db.execute(select(TimeEntry).where(TimeEntry.id == item.id))
+        ).scalar_one_or_none()
+        if existing is not None and existing.user_id != user_id:
+            done(item, "conflict", "id_unavailable")
+            continue
+
+        if item.deleted:
+            if existing is None:
+                done(item, "deleted")
+            elif existing.is_invoiced:
+                done(item, "conflict", "invoiced", existing)
+            else:
+                if running_id == existing.id:
+                    running_id = None
+                await db.delete(existing)
+                await db.flush()
+                done(item, "deleted")
+            continue
+
+        if existing is not None and existing.is_invoiced:
+            done(item, "conflict", "invoiced", existing)
+            continue
+        if existing is not None and _same_payload(existing, item):
+            # A retry of an already-applied change: nothing to do.
+            done(item, "updated", entry=existing)
+            continue
+        if (
+            existing is not None
+            and item.updated_at is not None
+            and _aware(existing.updated_at) > _aware(item.updated_at)
+        ):
+            done(item, "conflict", "server_newer", existing)
+            continue
+
+        reason = validate_window(item.start_time, item.end_time, now)
+        if reason:
+            done(item, "rejected", reason)
+            continue
+        project = await project_for(item.project_id)
+        if project is None:
+            done(item, "rejected", "project_not_found")
+            continue
+        if item.milestone_id is not None:
+            found = (
+                await db.execute(
+                    select(Milestone.id).where(
+                        Milestone.id == item.milestone_id,
+                        Milestone.project_id == project.id,
+                    )
+                )
+            ).scalar_one_or_none()
+            if found is None:
+                done(item, "rejected", "milestone_not_found")
+                continue
+        if item.end_time is None and running_id not in (None, item.id):
+            done(item, "conflict", "timer_already_running", existing)
+            continue
+
+        minutes = duration_minutes(item.start_time, item.end_time) if item.end_time else 0
+        if existing is None:
+            entry = TimeEntry(
+                id=item.id,
+                description=item.description,
+                start_time=item.start_time,
+                end_time=item.end_time,
+                duration_minutes=minutes,
+                is_billable=item.is_billable,
+                hourly_rate=await _resolve_rate(db, project, user_id, None),
+                project_id=project.id,
+                milestone_id=item.milestone_id,
+                user_id=user_id,
+            )
+            db.add(entry)
+            status = "created"
+        else:
+            entry = existing
+            if entry.project_id != project.id:
+                entry.hourly_rate = await _resolve_rate(db, project, user_id, None)
+            entry.description = item.description
+            entry.start_time = item.start_time
+            entry.end_time = item.end_time
+            entry.duration_minutes = minutes
+            entry.is_billable = item.is_billable
+            entry.project_id = project.id
+            entry.milestone_id = item.milestone_id
+            status = "updated"
+
+        try:
+            # Savepoint: a lost race on the one-running-timer index only
+            # rejects this entry, not the batch.
+            async with db.begin_nested():
+                await db.flush()
+        except IntegrityError:
+            if existing is None:
+                db.expunge(entry)
+            else:
+                await db.refresh(entry)
+            done(item, "conflict", "timer_already_running")
+            continue
+
+        if item.end_time is None:
+            running_id = item.id
+        elif running_id == item.id:
+            running_id = None
+        warning = "overlap" if await _has_overlap(db, entry, user_id, now) else None
+        done(item, status, entry=entry, warning=warning)
+
+    if touched:
+        log_activity(
+            db,
+            user_id=user_id,
+            entity_type="time_entry",
+            entity_id=touched[0],
+            action="synced",
+            summary=f"Synced {len(touched)} time entries",
+            changes={**counts, "ids": [str(i) for i in touched[:_ID_CAP]]},
+        )
+    await db.commit()
+    return results

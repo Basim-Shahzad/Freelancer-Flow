@@ -9,21 +9,27 @@ from app.api.dependencies.auth import get_current_user
 from app.api.v1.openapi import errors
 from app.db.crud.projects import get_project_by_id
 from app.db.crud.time_entries import (
+    bulk_update_time_entries,
     create_time_entry,
     delete_time_entry,
     get_running_entry,
     get_time_entries,
     start_timer,
     stop_timer,
+    sync_time_entries,
     update_time_entry,
 )
 from app.db.database import get_db
 from app.models.User import User
 from app.schemas.TimeEntrySchema import (
+    TimeEntryBulkResult,
+    TimeEntryBulkUpdate,
     TimeEntryCreate,
     TimeEntryList,
     TimeEntryResponse,
     TimeEntryStart,
+    TimeEntrySyncRequest,
+    TimeEntrySyncResponse,
     TimeEntryUpdate,
 )
 
@@ -150,3 +156,42 @@ async def delete_existing_time_entry(
     current_user: User = Depends(get_current_user),
 ):
     await delete_time_entry(db=db, entry_id=entry_id, user_id=current_user.id)
+
+
+@router.patch(
+    "/bulk",
+    response_model=TimeEntryBulkResult,
+    summary="Bulk edit time entries",
+    description="Applies `set` to up to 200 entries, all or nothing. Invoiced entries "
+    "only accept a `description` change. Moving entries to another project "
+    "re-resolves their rate snapshot; entries that have a milestone then need an "
+    "explicit `milestoneId`. Logs one summary activity row.",
+    responses=errors(401, 404, 409, 422),
+)
+async def bulk_edit_time_entries(
+    data: TimeEntryBulkUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    entries = await bulk_update_time_entries(db=db, data=data, user_id=current_user.id)
+    return TimeEntryBulkResult(updated=len(entries), ids=[e.id for e in entries])
+
+
+@router.post(
+    "/sync",
+    response_model=TimeEntrySyncResponse,
+    summary="Sync time entries recorded offline",
+    description="Idempotent batch of up to 200 entries keyed by client-generated "
+    "UUIDs. Each entry is reported as `created`, `updated`, `deleted`, `conflict` "
+    "(e.g. `server_newer`, `invoiced`, `timer_already_running`) or `rejected` "
+    "(validation); a bad entry never fails the batch. Overlapping entries are "
+    "accepted with `warning: overlap`.",
+    responses=errors(401, 422),
+)
+async def sync_offline_time_entries(
+    data: TimeEntrySyncRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    results = await sync_time_entries(db=db, items=data.entries, user_id=current_user.id)
+    return TimeEntrySyncResponse(results=results)
