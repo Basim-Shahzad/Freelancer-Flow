@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { useAuthStore } from "@/lib/store/auth";
 import { createTestQueryClient, mockApi, seedAuth } from "@/lib/test";
-import { useChangePassword, useLogin, useLogout, useLogoutAll } from "./use-auth";
+import { useAuthBootstrap, useChangePassword, useLogin, useLogout, useLogoutAll } from "./use-auth";
 
 let m: ReturnType<typeof mockApi>;
 const wrapper = ({ children }: { children: ReactNode }) => <QueryClientProvider client={createTestQueryClient()}>{children}</QueryClientProvider>;
@@ -36,6 +36,25 @@ describe("sign-out hooks", () => {
     await act(() => result.current.mutateAsync().catch(() => undefined));
     await waitFor(() => expect(useAuthStore.getState().status).toBe("unauthenticated"));
     expect(useAuthStore.getState().signOutReason).toBe("manual");
+  });
+});
+
+describe("useAuthBootstrap", () => {
+  beforeEach(() => useAuthStore.setState({ accessToken: null, user: null, status: "idle", signOutReason: null }));
+
+  it("refreshes, loads the user and becomes authenticated", async () => {
+    m.refresh.onPost("/auth/refresh").reply(200, { accessToken: "fresh" });
+    m.mock.onGet("/auth/me").reply(200, { id: "u1", email: "test@example.com", fullName: "T", role: "freelancer", isActive: true, isVerified: true, createdAt: "", lastLoginAt: null });
+    renderHook(() => useAuthBootstrap(), { wrapper });
+    await waitFor(() => expect(useAuthStore.getState().status).toBe("authenticated"));
+    expect(useAuthStore.getState().accessToken).toBe("fresh");
+  });
+
+  it("ends unauthenticated, with no sign-out reason, when the refresh fails", async () => {
+    m.refresh.onPost("/auth/refresh").reply(401, { detail: "no cookie" });
+    renderHook(() => useAuthBootstrap(), { wrapper });
+    await waitFor(() => expect(useAuthStore.getState().status).toBe("unauthenticated"));
+    expect(useAuthStore.getState().signOutReason).toBeNull();
   });
 });
 
