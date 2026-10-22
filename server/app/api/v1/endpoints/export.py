@@ -8,6 +8,7 @@ from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import StreamingResponse
 
 from app.api.dependencies.auth import CurrentFreelancer, CurrentUser, DBSession
+from app.api.dependencies.rate_limit import client_ip
 from app.api.v1.openapi import errors
 from app.core.config import settings
 from app.core.errors import Forbidden
@@ -49,6 +50,12 @@ async def export_data(
     db: DBSession,
 ):
     # Counted before the password check so guessing is throttled too.
+    await check_rate_limit(
+        db,
+        f"export:ip:{client_ip(request) or 'unknown'}",
+        limit=settings.EXPORT_RATE_LIMIT * 3,
+        window_seconds=settings.EXPORT_RATE_WINDOW_SECONDS,
+    )
     await check_rate_limit(
         db,
         f"export:{user.id}",

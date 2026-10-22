@@ -1,6 +1,8 @@
 from fastapi import APIRouter, Request, status, Cookie, Response
 
 from app.api.dependencies.auth import CurrentUser, DBSession
+from app.api.dependencies.rate_limit import client_ip, enforce_auth_limits
+from app.api.v1.openapi import errors
 from app.schemas.AuthSchema import (
     ChangePasswordRequest,
     LoginRequest,
@@ -17,7 +19,7 @@ router = APIRouter()
 def _client_info(request: Request) -> dict[str, str | None]:
     return {
         "user_agent": request.headers.get("user-agent"),
-        "ip_address": request.client.host if request.client else None,
+        "ip_address": client_ip(request),
     }
 
 
@@ -46,8 +48,11 @@ def _set_refresh_cookie(response: Response, refresh_token: str) -> None:
     response_model=UserResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Create a new user account",
+    description="Rate limited per IP and per email.",
+    responses=errors(409, 429),
 )
-async def register(payload: UserCreate, db: DBSession):
+async def register(payload: UserCreate, request: Request, db: DBSession):
+    await enforce_auth_limits(db, request, "register", payload.email)
     return await auth_crud.register_user(db, payload)
 
 
@@ -60,6 +65,8 @@ async def register(payload: UserCreate, db: DBSession):
     "/login",
     response_model=AccessTokenResponse,
     summary="Authenticate and receive an access token (refresh token set as httponly cookie)",
+    description="Every attempt counts against a per-IP and a per-email limit.",
+    responses=errors(401, 403, 429),
 )
 async def login(
     payload: LoginRequest,
@@ -67,6 +74,7 @@ async def login(
     db: DBSession,
     response: Response,
 ):
+    await enforce_auth_limits(db, request, "login", payload.email)
     access_token, refresh_token = await auth_crud.login(
         db, payload.email, payload.password, **_client_info(request)
     )

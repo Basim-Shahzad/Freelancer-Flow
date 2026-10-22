@@ -43,3 +43,7 @@ class Unprocessable(DomainError):
 
 class RateLimited(DomainError):
     status_code = 429
+
+    def __init__(self, detail: str, retry_after: int | None = None) -> None:
+        super().__init__(detail)
+        self.retry_after = retry_after

@@ -7,6 +7,7 @@ counted even when the caller goes on to fail the request.
 
 from __future__ import annotations
 
+import random
 from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import delete, select, update
@@ -15,6 +16,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import RateLimited
 from app.models.RateLimitCounter import RateLimitCounter
+
+GLOBAL_PRUNE_PROBABILITY = 0.01
+GLOBAL_PRUNE_AGE = timedelta(days=1)
 
 
 def _window_start(now: datetime, window_seconds: int) -> datetime:
@@ -69,8 +73,19 @@ async def check_rate_limit(
             RateLimitCounter.key == key, RateLimitCounter.window_start < start
         )
     )
+    # Keys that are never seen again would otherwise linger forever.
+    if random.random() < GLOBAL_PRUNE_PROBABILITY:  # nosec B311 - pruning jitter, not security
+        await db.execute(
+            delete(RateLimitCounter).where(
+                RateLimitCounter.window_start < now - GLOBAL_PRUNE_AGE
+            )
+        )
     await db.commit()
 
     if count > limit:
-        retry_in = int((start + timedelta(seconds=window_seconds) - now).total_seconds())
-        raise RateLimited(f"Too many attempts. Try again in {max(retry_in, 1)} seconds.")
+        retry_in = max(
+            int((start + timedelta(seconds=window_seconds) - now).total_seconds()), 1
+        )
+        raise RateLimited(
+            f"Too many attempts. Try again in {retry_in} seconds.", retry_after=retry_in
+        )
