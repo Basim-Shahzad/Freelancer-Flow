@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { buildCompletion, buildSummary, estimateCurrency, initialData, methodsToCreate, previewAmount, validateMethods, type MethodsValues } from "./onboarding-logic";
+import { describe, expect, it, vi } from "vitest";
+import { buildCompletion, newProgress, runCompletion, buildSummary, estimateCurrency, initialData, methodsToCreate, previewAmount, validateMethods, type MethodsValues } from "./onboarding-logic";
 
 const payoneer = { kind: "payoneer" as const, fields: { email: "a@b.co" } };
 const raast = { kind: "raast" as const, fields: { raastId: "0300 5550214", holder: "Ayesha" } };
@@ -72,5 +72,59 @@ describe("buildSummary / buildCompletion", () => {
   it("builds a client with a normalised whatsapp number", () => {
     const c = buildCompletion({ ...data, client: { contactName: "Hamza", company: "Gulberg Textiles", email: "h@g.example", whatsapp: "92 321 4567890", city: "Lahore", currency: "PKR" } }, "a@b.co");
     expect(c.client).toMatchObject({ name: "Gulberg Textiles", contactName: "Hamza", whatsapp: "+92 321 4567890", country: "PK", currency: "PKR", prefersMethods: ["payoneer"] });
+  });
+});
+
+describe("runCompletion", () => {
+  const completion = (): ReturnType<typeof buildCompletion> => {
+    const d = initialData({ name: "Ayesha" });
+    d.business.businessName = "Malik Studio";
+    d.methods = { selected: ["payoneer", "raast"], drafts: { payoneer, raast }, saved: ["payoneer", "raast"] };
+    d.client = { contactName: "Jordan", company: "Harbor", email: "j@h.co", whatsapp: "", city: "Austin", currency: "USD" };
+    return buildCompletion(d, "a@b.co");
+  };
+  const steps = () => ({ saveProfile: vi.fn().mockResolvedValue(undefined), addClient: vi.fn(), addMethod: vi.fn() });
+
+  it("saves the profile first, then the client, then each method", async () => {
+    const s = steps();
+    const order: string[] = [];
+    s.saveProfile.mockImplementation(async () => { order.push("profile"); });
+    s.addClient.mockImplementation(() => order.push("client"));
+    s.addMethod.mockImplementation((m: { kind: string }) => order.push(m.kind));
+    const progress = newProgress();
+    await runCompletion(completion(), "PK", s, progress);
+    expect(order).toEqual(["profile", "client", "payoneer", "raast"]);
+    expect(progress).toEqual({ profile: true, client: true, methods: 2 });
+  });
+
+  it("stops when the profile fails, leaving nothing else created", async () => {
+    const s = steps();
+    s.saveProfile.mockRejectedValue(new Error("offline"));
+    const progress = newProgress();
+    await expect(runCompletion(completion(), "PK", s, progress)).rejects.toThrow("offline");
+    expect(s.addClient).not.toHaveBeenCalled();
+    expect(s.addMethod).not.toHaveBeenCalled();
+    expect(progress.profile).toBe(false);
+  });
+
+  it("resumes after a partial failure without repeating finished steps", async () => {
+    const s = steps();
+    s.addMethod.mockImplementationOnce(() => undefined).mockImplementationOnce(() => { throw new Error("storage full"); });
+    const progress = newProgress();
+    await expect(runCompletion(completion(), "PK", s, progress)).rejects.toThrow("storage full");
+    expect(progress).toEqual({ profile: true, client: true, methods: 1 });
+    await runCompletion(completion(), "PK", s, progress);
+    expect(s.saveProfile).toHaveBeenCalledTimes(1);
+    expect(s.addClient).toHaveBeenCalledTimes(1);
+    expect(s.addMethod).toHaveBeenCalledTimes(3); // payoneer ok, raast failed, raast retried
+    expect(progress.methods).toBe(2);
+  });
+
+  it("skips the client when the step was left blank", async () => {
+    const s = steps();
+    const c = completion();
+    delete c.client;
+    await runCompletion(c, "PK", s, newProgress());
+    expect(s.addClient).not.toHaveBeenCalled();
   });
 });

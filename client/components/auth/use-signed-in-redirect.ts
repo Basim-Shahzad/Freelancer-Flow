@@ -4,8 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { safeNext } from "@/lib/auth/next";
 import { useSession } from "@/lib/hooks/auth";
-import { useHydrated } from "@/lib/hooks/use-hydrated";
-import { useAppStore } from "@/lib/store";
+import { useOnboarded } from "@/lib/hooks/profile";
 
 /** Where to go after signing in: the validated `?next=` target, else the dashboard. */
 export function readNext(): string {
@@ -16,10 +15,9 @@ export function readNext(): string {
 /** Login / signup: bounce already-signed-in, onboarded users to `next` (or the dashboard). */
 export function useSignedInRedirect(): void {
   const router = useRouter();
-  const hydrated = useHydrated();
   const { isAuthenticated } = useSession();
-  const onboarded = useAppStore((s) => s.session.onboarded);
+  const { ready, onboarded } = useOnboarded();
   useEffect(() => {
-    if (hydrated && isAuthenticated && onboarded) router.replace(readNext());
-  }, [hydrated, isAuthenticated, onboarded, router]);
+    if (isAuthenticated && ready && onboarded) router.replace(readNext());
+  }, [isAuthenticated, ready, onboarded, router]);
 }

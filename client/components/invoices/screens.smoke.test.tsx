@@ -1,25 +1,32 @@
-import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { InvoiceCreateView } from "@/components/invoices/create/create-view";
 import { InvoiceDetailView } from "@/components/invoices/detail/invoice-detail-view";
 import { InvoicesView } from "@/components/invoices/invoices-view";
 import { TimeView } from "@/components/time/time-view";
 import { useAppStore } from "@/lib/store";
+import { mockApi, profileFixture, renderWithProviders } from "@/lib/test";
 
 const push = vi.fn();
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push, replace: vi.fn() }), usePathname: () => "/" }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
+let m: ReturnType<typeof mockApi>;
 beforeEach(() => {
+  m = mockApi();
+  m.mock.onGet("/profile").reply(200, profileFixture());
   vi.stubGlobal("ResizeObserver", class { observe() {} unobserve() {} disconnect() {} });
   useAppStore.getState().resetDemo();
   push.mockClear();
 });
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  m.restore();
+});
 
 describe("screens render with seed data", () => {
   it("invoices list shows counts, rows and filters", () => {
-    render(<InvoicesView />);
+    renderWithProviders(<InvoicesView />);
     expect(screen.getByText("10 invoices · 1 overdue")).toBeTruthy();
     expect(screen.getAllByText("INV-0042").length).toBeGreaterThan(0);
     fireEvent.click(screen.getByRole("button", { name: "Overdue" }));
@@ -29,7 +36,7 @@ describe("screens render with seed data", () => {
   });
 
   it("time shows the running timer, day groups and week total", () => {
-    render(<TimeView />);
+    renderWithProviders(<TimeView />);
     fireEvent.click(screen.getByRole("button", { name: "List" }));
     expect(screen.getByText("Running")).toBeTruthy();
     expect(screen.getByText(/^This week ·/)).toBeTruthy();
@@ -39,7 +46,7 @@ describe("screens render with seed data", () => {
   });
 
   it("time: add an entry via the panel", async () => {
-    render(<TimeView />);
+    renderWithProviders(<TimeView />);
     fireEvent.click(screen.getByRole("button", { name: /Add time/ }));
     fireEvent.change(screen.getByLabelText("Description"), { target: { value: "Smoke entry" } });
     fireEvent.change(screen.getByLabelText("Duration"), { target: { value: "1:30" } });
@@ -49,7 +56,7 @@ describe("screens render with seed data", () => {
 
   it("time: shows a conflict panel for a stale unsynced entry and resolves it", async () => {
     useAppStore.setState((s) => ({ time: s.time.map((t) => (t.id === "t-3" ? { ...t, unsynced: true, updatedAt: new Date(Date.now() - 3 * 86_400_000).toISOString() } : t)) }));
-    render(<TimeView />);
+    renderWithProviders(<TimeView />);
     expect(screen.getByText("One entry changed in two places")).toBeTruthy();
     await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Keep this device" })); });
     expect(screen.queryByText("One entry changed in two places")).toBeNull();
@@ -57,7 +64,7 @@ describe("screens render with seed data", () => {
   });
 
   it("create: needs a line before continuing, then reaches review with the real document", async () => {
-    render(<InvoiceCreateView projectId="p-gulberg" />);
+    renderWithProviders(<InvoiceCreateView projectId="p-gulberg" />);
     // milestone project with nothing approved
     expect(screen.getByText(/Nothing approved yet/)).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Continue" }));
@@ -65,7 +72,7 @@ describe("screens render with seed data", () => {
   });
 
   it("create: hourly project preselects ready time and creates an invoice", async () => {
-    render(<InvoiceCreateView projectId="p-harbor" />);
+    renderWithProviders(<InvoiceCreateView projectId="p-harbor" />);
     const before = useAppStore.getState().invoices.length;
     for (let i = 0; i < 3; i++) fireEvent.click(screen.getByRole("button", { name: "Continue" }));
     expect(screen.getByRole("heading", { name: "Review" })).toBeTruthy();
@@ -77,7 +84,7 @@ describe("screens render with seed data", () => {
   });
 
   it("detail: overdue invoice header, actions and record payment", async () => {
-    render(<InvoiceDetailView id="inv-39" />);
+    renderWithProviders(<InvoiceDetailView id="inv-39" />);
     expect(screen.getByRole("heading", { level: 1, name: "INV-0039" })).toBeTruthy();
     expect(screen.getByText(/15 days overdue/)).toBeTruthy();
     expect(screen.queryByText(/pay now/i)).toBeNull();
@@ -87,11 +94,11 @@ describe("screens render with seed data", () => {
   });
 
   it("detail: not found and offline states", () => {
-    render(<InvoiceDetailView id="nope" />);
+    renderWithProviders(<InvoiceDetailView id="nope" />);
     expect(screen.getByText("Invoice not found")).toBeTruthy();
     cleanup();
     act(() => useAppStore.getState().setOnline(false));
-    render(<InvoiceDetailView id="inv-42" />);
+    renderWithProviders(<InvoiceDetailView id="inv-42" />);
     expect(within(screen.getByRole("toolbar")).getByRole("button", { name: "Record payment" }).hasAttribute("disabled")).toBe(true);
     act(() => useAppStore.getState().setOnline(true));
   });

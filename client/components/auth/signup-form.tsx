@@ -12,10 +12,10 @@ import { Field, Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Notice } from "@/components/ui/notice";
 import { FormSelect } from "@/components/ui/select";
+import { onboardingUrl } from "@/lib/auth/next";
 import { useIsOnline } from "@/lib/hooks/use-online";
 import { useRegister } from "@/lib/hooks/auth";
 import { getApiErrorMessage, getApiErrorStatus } from "@/lib/services/api.service";
-import { useAppStore } from "@/lib/store";
 import { InlineError, OfflineNotice, PasswordInput, describedBy } from "./form-bits";
 import { COUNTRIES, COUNTRY_HINT_KEY, signUpSchema, type SignUpValues } from "./schemas";
 import { useSignedInRedirect } from "./use-signed-in-redirect";
@@ -25,7 +25,6 @@ const linkCls = "font-medium text-primary-ink underline decoration-1 underline-o
 export function SignUpForm() {
   const router = useRouter();
   const online = useIsOnline();
-  const setOnboarded = useAppStore((s) => s.setOnboarded);
   const register_ = useRegister();
   const [exists, setExists] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
@@ -51,9 +50,8 @@ export function SignUpForm() {
       return;
     }
     try { sessionStorage.setItem(COUNTRY_HINT_KEY, v.country); } catch { /* optional hint only */ }
-    setOnboarded(false);
     toast.success("Account created. Let’s set up your studio.");
-    router.push("/onboarding");
+    router.push(onboardingUrl(new URLSearchParams(window.location.search).get("next")));
   });
 
   return (

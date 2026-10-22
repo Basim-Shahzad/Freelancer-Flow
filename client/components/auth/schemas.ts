@@ -37,7 +37,13 @@ export type LogInValues = z.infer<typeof logInSchema>;
 export const changePasswordSchema = z
   .object({
     currentPassword: z.string().min(1, "Enter your current password."),
-    newPassword: z.string().min(8, "Use 8 characters or more.").max(128, "Use 128 characters or fewer."),
+    // Mirrors the server's rules (min 8, max 128, an uppercase letter and a digit); the server's 422 stays the final say.
+    newPassword: z
+      .string()
+      .min(8, "Use 8 characters or more.")
+      .max(128, "Use 128 characters or fewer.")
+      .regex(/[A-Z]/, "Include at least one uppercase letter.")
+      .regex(/\d/, "Include at least one number."),
     confirmPassword: z.string().min(1, "Re-enter your new password."),
   })
   .superRefine((v, ctx) => {

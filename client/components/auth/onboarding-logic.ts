@@ -76,8 +76,44 @@ export function buildSummary(d: OnboardingData): { k: string; v: string }[] {
 export interface Completion {
   business: Partial<BusinessProfile>;
   client?: Omit<Client, "id" | "createdAt">;
-  /** First goes through completeOnboarding; the rest through upsertMethod. */
   methods: MethodDraft[];
+}
+
+/** What `finish` has already done, so a retry after a partial failure resumes instead of repeating finished steps. */
+export interface CompletionProgress {
+  profile: boolean;
+  client: boolean;
+  /** Number of payment methods already created. */
+  methods: number;
+}
+
+export const newProgress = (): CompletionProgress => ({ profile: false, client: false, methods: 0 });
+
+export interface CompletionSteps {
+  saveProfile(business: Partial<BusinessProfile>, country: CountryCode): Promise<void>;
+  addClient(client: NonNullable<Completion["client"]>): void;
+  addMethod(method: MethodDraft, index: number): void;
+}
+
+/**
+ * Runs the onboarding writes in order and records each finished step in `progress` (mutated), so calling it again
+ * after a failure skips what already succeeded. The profile goes first: "onboarded" is derived from it, so a later
+ * failure can never strand the user in the wizard.
+ */
+export async function runCompletion(c: Completion, country: CountryCode, steps: CompletionSteps, progress: CompletionProgress): Promise<void> {
+  if (!progress.profile) {
+    await steps.saveProfile(c.business, country);
+    progress.profile = true;
+  }
+  if (!progress.client) {
+    if (c.client) steps.addClient(c.client);
+    progress.client = true;
+  }
+  for (const [i, m] of c.methods.entries()) {
+    if (i < progress.methods) continue;
+    steps.addMethod(m, i);
+    progress.methods = i + 1;
+  }
 }
 
 export function buildCompletion(d: OnboardingData, userEmail: string): Completion {

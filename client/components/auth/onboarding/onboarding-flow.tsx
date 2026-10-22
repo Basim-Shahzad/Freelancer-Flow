@@ -4,10 +4,13 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { PageSkeleton } from "@/components/ui/skeleton";
+import { splitBusinessPatch } from "@/lib/api/mappers/profile";
 import { useAuthGate, useSession } from "@/lib/hooks/auth";
+import { useUpdateProfile } from "@/lib/hooks/profile";
+import { useApiToast } from "@/lib/hooks/use-api-toast";
 import { useAppStore } from "@/lib/store";
 import { sleep } from "../form-bits";
-import { buildCompletion, initialData, STEP_COUNT, type OnboardingData } from "../onboarding-logic";
+import { buildCompletion, initialData, newProgress, runCompletion, STEP_COUNT, type OnboardingData } from "../onboarding-logic";
 import { COUNTRIES, COUNTRY_HINT_KEY, isClientBlank, type CountryCode } from "../schemas";
 import { BusinessStep } from "./business-step";
 import { ClientStep } from "./client-step";
@@ -15,6 +18,7 @@ import { CurrencyStep } from "./currency-step";
 import { MethodsStep } from "./methods-step";
 import { ReviewStep } from "./review-step";
 import { StepRail } from "./step-rail";
+import { readNext } from "../use-signed-in-redirect";
 
 const HEADS: [string, string][] = [
   ["Tell us about your business", "This appears at the top of every invoice."],
@@ -45,8 +49,13 @@ function readCountryHint(): CountryCode | undefined {
 
 function Wizard({ name, email, finishing }: { name?: string; email: string; finishing: React.RefObject<boolean> }) {
   const router = useRouter();
-  const completeOnboarding = useAppStore((s) => s.completeOnboarding);
+  const addClient = useAppStore((s) => s.addClient);
   const upsertMethod = useAppStore((s) => s.upsertMethod);
+  const updateBusinessLocal = useAppStore((s) => s.updateBusinessLocal);
+  const updateProfile = useUpdateProfile();
+  const toast = useApiToast();
+  /** Progress of `finish`, so a retry after a partial failure resumes instead of repeating finished steps. */
+  const done = useRef(newProgress());
   const [step, setStep] = useState(0);
   const [data, setData] = useState<OnboardingData>(() => initialData({ name, country: readCountryHint() }));
   const [busy, setBusy] = useState<"dashboard" | "project" | null>(null);
@@ -62,16 +71,27 @@ function Wizard({ name, email, finishing }: { name?: string; email: string; fini
     setBusy(to === "/dashboard" ? "dashboard" : "project");
     await sleep(600);
     const c = buildCompletion(data, email);
+    // Clients and payment methods still use the mock store until steps 4 and 5 give them API hooks.
     finishing.current = true;
-    const [first, ...rest] = c.methods;
-    completeOnboarding({
-      business: c.business,
-      client: c.client,
-      method: first ? { kind: first.kind, scheme: first.scheme, label: first.label, fields: first.fields } : undefined,
-    });
-    for (const m of rest) upsertMethod({ kind: m.kind, scheme: m.scheme, label: m.label, fields: m.fields, enabled: true, isDefault: false });
+    try {
+      await runCompletion(c, data.business.country, {
+        saveProfile: async (business, country) => {
+          const { remote, local } = splitBusinessPatch(business, business.defaultCurrency ?? "USD");
+          await updateProfile.mutateAsync({ ...remote, ...(country !== "XX" ? { country } : {}) });
+          updateBusinessLocal(local);
+        },
+        addClient,
+        addMethod: (m, i) => upsertMethod({ kind: m.kind, scheme: m.scheme, label: m.label, fields: m.fields, enabled: true, isDefault: i === 0 && useAppStore.getState().methods.length === 0 }),
+      }, done.current);
+    } catch (e) {
+      // Once the profile is saved the user counts as onboarded; keep the gate from bouncing them so Review can retry the rest.
+      finishing.current = done.current.profile;
+      setBusy(null);
+      toast.error(e, "We couldn’t save your studio. Check your connection and try again.");
+      return;
+    }
     toast.success("Your studio is ready.");
-    router.push(to);
+    router.push(to === "/dashboard" ? readNext() : to);
   };
 
   const [title, lede] = HEADS[step] ?? HEADS[0]!;
