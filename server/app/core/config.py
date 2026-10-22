@@ -1,8 +1,13 @@
 from functools import lru_cache
 from typing import Literal
 
+from cryptography.fernet import Fernet
 from pydantic import AnyHttpUrl, EmailStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+MIN_SECRET_KEY_LENGTH = 32
+DEFAULT_SECRET_KEYS = {"secret", "secret-key", "changeme", "change-me", "supersecret"}
+INSECURE_MARKERS = ("change-me", "changeme", "do-not-use", "your-secret", "example")
 
 
 class Settings(BaseSettings):
@@ -61,6 +66,24 @@ class Settings(BaseSettings):
     EXPORT_RATE_LIMIT: int = 3
     EXPORT_RATE_WINDOW_SECONDS: int = 3600
 
+    # Auth rate limits (/auth/login, /auth/register): attempts per window, counted
+    # per client IP and per email.
+    AUTH_RATE_LIMIT_PER_IP: int = 10
+    AUTH_RATE_LIMIT_PER_EMAIL: int = 5
+    AUTH_RATE_WINDOW_SECONDS: int = 900
+    # Client portal endpoints: requests per window per client IP.
+    PORTAL_RATE_LIMIT: int = 120
+    PORTAL_RATE_WINDOW_SECONDS: int = 60
+    # Header carrying the real client IP behind a reverse proxy (e.g.
+    # X-Forwarded-For). Empty = ignore forwarding headers, use the socket peer.
+    # Only set it when a proxy you control overwrites that header.
+    TRUSTED_PROXY_HEADER: str = ""
+
+    # Requests with a larger body are refused with 413 (protects sync/bulk).
+    MAX_REQUEST_BODY_BYTES: int = 1_048_576
+    # Upper bound for the `limit` query parameter on list endpoints.
+    MAX_PAGE_SIZE: int = 100
+
     # Reference data / exchange rates (display-only, never used in totals)
     FX_API_URL: str = "https://open.er-api.com/v6/latest/USD"
     FX_MAX_AGE_HOURS: int = 24
@@ -113,6 +136,29 @@ class Settings(BaseSettings):
     def _require_encryption_key_in_production(self) -> "Settings":
         if self.is_production and not self.FIELD_ENCRYPTION_KEY:
             raise ValueError("FIELD_ENCRYPTION_KEY must be set in production")
+        return self
+
+    @model_validator(mode="after")
+    def _require_real_secrets_in_production(self) -> "Settings":
+        if not self.is_production:
+            return self
+        if (
+            len(self.SECRET_KEY) < MIN_SECRET_KEY_LENGTH
+            or self.SECRET_KEY.lower() in DEFAULT_SECRET_KEYS
+            or any(marker in self.SECRET_KEY.lower() for marker in INSECURE_MARKERS)
+        ):
+            raise ValueError(
+                "SECRET_KEY must be a random value of at least "
+                f"{MIN_SECRET_KEY_LENGTH} characters in production"
+            )
+        try:
+            Fernet(self.FIELD_ENCRYPTION_KEY.encode())
+        except ValueError as exc:
+            raise ValueError(
+                "FIELD_ENCRYPTION_KEY must be a valid Fernet key in production"
+            ) from exc
+        if self.FIELD_ENCRYPTION_KEY == self.SECRET_KEY:
+            raise ValueError("FIELD_ENCRYPTION_KEY must differ from SECRET_KEY")
         return self
 
     @model_validator(mode="after")
