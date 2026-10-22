@@ -7,9 +7,10 @@ import { Button } from "@/components/ui/button";
 import { Notice } from "@/components/ui/notice";
 import { KV, Section } from "@/components/ui/section";
 import { addDays, fmtDate, isoDate, parse } from "@/lib/dates";
+import { useBusiness } from "@/lib/hooks/profile";
 import { useHydrated } from "@/lib/hooks/use-hydrated";
 import { useAppStore } from "@/lib/store";
-import type { DataExport } from "@/lib/types";
+import type { BusinessProfile, DataExport } from "@/lib/types";
 import { downloadText } from "./download";
 import { buildExportJson, EXPORT_TTL_DAYS, exportFileName, exportPhase, formatBytes, invoicesToCsv, isExpired } from "./export-builder";
 import { SettingsSkeleton } from "./settings-skeleton";
@@ -17,19 +18,19 @@ import { SettingsSkeleton } from "./settings-skeleton";
 /** Simulated preparation time before an export flips to "ready". */
 const PREPARE_MS = 2500;
 
-function snapshot() {
+function snapshot(business: BusinessProfile) {
   const s = useAppStore.getState();
-  return { business: s.business, clients: s.clients, projects: s.projects, time: s.time, invoices: s.invoices, methods: s.methods, activity: s.activity };
+  return { business, clients: s.clients, projects: s.projects, time: s.time, invoices: s.invoices, methods: s.methods, activity: s.activity };
 }
 
-function downloadJson(x: DataExport) {
-  const json = JSON.stringify(buildExportJson(snapshot()), null, 2);
+function downloadJson(x: DataExport, business: BusinessProfile) {
+  const json = JSON.stringify(buildExportJson(snapshot(business)), null, 2);
   downloadText(exportFileName(x.requestedAt), json, "application/json");
   toast.success("Export downloaded");
 }
 
-function downloadCsv(x: DataExport) {
-  const s = snapshot();
+function downloadCsv(x: DataExport, business: BusinessProfile) {
+  const s = snapshot(business);
   downloadText(exportFileName(x.requestedAt, "csv"), invoicesToCsv(s.invoices, s.clients, s.projects), "text/csv");
   toast.success("Invoices CSV downloaded");
 }
@@ -37,7 +38,8 @@ function downloadCsv(x: DataExport) {
 export function ExportView() {
   const hydrated = useHydrated();
   const exports = useAppStore((s) => s.exports);
-  const email = useAppStore((s) => s.business.email);
+  const business = useBusiness();
+  const email = business.email;
   const online = useAppStore((s) => s.online);
   const requestExport = useAppStore((s) => s.requestExport);
   const finishExport = useAppStore((s) => s.finishExport);
@@ -89,11 +91,11 @@ export function ExportView() {
       {phase === "ready" && active && (
         <>
           <Notice tone="ok">
-            <b>Your export is ready.</b> <span className="num">{exportFileName(active.requestedAt)}</span> · {formatBytes(JSON.stringify(buildExportJson(snapshot())).length)}. Available until {expiry}.
+            <b>Your export is ready.</b> <span className="num">{exportFileName(active.requestedAt)}</span> · {formatBytes(JSON.stringify(buildExportJson(snapshot(business))).length)}. Available until {expiry}.
           </Notice>
           <div className="flex flex-wrap gap-2">
-            <Button onClick={() => downloadJson(active)}><Download aria-hidden="true" />Download JSON</Button>
-            <Button variant="outline" onClick={() => downloadCsv(active)}><Download aria-hidden="true" />Download invoices (CSV)</Button>
+            <Button onClick={() => downloadJson(active, business)}><Download aria-hidden="true" />Download JSON</Button>
+            <Button variant="outline" onClick={() => downloadCsv(active, business)}><Download aria-hidden="true" />Download invoices (CSV)</Button>
             <Button variant="ghost" onClick={request} disabled={!online}>Request a new one</Button>
           </div>
         </>
@@ -116,7 +118,7 @@ export function ExportView() {
                         {expired && <> · <span className="text-muted-foreground">expired</span></>}
                       </span>
                       {!expired && x.status === "ready" && (
-                        <Button variant="ghost" size="sm" onClick={() => downloadJson(x)}><CheckCircle2 aria-hidden="true" />Download JSON</Button>
+                        <Button variant="ghost" size="sm" onClick={() => downloadJson(x, business)}><CheckCircle2 aria-hidden="true" />Download JSON</Button>
                       )}
                     </div>
                   </KV>

@@ -4,7 +4,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Upload, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
-import { toast } from "sonner";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -12,23 +11,31 @@ import { FormSelect } from "@/components/ui/select";
 import { Field, Label } from "@/components/ui/label";
 import { Section } from "@/components/ui/section";
 import { Tag } from "@/components/ui/tag";
+import { applyApiFieldErrors } from "@/lib/api/field-errors";
+import { useSaveBusiness } from "@/lib/hooks/profile";
+import { useApiToast } from "@/lib/hooks/use-api-toast";
+import { useIsOnline } from "@/lib/hooks/use-online";
 import { CURRENCIES, type BusinessProfile } from "@/lib/types";
-import { useAppStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
 import { businessFormSchema, fromFormValues, nextNumberPreview, termsOptions, toFormValues, type BusinessFormValues } from "./business-schema";
 
 const MAX_LOGO_BYTES = 500 * 1024;
+/** API field -> form field, for 422 responses. */
+const API_FIELD_ALIASES = { businessAddress: "address", taxRegistrationNumber: "taxId", currency: "defaultCurrency", defaultPaymentTermsDays: "defaultTermsDays" };
 
 export function BusinessForm({ business, invoiceNumbers }: { business: BusinessProfile; invoiceNumbers: string[] }) {
-  const updateBusiness = useAppStore((s) => s.updateBusiness);
+  const { save: saveBusiness } = useSaveBusiness();
+  const toast = useApiToast();
+  const online = useIsOnline();
   const schema = useMemo(() => businessFormSchema(invoiceNumbers), [invoiceNumbers]);
   const defaults = useMemo(() => toFormValues(business), [business]);
   const [logoError, setLogoError] = useState("");
 
-  const { register, control, handleSubmit, reset, setValue, watch, formState: { errors, isDirty, isSubmitting } } = useForm<BusinessFormValues>({
+  const form = useForm<BusinessFormValues>({
     resolver: zodResolver(schema),
     defaultValues: defaults,
   });
+  const { register, control, handleSubmit, reset, setValue, watch, formState: { errors, isDirty, isSubmitting } } = form;
 
   const logoName = watch("logoName");
   const prefix = watch("invoicePrefix");
@@ -42,8 +49,14 @@ export function BusinessForm({ business, invoiceNumbers }: { business: BusinessP
     return () => window.removeEventListener("beforeunload", warn);
   }, [isDirty]);
 
-  const save = handleSubmit((values) => {
-    updateBusiness(fromFormValues(values));
+  const save = handleSubmit(async (values) => {
+    if (!online) return toast.error(null, "You’re offline. Reconnect to save your business profile.");
+    try {
+      await saveBusiness(fromFormValues(values));
+    } catch (e) {
+      if (!applyApiFieldErrors(form, e, API_FIELD_ALIASES)) toast.error(e, "Couldn’t save your business profile.");
+      return;
+    }
     reset(values);
     toast.success("Business profile saved");
   });
@@ -73,11 +86,11 @@ export function BusinessForm({ business, invoiceNumbers }: { business: BusinessP
           <Field label="Business name" htmlFor="bp-businessName" error={msg("businessName")} className="@xl:col-span-2">
             <Input id="bp-businessName" autoComplete="organization" {...a11y("businessName")} {...register("businessName")} />
           </Field>
-          <Field label="Your name" htmlFor="bp-ownerName" error={msg("ownerName")}>
-            <Input id="bp-ownerName" autoComplete="name" {...a11y("ownerName")} {...register("ownerName")} />
+          <Field label="Your name" htmlFor="bp-ownerName" error={msg("ownerName")} hint="From your account.">
+            <Input id="bp-ownerName" autoComplete="name" readOnly {...a11y("ownerName", true)} {...register("ownerName")} />
           </Field>
-          <Field label="Billing email" htmlFor="bp-email" error={msg("email")}>
-            <Input id="bp-email" type="email" autoComplete="email" {...a11y("email")} {...register("email")} />
+          <Field label="Billing email" htmlFor="bp-email" error={msg("email")} hint="Your login email.">
+            <Input id="bp-email" type="email" autoComplete="email" readOnly {...a11y("email", true)} {...register("email")} />
           </Field>
           <Field label="Phone / WhatsApp" htmlFor="bp-phone" error={msg("phone")}>
             <Input id="bp-phone" type="tel" autoComplete="tel" className="num" {...a11y("phone")} {...register("phone")} />
@@ -125,6 +138,7 @@ export function BusinessForm({ business, invoiceNumbers }: { business: BusinessP
             {logoError && <p role="alert" className="text-xs text-error-ink">{logoError}</p>}
           </div>
         </div>
+        {errors.root?.message && <p role="alert" className="text-sm text-error-ink">{errors.root.message}</p>}
         <div className="flex flex-wrap items-center gap-2">
           <Button type="submit" loading={isSubmitting} disabled={!isDirty}>Save changes</Button>
           <Button variant="ghost" disabled={!isDirty} onClick={() => { reset(defaults); setLogoError(""); }}>Discard</Button>
