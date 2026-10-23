@@ -47,4 +47,14 @@ Known: dashboard "Active projects" card still has small progress bars; seed has 
 
 `GET/PATCH /profile` is the source of truth for the business profile; read it through `useBusiness()` (view model) / `useProfile()` (query state) in `lib/hooks/profile`. `ownerName` and `email` come from the signed-in user. "Onboarded" is derived: the profile has a `businessName` (`useOnboarded()`).
 
-The API has no home for `phone`, `footerNote`, `logoName`, `invoicePrefix` and `nextInvoiceNumber` (`invoiceNumberFormat` is a different shape). They stay in the persisted store as `businessLocal` (persist version 3), so they do **not** follow the user across devices. The token-based client portal still reads the demo `seedBusiness` until step 13. Clients and payment methods created during onboarding still go to the mock store until steps 4 and 5.
+The API has no home for `phone`, `footerNote`, `logoName`, `invoicePrefix` and `nextInvoiceNumber` (`invoiceNumberFormat` is a different shape). They stay in the persisted store as `businessLocal` (persist version 3), so they do **not** follow the user across devices. The token-based client portal still reads the demo `seedBusiness` until step 13. Payment methods created during onboarding still go to the mock store until step 5.
+
+## Clients (API-backed since step 4)
+
+`/clients` is the source of truth: `useClients(params)` (infinite list, server-side `search`), `useClient(id)`, `useCreateClient` / `useUpdateClient` / `useDeleteClient` in `lib/hooks/clients`. Screens that only need a name/colour for a `clientId` use the cached `useClientOptions()`.
+
+- The API has no `contactName`, `city`, `country` or `prefersMethods`. The model now has `companyName`, `phone`, `address`, `taxId`, `whatsapp` and `paymentTermsDays`. Preferred methods are replaced by the invoice-level picker in step 9.
+- The server normalises WhatsApp numbers; the UI shows what it returns.
+- Delete returns `409` when the client has invoices; the dialog shows the server message and keeps the client.
+- Stats that depend on unmigrated domains (worth per hour, outstanding, overdue, average days to pay, the invoice list) are hidden on the clients screens until steps 6 and 8.
+- Mock projects/invoices/time still carry mock `clientId`s (`c-harbor`, …). They no longer resolve and render an "Unknown client" fallback until their own step migrates them. Persist version is now 4 and drops the stale mock clients.
