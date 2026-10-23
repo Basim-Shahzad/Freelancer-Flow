@@ -23,8 +23,8 @@ export function ClientStep({ value, onNext, onBack, onSkip }: {
   return (
     <form onSubmit={handleSubmit(onNext)} noValidate aria-label="First client" className="flex flex-col gap-6">
       <div className={FORM_GRID}>
-        <Field label="Contact name" htmlFor="ob-c-contactName" error={errors.contactName?.message}>
-          <Input id="ob-c-contactName" autoComplete="off" {...e("contactName")} {...register("contactName")} />
+        <Field label="Contact name" htmlFor="ob-c-name" error={errors.name?.message}>
+          <Input id="ob-c-name" autoComplete="off" {...e("name")} {...register("name")} />
         </Field>
         <Field label="Company" htmlFor="ob-c-company" optional>
           <Input id="ob-c-company" autoComplete="off" {...register("company")} />
@@ -39,9 +39,6 @@ export function ClientStep({ value, onNext, onBack, onSkip }: {
           <InputAffix prefix="+" className="aria-[invalid=true]:border-error">
             <Input id="ob-c-whatsapp" type="tel" inputMode="tel" autoComplete="off" className="num text-start" placeholder="92 321 4567890" {...e("whatsapp", true)} {...register("whatsapp")} />
           </InputAffix>
-        </Field>
-        <Field label="City" htmlFor="ob-c-city" optional>
-          <Input id="ob-c-city" autoComplete="off" {...register("city")} />
         </Field>
         <Field label="Bills in" htmlFor="ob-c-currency">
           <FormSelect id="ob-c-currency" control={control} name="currency" options={CURRENCIES.map((c) => ({ value: c, label: c }))} />

@@ -43,17 +43,17 @@ describe("businessSchema", () => {
 });
 
 describe("clientSchema (skippable)", () => {
-  const blank = { contactName: "", company: "", email: "", whatsapp: "", city: "", currency: "USD" };
+  const blank = { name: "", company: "", email: "", whatsapp: "", currency: "USD" };
   it("passes when untouched", () => {
     expect(clientSchema.safeParse(blank).success).toBe(true);
     expect(isClientBlank(blank)).toBe(true);
   });
   it("requires contact name and email once anything is typed", () => {
     const r = clientSchema.safeParse({ ...blank, company: "Gulberg Textiles" });
-    expect(r.error?.issues.map((i) => i.path[0]).sort()).toEqual(["contactName", "email"]);
+    expect(r.error?.issues.map((i) => i.path[0]).sort()).toEqual(["email", "name"]);
   });
   it("validates email and whatsapp format", () => {
-    const base = { ...blank, contactName: "Hamza", email: "hamza@x.example" };
+    const base = { ...blank, name: "Hamza", email: "hamza@x.example" };
     expect(clientSchema.safeParse({ ...base, whatsapp: "92 321 4567890" }).success).toBe(true);
     expect(clientSchema.safeParse({ ...base, whatsapp: "12" }).success).toBe(false);
     expect(clientSchema.safeParse({ ...base, email: "hamza" }).success).toBe(false);

@@ -1,7 +1,8 @@
 import type { MethodDraft } from "@/components/domain/payment-method-form";
 import { METHOD_KINDS } from "@/lib/payment-methods";
 import { convertMinor } from "@/lib/fx";
-import type { BusinessProfile, Client, Currency, PaymentMethodKind } from "@/lib/types";
+import type { ClientInput } from "@/lib/api/mappers/clients";
+import type { BusinessProfile, Currency, PaymentMethodKind } from "@/lib/types";
 import {
   type BusinessValues, type ClientValues, type CurrencyValues, type DisplayChoice, type CountryCode,
   countryLabel, isClientBlank,
@@ -32,7 +33,7 @@ export function initialData(opts: { name?: string; country?: CountryCode }): Onb
     business: { businessName: "", ownerName: opts.name ?? "", country, city: "", address: "", taxId: "" },
     currency: { invoiceCurrency: "USD", display: "both" },
     methods: { selected: [], drafts: {}, saved: [] },
-    client: { contactName: "", company: "", email: "", whatsapp: "", city: "", currency: "USD" },
+    client: { name: "", company: "", email: "", whatsapp: "", currency: "USD" },
   };
 }
 
@@ -69,13 +70,13 @@ export function buildSummary(d: OnboardingData): { k: string; v: string }[] {
     { k: "Business", v: `${d.business.businessName} · ${d.business.city}` },
     { k: "Currency", v: `Bills in ${d.currency.invoiceCurrency} · shows ${DISPLAY_TEXT[d.currency.display]}` },
     { k: "Payment methods", v: names.length ? names.join(", ") : "None yet. Add one in Settings before sending an invoice." },
-    { k: "First client", v: isClientBlank(d.client) ? "Skipped for now" : [d.client.company, d.client.contactName].filter(Boolean).join(" · ") },
+    { k: "First client", v: isClientBlank(d.client) ? "Skipped for now" : [d.client.company, d.client.name].filter(Boolean).join(" · ") },
   ];
 }
 
 export interface Completion {
   business: Partial<BusinessProfile>;
-  client?: Omit<Client, "id" | "createdAt">;
+  client?: ClientInput;
   methods: MethodDraft[];
 }
 
@@ -91,7 +92,7 @@ export const newProgress = (): CompletionProgress => ({ profile: false, client: 
 
 export interface CompletionSteps {
   saveProfile(business: Partial<BusinessProfile>, country: CountryCode): Promise<void>;
-  addClient(client: NonNullable<Completion["client"]>): void;
+  addClient(client: NonNullable<Completion["client"]>): Promise<void>;
   addMethod(method: MethodDraft, index: number): void;
 }
 
@@ -106,7 +107,7 @@ export async function runCompletion(c: Completion, country: CountryCode, steps: 
     progress.profile = true;
   }
   if (!progress.client) {
-    if (c.client) steps.addClient(c.client);
+    if (c.client) await steps.addClient(c.client);
     progress.client = true;
   }
   for (const [i, m] of c.methods.entries()) {
@@ -130,9 +131,8 @@ export function buildCompletion(d: OnboardingData, userEmail: string): Completio
     client: isClientBlank(c)
       ? undefined
       : {
-          name: c.company || c.contactName, contactName: c.contactName, email: c.email, whatsapp: wa ? `+${wa}` : "",
-          city: c.city, country: b.country, currency: c.currency, termsDays: 14,
-          prefersMethods: methods.map((m) => m.kind), notes: "",
+          name: c.name, companyName: c.company, email: c.email, whatsapp: wa ? `+${wa}` : "",
+          phone: "", address: "", taxId: "", currency: c.currency, termsDays: 14, notes: "",
         },
     methods,
   };

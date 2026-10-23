@@ -70,8 +70,8 @@ describe("buildSummary / buildCompletion", () => {
     expect(c.methods).toHaveLength(1);
   });
   it("builds a client with a normalised whatsapp number", () => {
-    const c = buildCompletion({ ...data, client: { contactName: "Hamza", company: "Gulberg Textiles", email: "h@g.example", whatsapp: "92 321 4567890", city: "Lahore", currency: "PKR" } }, "a@b.co");
-    expect(c.client).toMatchObject({ name: "Gulberg Textiles", contactName: "Hamza", whatsapp: "+92 321 4567890", country: "PK", currency: "PKR", prefersMethods: ["payoneer"] });
+    const c = buildCompletion({ ...data, client: { name: "Hamza", company: "Gulberg Textiles", email: "h@g.example", whatsapp: "92 321 4567890", currency: "PKR" } }, "a@b.co");
+    expect(c.client).toMatchObject({ name: "Hamza", companyName: "Gulberg Textiles", whatsapp: "+92 321 4567890", currency: "PKR", termsDays: 14 });
   });
 });
 
@@ -80,16 +80,16 @@ describe("runCompletion", () => {
     const d = initialData({ name: "Ayesha" });
     d.business.businessName = "Malik Studio";
     d.methods = { selected: ["payoneer", "raast"], drafts: { payoneer, raast }, saved: ["payoneer", "raast"] };
-    d.client = { contactName: "Jordan", company: "Harbor", email: "j@h.co", whatsapp: "", city: "Austin", currency: "USD" };
+    d.client = { name: "Jordan", company: "Harbor", email: "j@h.co", whatsapp: "", currency: "USD" };
     return buildCompletion(d, "a@b.co");
   };
-  const steps = () => ({ saveProfile: vi.fn().mockResolvedValue(undefined), addClient: vi.fn(), addMethod: vi.fn() });
+  const steps = () => ({ saveProfile: vi.fn().mockResolvedValue(undefined), addClient: vi.fn().mockResolvedValue(undefined), addMethod: vi.fn() });
 
   it("saves the profile first, then the client, then each method", async () => {
     const s = steps();
     const order: string[] = [];
     s.saveProfile.mockImplementation(async () => { order.push("profile"); });
-    s.addClient.mockImplementation(() => order.push("client"));
+    s.addClient.mockImplementation(async () => { order.push("client"); });
     s.addMethod.mockImplementation((m: { kind: string }) => order.push(m.kind));
     const progress = newProgress();
     await runCompletion(completion(), "PK", s, progress);
@@ -118,6 +118,19 @@ describe("runCompletion", () => {
     expect(s.addClient).toHaveBeenCalledTimes(1);
     expect(s.addMethod).toHaveBeenCalledTimes(3); // payoneer ok, raast failed, raast retried
     expect(progress.methods).toBe(2);
+  });
+
+  it("resumes after the client step fails without saving the profile again or marking the client done", async () => {
+    const s = steps();
+    s.addClient.mockRejectedValueOnce(new Error("409")).mockResolvedValueOnce(undefined);
+    const progress = newProgress();
+    await expect(runCompletion(completion(), "PK", s, progress)).rejects.toThrow("409");
+    expect(progress).toEqual({ profile: true, client: false, methods: 0 });
+    expect(s.addMethod).not.toHaveBeenCalled();
+    await runCompletion(completion(), "PK", s, progress);
+    expect(s.saveProfile).toHaveBeenCalledTimes(1);
+    expect(s.addClient).toHaveBeenCalledTimes(2);
+    expect(progress).toEqual({ profile: true, client: true, methods: 2 });
   });
 
   it("skips the client when the step was left blank", async () => {

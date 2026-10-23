@@ -1,6 +1,12 @@
 import { InvoiceDocument } from "@/components/domain/invoice-document";
-import { seedBusiness, seedClients, seedInvoices, seedMethods } from "@/lib/seed";
-import type { Currency } from "@/lib/types";
+import { seedBusiness, seedInvoices, seedMethods } from "@/lib/seed";
+import type { Client, Currency } from "@/lib/types";
+
+/** Demo client for the marketing preview (the marketing pages have no account or API data). */
+const sampleClient: Client = {
+  id: "c-harbor", name: "Jordan Reyes", companyName: "Harbor Labs", email: "jordan@harborlabs.example", whatsapp: "+15125550142", phone: "",
+  address: "Austin, US", taxId: "", currency: "USD", termsDays: 14, notes: "", createdAt: "2026-01-01T00:00:00.000Z",
+};
 
 /**
  * The REAL client invoice view, inside a phone-width scroll frame, using demo seed data.
@@ -8,7 +14,7 @@ import type { Currency } from "@/lib/types";
  */
 export function ClientPreview({ neutral, estimateIn }: { neutral?: boolean; estimateIn?: Currency }) {
   const invoice = seedInvoices.find((i) => i.id === "inv-42");
-  const client = seedClients.find((c) => c.id === "c-harbor");
+  const client = sampleClient;
   if (!invoice) return null;
   const methods = invoice.paymentMethodIds.flatMap((id) => seedMethods.filter((m) => m.id === id));
   const business = neutral ? { ...seedBusiness, taxId: "", address: "Your studio address, City" } : seedBusiness;

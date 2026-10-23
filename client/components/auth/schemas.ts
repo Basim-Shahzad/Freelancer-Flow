@@ -84,17 +84,16 @@ export type CurrencyValues = z.infer<typeof currencySchema>;
 
 export const clientSchema = z
   .object({
-    contactName: z.string().trim(),
+    name: z.string().trim(),
     company: z.string().trim(),
     email: z.string().trim(),
     whatsapp: z.string().trim(),
-    city: z.string().trim(),
     currency: z.enum(CURRENCIES),
   })
   .superRefine((v, ctx) => {
     if (isClientBlank(v)) return; // skippable: an untouched step is fine
     const add = (path: keyof ClientValues, message: string) => ctx.addIssue({ code: "custom", path: [path], message });
-    if (v.contactName.length < 2) add("contactName", "Enter the contact's name.");
+    if (v.name.length < 2) add("name", "Enter the contact's name.");
     if (!v.email) add("email", "Enter the client's email address.");
     else if (!z.email().safeParse(v.email).success) add("email", EMAIL_MSG);
     const digits = v.whatsapp.replace(/\D/g, "");
@@ -105,6 +104,6 @@ export const clientSchema = z
 export type ClientValues = z.infer<typeof clientSchema>;
 
 /** True when no client detail has been typed (so the step may be skipped). */
-export function isClientBlank(v: Pick<ClientValues, "contactName" | "company" | "email" | "whatsapp" | "city">): boolean {
-  return ![v.contactName, v.company, v.email, v.whatsapp, v.city].some((s) => s.trim() !== "");
+export function isClientBlank(v: Pick<ClientValues, "name" | "company" | "email" | "whatsapp">): boolean {
+  return ![v.name, v.company, v.email, v.whatsapp].some((s) => s.trim() !== "");
 }

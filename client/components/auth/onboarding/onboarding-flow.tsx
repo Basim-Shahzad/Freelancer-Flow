@@ -2,10 +2,11 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { toast } from "sonner";
 import { PageSkeleton } from "@/components/ui/skeleton";
+import { clientToCreate } from "@/lib/api/mappers/clients";
 import { splitBusinessPatch } from "@/lib/api/mappers/profile";
 import { useAuthGate, useSession } from "@/lib/hooks/auth";
+import { useCreateClient } from "@/lib/hooks/clients";
 import { useUpdateProfile } from "@/lib/hooks/profile";
 import { useApiToast } from "@/lib/hooks/use-api-toast";
 import { useAppStore } from "@/lib/store";
@@ -49,7 +50,7 @@ function readCountryHint(): CountryCode | undefined {
 
 function Wizard({ name, email, finishing }: { name?: string; email: string; finishing: React.RefObject<boolean> }) {
   const router = useRouter();
-  const addClient = useAppStore((s) => s.addClient);
+  const createClient = useCreateClient();
   const upsertMethod = useAppStore((s) => s.upsertMethod);
   const updateBusinessLocal = useAppStore((s) => s.updateBusinessLocal);
   const updateProfile = useUpdateProfile();
@@ -71,7 +72,7 @@ function Wizard({ name, email, finishing }: { name?: string; email: string; fini
     setBusy(to === "/dashboard" ? "dashboard" : "project");
     await sleep(600);
     const c = buildCompletion(data, email);
-    // Clients and payment methods still use the mock store until steps 4 and 5 give them API hooks.
+    // Payment methods still use the mock store until step 5 gives them API hooks.
     finishing.current = true;
     try {
       await runCompletion(c, data.business.country, {
@@ -80,7 +81,7 @@ function Wizard({ name, email, finishing }: { name?: string; email: string; fini
           await updateProfile.mutateAsync({ ...remote, ...(country !== "XX" ? { country } : {}) });
           updateBusinessLocal(local);
         },
-        addClient,
+        addClient: async (client) => { await createClient.mutateAsync(clientToCreate(client)); },
         addMethod: (m, i) => upsertMethod({ kind: m.kind, scheme: m.scheme, label: m.label, fields: m.fields, enabled: true, isDefault: i === 0 && useAppStore.getState().methods.length === 0 }),
       }, done.current);
     } catch (e) {
@@ -121,7 +122,7 @@ function Wizard({ name, email, finishing }: { name?: string; email: string; fini
               value={data.client}
               onBack={(client) => { patch({ client }); go(2); }}
               onNext={(client) => { patch({ client }); go(4); }}
-              onSkip={() => { patch({ client: { contactName: "", company: "", email: "", whatsapp: "", city: "", currency: data.currency.invoiceCurrency } }); go(4); }}
+              onSkip={() => { patch({ client: { name: "", company: "", email: "", whatsapp: "", currency: data.currency.invoiceCurrency } }); go(4); }}
             />
           )}
           {step === 4 && <ReviewStep data={data} busy={busy} onBack={() => go(3)} onFinish={finish} />}
