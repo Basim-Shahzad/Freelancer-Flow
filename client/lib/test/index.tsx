@@ -2,6 +2,7 @@ import * as React from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, type RenderOptions } from "@testing-library/react";
 import MockAdapter from "axios-mock-adapter";
+import type { ClientListItem, ClientResponse } from "@/lib/api/clients.types";
 import type { ProfileResponse } from "@/lib/api/profile.types";
 import type { User } from "@/lib/api/types";
 import { api, bare } from "@/lib/services/api.service";
@@ -59,6 +60,23 @@ export function mockApi() {
       mock.restore();
       refresh.restore();
     },
+  };
+}
+
+/** A `GET /clients/{id}` response. */
+export function clientFixture(overrides: Partial<ClientResponse> = {}): ClientResponse {
+  return {
+    id: "c1", name: "Jordan Reyes", email: "jordan@harborlabs.example", companyName: "Harbor Labs", phone: null, whatsappNumber: "+15125550142",
+    address: "Austin, US", taxId: null, notes: null, paymentTermsDays: 14, currency: "USD", userId: "u1",
+    createdAt: "2026-01-01T00:00:00Z", updatedAt: "2026-01-01T00:00:00Z", ...overrides,
+  };
+}
+
+/** One item of `GET /clients` (company is `company`, tax id masked, projects embedded). */
+export function clientListItemFixture(overrides: Partial<ClientListItem> = {}): ClientListItem {
+  return {
+    id: "c1", name: "Jordan Reyes", email: "jordan@harborlabs.example", phone: null, whatsappNumber: "+15125550142", company: "Harbor Labs",
+    taxId: null, createdAt: "2026-01-01T00:00:00Z", projects: [], ...overrides,
   };
 }
 

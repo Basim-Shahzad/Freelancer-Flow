@@ -25,22 +25,34 @@ export type PaymentMethodKind =
 
 export type BankScheme = "iban" | "ach" | "uk" | "swift";
 
+export interface ClientProjectRef {
+  id: string;
+  name: string;
+  createdAt: string;
+}
+
+/**
+ * Client view model, mapped from the API in `lib/api/mappers/clients.ts`. The API has no contact name,
+ * city/country or preferred payment methods, so the UI does not either.
+ */
 export interface Client {
   id: string;
   name: string;
-  contactName: string;
+  companyName: string;
   email: string;
-  /** E.164-ish, digits and leading +. Used to build wa.me links. */
+  /** As returned by the server (E.164 once normalised). Used to build wa.me links. */
   whatsapp: string;
-  city: string;
-  country: string;
+  phone: string;
+  address: string;
+  /** Masked to the last digits on list items, full on the detail view. */
+  taxId: string;
   currency: Currency;
   /** Payment terms in days (0 = due on receipt). */
   termsDays: number;
-  /** Methods this client usually pays by (tags only). */
-  prefersMethods: PaymentMethodKind[];
   notes: string;
   createdAt: string;
+  /** Embedded on list items only. */
+  projects?: ClientProjectRef[];
 }
 
 export type MilestoneStatus = "upcoming" | "awaiting_approval" | "approved" | "changes_requested";
