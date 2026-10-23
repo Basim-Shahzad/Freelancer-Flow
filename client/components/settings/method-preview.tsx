@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import { InvoiceDocument } from "@/components/domain/invoice-document";
 import type { MethodDraft } from "@/components/domain/payment-method-form";
+import { useClientOptions } from "@/lib/hooks/clients";
 import { useAppStore } from "@/lib/store";
 import type { PaymentMethod } from "@/lib/types";
 import { pickPreviewInvoice, sampleInvoice } from "./preview-methods";
@@ -11,7 +12,7 @@ import { useBusiness } from "@/lib/hooks/profile";
 /** Sticky "what your client sees" preview, built from a real recent invoice. Disabled methods are excluded by the caller. */
 export function MethodPreview({ methods }: { methods: PaymentMethod[] }) {
   const invoices = useAppStore((s) => s.invoices);
-  const clients = useAppStore((s) => s.clients);
+  const { clients } = useClientOptions();
   const business = useBusiness();
   const invoice = useMemo(() => pickPreviewInvoice(invoices) ?? sampleInvoice(business), [invoices, business]);
   const client = clients.find((c) => c.id === invoice.clientId);

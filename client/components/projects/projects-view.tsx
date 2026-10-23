@@ -15,6 +15,7 @@ import { FX_DISCLAIMER } from "@/lib/fx";
 import { useHydrated } from "@/lib/hooks/use-hydrated";
 import { formatMoney } from "@/lib/money";
 import { toInvoiceView } from "@/lib/selectors";
+import { useClientOptions } from "@/lib/hooks/clients";
 import { useAppStore } from "@/lib/store";
 import { unbilledOf } from "./logic";
 import { KpiMoney } from "./kpi-money";
@@ -39,7 +40,7 @@ const SORTS: { value: RateSort; label: string }[] = [
 export function ProjectsView() {
   const hydrated = useHydrated();
   const projects = useAppStore((s) => s.projects);
-  const clients = useAppStore((s) => s.clients);
+  const { clients } = useClientOptions();
   const invoices = useAppStore((s) => s.invoices);
   const time = useAppStore((s) => s.time);
   const hourlyRate = useBusiness().hourlyRate;

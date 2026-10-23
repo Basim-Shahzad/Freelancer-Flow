@@ -4,6 +4,7 @@ import { StateBlock } from "@/components/domain/state-block";
 import { Page, PageHeader } from "@/components/ui/section";
 import { PageSkeleton } from "@/components/ui/skeleton";
 import { useHydrated } from "@/lib/hooks/use-hydrated";
+import { useClientOptions } from "@/lib/hooks/clients";
 import { useAppStore } from "@/lib/store";
 import { ProjectForm } from "./project-form";
 
@@ -11,8 +12,9 @@ import { ProjectForm } from "./project-form";
 export function ProjectFormView({ id, clientId }: { id?: string; clientId?: string }) {
   const hydrated = useHydrated();
   const project = useAppStore((s) => s.projects.find((p) => p.id === id));
-  const clientCount = useAppStore((s) => s.clients.length);
-  if (!hydrated) return <PageSkeleton rows={3} />;
+  const { clients, isLoading: clientsLoading } = useClientOptions();
+  const clientCount = clients.length;
+  if (!hydrated || clientsLoading) return <PageSkeleton rows={3} />;
   if (id && !project) {
     return (
       <Page width="narrow">

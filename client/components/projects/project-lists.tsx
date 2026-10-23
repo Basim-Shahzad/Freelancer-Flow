@@ -79,7 +79,7 @@ export function ProjectClientCard({ client, clientIds }: { client?: Client; clie
           <>
             <div>
               <p className="m-0 inline-flex items-center gap-2 font-semibold"><ClientDot clientId={client.id} clientIds={clientIds} />{client.name}</p>
-              <p className="m-0 mt-0.5 text-sm text-muted-foreground">{[client.contactName, client.email].filter(Boolean).join(" · ")}</p>
+              <p className="m-0 mt-0.5 text-sm text-muted-foreground">{[client.companyName ? client.name : "", client.email].filter(Boolean).join(" · ")}</p>
             </div>
             <div className="flex flex-wrap gap-1.5"><Tag>{client.currency}</Tag><Tag>{client.termsDays === 0 ? "Due on receipt" : `Net ${client.termsDays}`}</Tag></div>
             <div><Link href={`/clients/${client.id}`} className={linkCls}>Open client</Link></div>

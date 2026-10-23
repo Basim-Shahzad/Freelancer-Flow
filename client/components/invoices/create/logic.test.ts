@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { calcTotals } from "@/lib/invoice";
-import { seedClients, seedInvoices, seedMethods, seedProjects, seedTime } from "@/lib/seed";
+import { seedInvoices, seedMethods, seedProjects, seedTime } from "@/lib/seed";
+import { testClients } from "@/lib/test/clients";
 import type { Project } from "@/lib/types";
 import {
   buildInput, buildTransientInvoice, defaultMethodIds, dueDateFor, fixedRemaining, initialSelection, itemsForProject, manualLines, manualRowError,
@@ -87,11 +88,10 @@ describe("parsers and helpers", () => {
     expect(dueDateFor("2026-10-05", 14)).toBe("2026-10-19");
     expect(dueDateFor("2026-10-05", 0)).toBe("2026-10-05");
   });
-  it("defaultMethodIds prefers the client's methods, else the default", () => {
-    expect(defaultMethodIds(seedMethods, seedClients.find((c) => c.id === "c-harbor"))).toEqual(["pm-payoneer", "pm-esfca"]);
-    expect(defaultMethodIds(seedMethods, seedClients.find((c) => c.id === "c-dua"))).toEqual(["pm-raast"]); // jazzcash disabled
-    expect(defaultMethodIds(seedMethods, undefined)).toEqual(["pm-payoneer"]);
-    expect(defaultMethodIds([], undefined)).toEqual([]);
+  it("defaultMethodIds picks the default enabled method", () => {
+    expect(defaultMethodIds(seedMethods)).toEqual(["pm-payoneer"]);
+    expect(defaultMethodIds(seedMethods.map((m) => ({ ...m, isDefault: false })))).toEqual(["pm-payoneer"]); // first enabled
+    expect(defaultMethodIds([])).toEqual([]);
   });
 });
 
@@ -120,7 +120,7 @@ describe("validateStep", () => {
 describe("buildInput / transient invoice", () => {
   it("collects refs and totals", () => {
     const project = proj("p-harbor");
-    const client = seedClients[0]!;
+    const client = testClients[0]!;
     const items = itemsForProject(project, seedTime, seedInvoices);
     const state = baseState({ selected: ["t-7", "t-8"], tax: "10", discount: "50", manual: [{ id: "m", description: "Workshop", qty: "1", rate: "125" }] });
     const input = buildInput(state, project, client, items, true);

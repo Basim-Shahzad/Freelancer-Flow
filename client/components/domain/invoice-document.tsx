@@ -62,9 +62,9 @@ export function InvoiceDocument({ invoice, client, business, methods, projectNam
           <div className="grid gap-6 @lg:grid-cols-3">
             <div className="flex min-w-0 flex-col gap-1">
               <span className="t-eyebrow">Billed to</span>
-              <span className="font-semibold">{client?.name ?? "—"}</span>
-              {client && <span className="text-sm text-muted-foreground">{client.contactName}</span>}
-              {client && <span className="text-sm text-muted-foreground">{client.city}, {client.country}</span>}
+              <span className="font-semibold">{client ? client.companyName || client.name : "—"}</span>
+              {client?.companyName && <span className="text-sm text-muted-foreground">{client.name}</span>}
+              {client?.address && <span className="whitespace-pre-line text-sm text-muted-foreground">{client.address}</span>}
             </div>
             <div className="flex min-w-0 flex-col gap-1">
               <span className="t-eyebrow">Project</span>

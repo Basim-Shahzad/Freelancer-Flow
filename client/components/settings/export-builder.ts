@@ -1,5 +1,6 @@
 import { calcTotals, deriveStatus } from "@/lib/invoice";
 import { isoDate, parse } from "@/lib/dates";
+import { clientLabel } from "@/lib/selectors";
 import type { BusinessProfile, Client, DataExport, Invoice, ActivityEntry, PaymentMethod, Project, TimeEntry } from "@/lib/types";
 
 export interface ExportSource {
@@ -19,7 +20,7 @@ const major = (minor: number) => (minor / 100).toFixed(2);
 
 /** Full JSON copy. Amounts are integer minor units, as stored. */
 export function buildExportJson(src: ExportSource, now: Date = new Date()) {
-  const clientName = (id: string) => src.clients.find((c) => c.id === id)?.name ?? "";
+  const clientName = (id: string) => { const c = src.clients.find((x) => x.id === id); return c ? clientLabel(c) : ""; };
   return {
     app: "Paylancr",
     formatVersion: 1,
@@ -53,7 +54,7 @@ export function invoicesToCsv(invoices: Invoice[], clients: Client[], projects: 
     const t = calcTotals(inv);
     return [
       inv.number,
-      clients.find((c) => c.id === inv.clientId)?.name ?? "",
+      (() => { const c = clients.find((x) => x.id === inv.clientId); return c ? clientLabel(c) : ""; })(),
       projects.find((p) => p.id === inv.projectId)?.name ?? "",
       inv.currency,
       deriveStatus(inv, today),

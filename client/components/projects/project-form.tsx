@@ -14,6 +14,7 @@ import { Field } from "@/components/ui/label";
 import { Notice } from "@/components/ui/notice";
 import { RadioGroup, RadioItem } from "@/components/ui/radio-group";
 import { Section } from "@/components/ui/section";
+import { useClientOptions } from "@/lib/hooks/clients";
 import { useAppStore } from "@/lib/store";
 import { CURRENCIES, type BillingType, type Project } from "@/lib/types";
 import { BillingFields } from "./billing-fields";
@@ -32,7 +33,7 @@ const grid = "grid gap-5 @2xl:grid-cols-2";
 
 export function ProjectForm({ project, clientId }: { project?: Project; clientId?: string }) {
   const router = useRouter();
-  const clients = useAppStore((s) => s.clients);
+  const { clients } = useClientOptions();
   const base = useBusiness().defaultCurrency;
   const online = useAppStore((s) => s.online);
   const addProject = useAppStore((s) => s.addProject);

@@ -26,7 +26,7 @@ export function RemindPanel({ invoice, status, balance, client, onClose }: Props
   const [tone, setTone] = useState<Tone>(status === "overdue" ? "firm" : "polite");
 
   const build = (t: Tone) => reminderMessage({
-    tone: t, contactName: client?.contactName ?? "there", ownerName, number: invoice.number, amount: formatMoney(balance, invoice.currency),
+    tone: t, contactName: client?.name ?? "there", ownerName, number: invoice.number, amount: formatMoney(balance, invoice.currency),
     dueDate: fmtDate(invoice.dueDate), overdueDays: daysOverdue(invoice), link: shareLink(window.location.origin, invoice.shareToken),
   });
   const [message, setMessage] = useState(() => build(tone));
@@ -47,7 +47,7 @@ export function RemindPanel({ invoice, status, balance, client, onClose }: Props
 
   return (
     <section ref={ref} tabIndex={-1} id="panel-remind" aria-labelledby="id-rem" className="flex flex-col gap-4 border-y border-rule py-4 outline-none print:hidden">
-      <h2 id="id-rem" className="t-h3">Remind {client?.contactName.split(" ")[0] ?? "your client"} about {invoice.number}</h2>
+      <h2 id="id-rem" className="t-h3">Remind {client?.name.split(" ")[0] ?? "your client"} about {invoice.number}</h2>
       <div className="flex flex-wrap gap-4">
         <Segmented<Channel> label="Channel" value={channel} onChange={setChannel} options={[{ value: "email", label: "Email" }, { value: "whatsapp", label: "WhatsApp message" }]} />
         <Segmented<Tone> label="Tone" value={tone} onChange={pickTone} options={[{ value: "polite", label: "Polite" }, { value: "firm", label: "Firm" }, { value: "final", label: "Final" }]} />

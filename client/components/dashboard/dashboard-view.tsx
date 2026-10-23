@@ -11,6 +11,7 @@ import { Page, PageHeader } from "@/components/ui/section";
 import { PageSkeleton } from "@/components/ui/skeleton";
 import { todayISO } from "@/lib/dates";
 import { useHydrated } from "@/lib/hooks/use-hydrated";
+import { useClientOptions } from "@/lib/hooks/clients";
 import { useAppStore } from "@/lib/store";
 import { useAuthStore } from "@/lib/store/auth";
 import { byDateDesc, toInvoiceView } from "@/lib/selectors";
@@ -28,7 +29,7 @@ export const greeting = (hour: number) => (hour < 12 ? "Good morning" : hour < 1
 
 export function DashboardView() {
   const hydrated = useHydrated();
-  const clients = useAppStore((s) => s.clients);
+  const { clients } = useClientOptions();
   const projects = useAppStore((s) => s.projects);
   const invoices = useAppStore((s) => s.invoices);
   const time = useAppStore((s) => s.time);

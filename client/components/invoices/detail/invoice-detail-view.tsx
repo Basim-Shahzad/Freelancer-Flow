@@ -12,6 +12,7 @@ import { useCopy } from "@/lib/hooks/use-copy";
 import { useHydrated } from "@/lib/hooks/use-hydrated";
 import { calcTotals, deriveStatus, isLive } from "@/lib/invoice";
 import { formatMoney } from "@/lib/money";
+import { useClientOptions } from "@/lib/hooks/clients";
 import { useAppStore } from "@/lib/store";
 import type { PaymentMethod } from "@/lib/types";
 import { ActionBar, type PanelKind } from "./action-bar";
@@ -42,7 +43,7 @@ function NotFound() {
 
 function DetailScreen({ id }: { id: string }) {
   const invoice = useAppStore((s) => s.invoices.find((i) => i.id === id));
-  const clients = useAppStore((s) => s.clients);
+  const { clients } = useClientOptions();
   const projects = useAppStore((s) => s.projects);
   const methods = useAppStore((s) => s.methods);
   const business = useBusiness();
@@ -68,7 +69,7 @@ function DetailScreen({ id }: { id: string }) {
   };
   const shareWhatsApp = () => {
     const text = shareMessage({
-      contactName: client?.contactName ?? "there", ownerName: business.ownerName, businessName: business.businessName, number: invoice.number,
+      contactName: client?.name ?? "there", ownerName: business.ownerName, businessName: business.businessName, number: invoice.number,
       amount: formatMoney(t.balance || t.total, invoice.currency), dueDate: fmtDate(invoice.dueDate), link: link(),
     });
     sendInvoice(invoice.id, "whatsapp");

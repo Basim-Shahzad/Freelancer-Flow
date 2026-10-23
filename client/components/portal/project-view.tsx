@@ -5,6 +5,7 @@ import { StageThread } from "@/components/domain/stage-thread";
 import { Notice } from "@/components/ui/notice";
 import { Section } from "@/components/ui/section";
 import { useHydrated } from "@/lib/hooks/use-hydrated";
+import { useClientOptions } from "@/lib/hooks/clients";
 import { useAppStore } from "@/lib/store";
 import { MilestoneList, type Outcome } from "./milestone-list";
 import { InvoicesSection, MilestoneProgress, SimpleOverview } from "./project-overview";
@@ -16,7 +17,7 @@ export function ProjectPortalView({ token }: { token: string }) {
   const hydrated = useHydrated();
   const project = useAppStore((s) => s.projects.find((p) => p.shareToken === token));
   const invoices = useAppStore((s) => s.invoices);
-  const clients = useAppStore((s) => s.clients);
+  const { clients } = useClientOptions();
   const ownerName = seedBusiness.ownerName;
   const online = useAppStore((s) => s.online);
   const [outcomes, setOutcomes] = useState<Record<string, Outcome | undefined>>({});
@@ -40,7 +41,7 @@ export function ProjectPortalView({ token }: { token: string }) {
       <header className="flex flex-col gap-2.5">
         <span className="t-eyebrow">Project</span>
         <h1 className="t-h1">{project.name}</h1>
-        {client && <span className="text-sm text-muted-foreground">{client.name} · prepared for {client.contactName}</span>}
+        {client && <span className="text-sm text-muted-foreground">{client.name} · prepared for {client.name}</span>}
       </header>
 
       <StageThread stage={stage} caption={projectCaption(project, stage, owner)} />

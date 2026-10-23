@@ -5,7 +5,9 @@ import { InvoiceDetailView } from "@/components/invoices/detail/invoice-detail-v
 import { InvoicesView } from "@/components/invoices/invoices-view";
 import { TimeView } from "@/components/time/time-view";
 import { useAppStore } from "@/lib/store";
-import { mockApi, profileFixture, renderWithProviders } from "@/lib/test";
+import { clientKeys } from "@/lib/hooks/clients";
+import { createTestQueryClient, mockApi, profileFixture, renderWithProviders } from "@/lib/test";
+import { testClientItems } from "@/lib/test/clients";
 
 const push = vi.fn();
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push, replace: vi.fn() }), usePathname: () => "/" }));
@@ -15,6 +17,7 @@ let m: ReturnType<typeof mockApi>;
 beforeEach(() => {
   m = mockApi();
   m.mock.onGet("/profile").reply(200, profileFixture());
+  m.mock.onGet("/clients").reply(200, { clients: testClientItems, total: testClientItems.length });
   vi.stubGlobal("ResizeObserver", class { observe() {} unobserve() {} disconnect() {} });
   useAppStore.getState().resetDemo();
   push.mockClear();
@@ -72,7 +75,9 @@ describe("screens render with seed data", () => {
   });
 
   it("create: hourly project preselects ready time and creates an invoice", async () => {
-    renderWithProviders(<InvoiceCreateView projectId="p-harbor" />);
+    const queryClient = createTestQueryClient();
+    queryClient.setQueryData(clientKeys.options(), { items: testClientItems, total: testClientItems.length });
+    renderWithProviders(<InvoiceCreateView projectId="p-harbor" />, { queryClient });
     const before = useAppStore.getState().invoices.length;
     for (let i = 0; i < 3; i++) fireEvent.click(screen.getByRole("button", { name: "Continue" }));
     expect(screen.getByRole("heading", { name: "Review" })).toBeTruthy();

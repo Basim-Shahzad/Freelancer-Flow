@@ -17,6 +17,7 @@ import { useCopy } from "@/lib/hooks/use-copy";
 import { useHydrated } from "@/lib/hooks/use-hydrated";
 import { formatMoney } from "@/lib/money";
 import { byDateDesc, toInvoiceView } from "@/lib/selectors";
+import { useClientOptions } from "@/lib/hooks/clients";
 import { useAppStore } from "@/lib/store";
 import type { InvoiceView } from "@/lib/selectors";
 import { DeleteProjectDialog } from "./delete-project-dialog";
@@ -49,7 +50,7 @@ export function ProjectDetailView({ id }: { id: string }) {
   const router = useRouter();
   const hydrated = useHydrated();
   const project = useAppStore((s) => s.projects.find((p) => p.id === id));
-  const clients = useAppStore((s) => s.clients);
+  const { clients } = useClientOptions();
   const projects = useAppStore((s) => s.projects);
   const invoices = useAppStore((s) => s.invoices);
   const time = useAppStore(useShallow((s) => s.time.filter((t) => t.projectId === id)));

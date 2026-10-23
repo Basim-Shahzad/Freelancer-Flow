@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { seedClients, seedInvoices, seedProjects } from "@/lib/seed";
+import { seedInvoices, seedProjects } from "@/lib/seed";
 import { toInvoiceView } from "@/lib/selectors";
+import { testClients } from "@/lib/test/clients";
 import { byNumberDesc, countLine, filterInvoices } from "./list-logic";
 
-const views = seedInvoices.map((i) => toInvoiceView(i, seedClients, seedProjects)).sort(byNumberDesc);
+const views = seedInvoices.map((i) => toInvoiceView(i, testClients, seedProjects)).sort(byNumberDesc);
 
 describe("invoice list logic", () => {
   it("sorts newest number first", () => expect(views[0]?.number).toBe("INV-0045"));

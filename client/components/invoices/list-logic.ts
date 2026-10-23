@@ -12,7 +12,7 @@ export function matchesStatus(v: InvoiceView, f: StatusFilter): boolean {
 export function matchesQuery(v: InvoiceView, q: string, projectName: string): boolean {
   const needle = q.trim().toLowerCase();
   if (!needle) return true;
-  return `${v.number} ${v.client?.name ?? ""} ${projectName}`.toLowerCase().includes(needle);
+  return `${v.number} ${v.client?.companyName ?? ""} ${v.client?.name ?? ""} ${projectName}`.toLowerCase().includes(needle);
 }
 
 export function filterInvoices(views: InvoiceView[], o: { q: string; clientId: string; status: StatusFilter }): InvoiceView[] {

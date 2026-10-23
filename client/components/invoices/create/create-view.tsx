@@ -10,6 +10,7 @@ import { PageSkeleton } from "@/components/ui/skeleton";
 import { todayISO } from "@/lib/dates";
 import { useHydrated } from "@/lib/hooks/use-hydrated";
 import { formatInvoiceNumber } from "@/lib/invoice";
+import { useClientOptions } from "@/lib/hooks/clients";
 import { useAppStore } from "@/lib/store";
 import {
   STEPS, buildInput, buildTransientInvoice, defaultMethodIds, initialSelection, itemsForProject, newManualRow, projectNote, readyIds,
@@ -37,7 +38,7 @@ export function InvoiceCreateView(props: Props) {
 function CreateFlow({ projectId, period }: Props) {
   const router = useRouter();
   const projects = useAppStore((s) => s.projects);
-  const clients = useAppStore((s) => s.clients);
+  const { clients } = useClientOptions();
   const time = useAppStore((s) => s.time);
   const invoices = useAppStore((s) => s.invoices);
   const methods = useAppStore((s) => s.methods);
@@ -54,7 +55,7 @@ function CreateFlow({ projectId, period }: Props) {
     const items = p ? itemsForProject(p, time, invoices) : [];
     return {
       projectId: p?.id ?? "", selected: initialSelection(items, period, p), manual: [newManualRow()], tax: "0", discount: "0",
-      termsDays: c?.termsDays ?? business.defaultTermsDays, methodIds: defaultMethodIds(methods, c),
+      termsDays: c?.termsDays ?? business.defaultTermsDays, methodIds: defaultMethodIds(methods),
     };
   });
   const [step, setStep] = useState(() => (projects.some((p) => p.id === projectId) ? 2 : 1));
@@ -85,7 +86,7 @@ function CreateFlow({ projectId, period }: Props) {
     const p = projects.find((x) => x.id === id);
     const c = clients.find((x) => x.id === p?.clientId);
     const its = p ? itemsForProject(p, time, invoices) : [];
-    setState((s) => ({ ...s, projectId: id, selected: readyIds(its), termsDays: c?.termsDays ?? s.termsDays, methodIds: defaultMethodIds(methods, c) }));
+    setState((s) => ({ ...s, projectId: id, selected: readyIds(its), termsDays: c?.termsDays ?? s.termsDays, methodIds: defaultMethodIds(methods) }));
     setError(null);
   };
   const toggle = (key: "selected" | "methodIds", id: string) => patch({ [key]: state[key].includes(id) ? state[key].filter((x) => x !== id) : [...state[key], id] });

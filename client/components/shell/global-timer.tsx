@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { SelectField } from "@/components/ui/select";
 import { formatClock, useElapsed } from "@/lib/hooks/use-elapsed";
 import { formatDuration } from "@/lib/money";
+import { useClientOptions } from "@/lib/hooks/clients";
 import { useAppStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
 import { Label } from "@/components/ui/label";
@@ -15,7 +16,7 @@ import { Label } from "@/components/ui/label";
 export function GlobalTimer({ className, compact }: { className?: string; compact?: boolean }) {
   const timer = useAppStore((s) => s.timer);
   const projects = useAppStore((s) => s.projects);
-  const clients = useAppStore((s) => s.clients);
+  const { clients } = useClientOptions();
   const start = useAppStore((s) => s.startTimer);
   const stop = useAppStore((s) => s.stopTimer);
   const update = useAppStore((s) => s.updateTimer);

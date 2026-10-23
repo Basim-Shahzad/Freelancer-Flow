@@ -183,11 +183,9 @@ export function termsOptions(clientTerms: number): number[] {
 export const termsLabel = (d: number) => (d === 0 ? "Due on receipt" : `Net ${d}`);
 export const dueDateFor = (issue: string, termsDays: number) => isoDate(addDays(parse(issue), termsDays));
 
-/** Enabled methods in order; start with the ones the client usually pays by, else the default. */
-export function defaultMethodIds(methods: PaymentMethod[], client?: Client): string[] {
+/** The default enabled method (else the first enabled one). */
+export function defaultMethodIds(methods: PaymentMethod[]): string[] {
   const enabled = methods.filter((m) => m.enabled);
-  const preferred = enabled.filter((m) => client?.prefersMethods.includes(m.kind));
-  if (preferred.length) return preferred.map((m) => m.id);
   const def = enabled.find((m) => m.isDefault) ?? enabled[0];
   return def ? [def.id] : [];
 }
