@@ -5,13 +5,12 @@ import { createJSONStorage, persist } from "zustand/middleware";
 import { daysFromToday, isoDate, localHHMM, nowISO, todayISO } from "../dates";
 import { calcTotals, deriveStatus, formatInvoiceNumber } from "../invoice";
 import { formatMoney } from "../money";
-import { methodTitle } from "../payment-methods";
 import {
-  seedActivity, seedBusinessLocal, seedExports, seedInvoices, seedMethods, seedProjects, seedTime,
+  seedActivity, seedBusinessLocal, seedExports, seedInvoices, seedProjects, seedTime,
 } from "../seed";
 import type {
   ActivityEntry, ActivityType, BusinessLocal, DataExport, Invoice, InvoiceEvent, InvoiceEventType,
-  InvoiceLine, Payment, PaymentMethod, Project, TimeEntry, TimerState,
+  InvoiceLine, Payment, Project, TimeEntry, TimerState,
 } from "../types";
 
 export const uid = (prefix: string) =>
@@ -46,7 +45,6 @@ interface State {
   projects: Project[];
   time: TimeEntry[];
   invoices: Invoice[];
-  methods: PaymentMethod[];
   activity: ActivityEntry[];
   exports: DataExport[];
   timer: TimerState;
@@ -86,12 +84,6 @@ interface Actions {
   reverseWriteOff(id: string): void;
   voidInvoice(id: string, reason?: string): void;
 
-  upsertMethod(m: Omit<PaymentMethod, "id"> & { id?: string }): PaymentMethod;
-  removeMethod(id: string): void;
-  moveMethod(id: string, dir: -1 | 1): void;
-  setDefaultMethod(id: string): void;
-  toggleMethod(id: string): void;
-
   requestExport(): DataExport;
   finishExport(id: string): void;
 
@@ -108,7 +100,6 @@ const initial = (): State => ({
   projects: seedProjects,
   time: seedTime,
   invoices: seedInvoices,
-  methods: seedMethods,
   activity: seedActivity,
   exports: seedExports,
   timer: { running: true, projectId: "p-harbor", description: "Checkout flow QA", startedAt: new Date(Date.now() - 84 * 60_000).toISOString() },
@@ -250,38 +241,6 @@ export const useAppStore = create<AppStore>()(
           log("invoice", "Invoice voided", get().invoices.find((i) => i.id === id)?.number ?? id, reason ?? "");
         },
 
-        upsertMethod: (m) => {
-          const existing = m.id ? get().methods.find((x) => x.id === m.id) : undefined;
-          const method: PaymentMethod = { ...m, id: m.id ?? uid("pm") } as PaymentMethod;
-          set((s) => ({ methods: existing ? s.methods.map((x) => (x.id === method.id ? method : x)) : [...s.methods, { ...method, isDefault: s.methods.length === 0 ? true : method.isDefault }] }));
-          log("settings", existing ? "Payment method updated" : "Payment method added", "Settings", methodTitle(method));
-          return method;
-        },
-        removeMethod: (id) => {
-          const m = get().methods.find((x) => x.id === id);
-          set((s) => {
-            const rest = s.methods.filter((x) => x.id !== id);
-            if (m?.isDefault && rest[0]) rest[0] = { ...rest[0], isDefault: true };
-            return { methods: rest };
-          });
-          if (m) log("settings", "Payment method removed", "Settings", methodTitle(m));
-        },
-        moveMethod: (id, dir) => {
-          set((s) => {
-            const i = s.methods.findIndex((m) => m.id === id);
-            const j = i + dir;
-            if (i < 0 || j < 0 || j >= s.methods.length) return s;
-            const next = s.methods.slice();
-            const a = next[i]; const b = next[j];
-            if (!a || !b) return s;
-            next[i] = b; next[j] = a;
-            return { methods: next };
-          });
-          log("settings", "Payment method reordered", "Settings", methodTitle(get().methods.find((m) => m.id === id) ?? ({ kind: "other", fields: {} } as PaymentMethod)));
-        },
-        setDefaultMethod: (id) => set((s) => ({ methods: s.methods.map((m) => ({ ...m, isDefault: m.id === id })) })),
-        toggleMethod: (id) => set((s) => ({ methods: s.methods.map((m) => (m.id === id ? { ...m, enabled: !m.enabled } : m)) })),
-
         requestExport: () => {
           const x: DataExport = { id: uid("x"), requestedAt: nowISO(), status: "preparing", fileName: `paylancr-export-${todayISO()}.zip`, sizeLabel: "4.2 MB" };
           set((s) => ({ exports: [x, ...s.exports] }));
@@ -295,14 +254,16 @@ export const useAppStore = create<AppStore>()(
     },
     {
       name: "paylancr-v1",
-      version: 4,
+      version: 5,
       // v1 -> v2 added optional TimeEntry.startTime; old entries simply lack it.
       // v2 -> v3 moved `business` to the API (`useBusiness`) and dropped `session`; the fields the API lacks are kept in `businessLocal`.
       // v3 -> v4 moved `clients` to the API (`useClients`); the stale mock clients (and their ids) are dropped.
+      // v4 -> v5 moved `methods` to the API (`usePaymentMethods`); the stale mock methods (and their ids) are dropped.
       migrate: (persisted) => {
-        const { business, session: _session, clients: _clients, ...rest } = (persisted ?? {}) as Record<string, unknown> & { business?: Partial<BusinessLocal> };
+        const { business, session: _session, clients: _clients, methods: _methods, ...rest } = (persisted ?? {}) as Record<string, unknown> & { business?: Partial<BusinessLocal> };
         void _session;
         void _clients;
+        void _methods;
         const businessLocal: BusinessLocal = {
           phone: business?.phone ?? seedBusinessLocal.phone,
           footerNote: business?.footerNote ?? seedBusinessLocal.footerNote,
@@ -314,7 +275,7 @@ export const useAppStore = create<AppStore>()(
       },
       storage: createJSONStorage(() => localStorage),
       skipHydration: true,
-      partialize: ({ businessLocal, projects, time, invoices, methods, activity, exports, timer }) => ({ businessLocal, projects, time, invoices, methods, activity, exports, timer }),
+      partialize: ({ businessLocal, projects, time, invoices, activity, exports, timer }) => ({ businessLocal, projects, time, invoices, activity, exports, timer }),
     },
   ),
 );

@@ -27,11 +27,10 @@ function CopyRow({ label, value, copyKey, copy, multiline }: { label: string; va
 function MethodBlock({ method, preferred, copy }: { method: PaymentMethod; preferred: boolean; copy: Copy }) {
   const title = methodTitle(method);
   const intro = CLIENT_INTRO[method.kind];
-  const link = method.kind === "payoneer" ? safeHttpUrl(method.fields.link) : undefined;
+  const link = method.kind === "payoneer" ? safeHttpUrl(method.fields.paymentRequestUrl) : undefined;
   const fields = fieldsFor(method.kind, method.scheme).filter((f) => {
     if (!method.fields[f.key]) return false;
-    if (method.kind === "payoneer" && f.key === "link") return false; // rendered as an outbound link below
-    if (method.kind === "other" && f.key === "title") return false; // already the block title
+    if (method.kind === "payoneer" && f.key === "paymentRequestUrl") return false; // rendered as an outbound link below
     return true;
   });
   return (

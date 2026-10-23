@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
+import { QueryBoundary } from "@/components/domain/query-boundary";
 import { Button } from "@/components/ui/button";
 import { Notice } from "@/components/ui/notice";
 import { Page, PageHeader, Split } from "@/components/ui/section";
@@ -11,7 +12,9 @@ import { todayISO } from "@/lib/dates";
 import { useHydrated } from "@/lib/hooks/use-hydrated";
 import { formatInvoiceNumber } from "@/lib/invoice";
 import { useClientOptions } from "@/lib/hooks/clients";
+import { usePaymentMethods } from "@/lib/hooks/payment-methods";
 import { useAppStore } from "@/lib/store";
+import type { PaymentMethod } from "@/lib/types";
 import {
   STEPS, buildInput, buildTransientInvoice, defaultMethodIds, initialSelection, itemsForProject, newManualRow, projectNote, readyIds,
   validateStep, type FlowState,
@@ -31,17 +34,21 @@ interface Props { projectId?: string; period?: string }
 
 export function InvoiceCreateView(props: Props) {
   const hydrated = useHydrated();
+  // The flow seeds its state from the payment methods, so wait for them (a later refetch error must not unmount it).
+  const methodsQuery = usePaymentMethods();
   if (!hydrated) return <PageSkeleton rows={4} />;
-  return <CreateFlow {...props} />;
+  if (!methodsQuery.data) {
+    return <QueryBoundary query={methodsQuery} isEmpty={() => false} loading={<PageSkeleton rows={4} />}>{() => null}</QueryBoundary>;
+  }
+  return <CreateFlow {...props} methods={methodsQuery.data} />;
 }
 
-function CreateFlow({ projectId, period }: Props) {
+function CreateFlow({ projectId, period, methods }: Props & { methods: PaymentMethod[] }) {
   const router = useRouter();
   const projects = useAppStore((s) => s.projects);
   const { clients } = useClientOptions();
   const time = useAppStore((s) => s.time);
   const invoices = useAppStore((s) => s.invoices);
-  const methods = useAppStore((s) => s.methods);
   const business = useBusiness();
   const online = useAppStore((s) => s.online);
   const createInvoice = useAppStore((s) => s.createInvoice);

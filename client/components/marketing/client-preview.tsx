@@ -1,12 +1,24 @@
 import { InvoiceDocument } from "@/components/domain/invoice-document";
-import { seedBusiness, seedInvoices, seedMethods } from "@/lib/seed";
-import type { Client, Currency } from "@/lib/types";
+import { seedBusiness, seedInvoices } from "@/lib/seed";
+import type { Client, Currency, PaymentMethod } from "@/lib/types";
 
 /** Demo client for the marketing preview (the marketing pages have no account or API data). */
 const sampleClient: Client = {
   id: "c-harbor", name: "Jordan Reyes", companyName: "Harbor Labs", email: "jordan@harborlabs.example", whatsapp: "+15125550142", phone: "",
   address: "Austin, US", taxId: "", currency: "USD", termsDays: 14, notes: "", createdAt: "2026-01-01T00:00:00.000Z",
 };
+
+/** Demo payment methods for the marketing preview, keyed to the ids in the seed invoices. */
+const sampleMethods: PaymentMethod[] = [
+  { id: "pm-payoneer", kind: "payoneer", label: "Payoneer", enabled: true, isDefault: true, sortOrder: 0, fields: { accountEmail: "ayesha@maliks.studio", paymentRequestUrl: "https://payoneer.com/pay/malik-studio" } },
+  {
+    id: "pm-esfca", kind: "esfca", label: "ESFCA wire (USD)", enabled: true, isDefault: false, sortOrder: 1,
+    fields: {
+      beneficiaryName: "Ayesha Malik", bankName: "Standard Chartered Pakistan", iban: "PK36SCBL0000001123456702", swiftBic: "SCBLPKKX",
+      bankAddress: "I.I. Chundrigar Road, Karachi", purposeOfPayment: "Export of IT services",
+    },
+  },
+];
 
 /**
  * The REAL client invoice view, inside a phone-width scroll frame, using demo seed data.
@@ -16,7 +28,7 @@ export function ClientPreview({ neutral, estimateIn }: { neutral?: boolean; esti
   const invoice = seedInvoices.find((i) => i.id === "inv-42");
   const client = sampleClient;
   if (!invoice) return null;
-  const methods = invoice.paymentMethodIds.flatMap((id) => seedMethods.filter((m) => m.id === id));
+  const methods = invoice.paymentMethodIds.flatMap((id) => sampleMethods.filter((m) => m.id === id));
   const business = neutral ? { ...seedBusiness, taxId: "", address: "Your studio address, City" } : seedBusiness;
   return (
     <div className="flex flex-col gap-4">

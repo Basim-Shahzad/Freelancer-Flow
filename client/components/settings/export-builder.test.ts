@@ -1,10 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { seedActivity, seedBusiness, seedInvoices, seedMethods, seedProjects, seedTime } from "@/lib/seed";
+import { seedActivity, seedBusiness, seedInvoices, seedProjects, seedTime } from "@/lib/seed";
+import { methodFixtures } from "@/lib/test/payment-methods";
 import { testClients } from "@/lib/test/clients";
 import type { DataExport } from "@/lib/types";
 import { buildExportJson, csvCell, exportFileName, exportPhase, formatBytes, invoicesToCsv, isExpired } from "./export-builder";
 
-const src = { business: seedBusiness, clients: testClients, projects: seedProjects, time: seedTime, invoices: seedInvoices, methods: seedMethods, activity: seedActivity };
+const src = { business: seedBusiness, clients: testClients, projects: seedProjects, time: seedTime, invoices: seedInvoices, methods: methodFixtures(), activity: seedActivity };
 const NOW = new Date("2026-10-05T12:00:00Z");
 
 describe("buildExportJson", () => {
@@ -12,7 +13,7 @@ describe("buildExportJson", () => {
   it("contains every collection", () => {
     expect(json.clients).toHaveLength(testClients.length);
     expect(json.invoices).toHaveLength(seedInvoices.length);
-    expect(json.paymentMethods).toHaveLength(seedMethods.length);
+    expect(json.paymentMethods).toHaveLength(src.methods.length);
     expect(json.activity).toHaveLength(seedActivity.length);
     expect(json.exportedAt).toBe(NOW.toISOString());
   });

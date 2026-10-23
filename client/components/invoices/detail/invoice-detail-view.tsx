@@ -13,6 +13,7 @@ import { useHydrated } from "@/lib/hooks/use-hydrated";
 import { calcTotals, deriveStatus, isLive } from "@/lib/invoice";
 import { formatMoney } from "@/lib/money";
 import { useClientOptions } from "@/lib/hooks/clients";
+import { usePaymentMethods } from "@/lib/hooks/payment-methods";
 import { useAppStore } from "@/lib/store";
 import type { PaymentMethod } from "@/lib/types";
 import { ActionBar, type PanelKind } from "./action-bar";
@@ -33,6 +34,8 @@ export function InvoiceDetailView({ id }: { id: string }) {
   return <DetailScreen id={id} />;
 }
 
+const NO_METHODS: PaymentMethod[] = [];
+
 function NotFound() {
   return (
     <Page width="narrow">
@@ -45,7 +48,8 @@ function DetailScreen({ id }: { id: string }) {
   const invoice = useAppStore((s) => s.invoices.find((i) => i.id === id));
   const { clients } = useClientOptions();
   const projects = useAppStore((s) => s.projects);
-  const methods = useAppStore((s) => s.methods);
+  // Methods only fill the document's "How to pay" block and the record-payment options; show the invoice without them while they load.
+  const methods = usePaymentMethods().data ?? NO_METHODS;
   const business = useBusiness();
   const online = useAppStore((s) => s.online);
   const sendInvoice = useAppStore((s) => s.sendInvoice);

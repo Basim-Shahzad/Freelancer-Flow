@@ -8,6 +8,7 @@ import { useAppStore } from "@/lib/store";
 import { clientKeys } from "@/lib/hooks/clients";
 import { createTestQueryClient, mockApi, profileFixture, renderWithProviders } from "@/lib/test";
 import { testClientItems } from "@/lib/test/clients";
+import { paymentMethodResponses } from "@/lib/test/payment-methods";
 
 const push = vi.fn();
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push, replace: vi.fn() }), usePathname: () => "/" }));
@@ -18,6 +19,7 @@ beforeEach(() => {
   m = mockApi();
   m.mock.onGet("/profile").reply(200, profileFixture());
   m.mock.onGet("/clients").reply(200, { clients: testClientItems, total: testClientItems.length });
+  m.mock.onGet("/payment-methods").reply(200, { paymentMethods: paymentMethodResponses() });
   vi.stubGlobal("ResizeObserver", class { observe() {} unobserve() {} disconnect() {} });
   useAppStore.getState().resetDemo();
   push.mockClear();
@@ -68,8 +70,8 @@ describe("screens render with seed data", () => {
 
   it("create: needs a line before continuing, then reaches review with the real document", async () => {
     renderWithProviders(<InvoiceCreateView projectId="p-gulberg" />);
-    // milestone project with nothing approved
-    expect(screen.getByText(/Nothing approved yet/)).toBeTruthy();
+    // milestone project with nothing approved (the flow waits for the payment methods first)
+    expect(await screen.findByText(/Nothing approved yet/)).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Continue" }));
     expect(screen.getByRole("alert").textContent).toMatch(/at least one item/);
   });
@@ -79,6 +81,7 @@ describe("screens render with seed data", () => {
     queryClient.setQueryData(clientKeys.options(), { items: testClientItems, total: testClientItems.length });
     renderWithProviders(<InvoiceCreateView projectId="p-harbor" />, { queryClient });
     const before = useAppStore.getState().invoices.length;
+    await screen.findByRole("button", { name: "Continue" });
     for (let i = 0; i < 3; i++) fireEvent.click(screen.getByRole("button", { name: "Continue" }));
     expect(screen.getByRole("heading", { name: "Review" })).toBeTruthy();
     expect(screen.getByLabelText("Invoice INV-0046")).toBeTruthy();

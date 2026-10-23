@@ -1,6 +1,6 @@
 import { daysFromToday as d } from "./dates";
 import type {
-  ActivityEntry, BusinessLocal, BusinessProfile, DataExport, Invoice, PaymentMethod, Project, TimeEntry,
+  ActivityEntry, BusinessLocal, BusinessProfile, DataExport, Invoice, Project, TimeEntry,
 } from "./types";
 
 /**
@@ -139,14 +139,6 @@ export const seedTime: TimeEntry[] = [
   te("t-8", "p-harbor", "Navigation rework", -6, 6, "10:00"),
   te("t-9", "p-harbor", "Settings screen build", -5, 5.5, "09:00"),
   te("t-10", "p-harbor", "Release candidate testing", -10, 6, "10:30", true, "inv-41"),
-];
-
-export const seedMethods: PaymentMethod[] = [
-  { id: "pm-payoneer", kind: "payoneer", enabled: true, isDefault: true, fields: { email: "ayesha@maliks.studio", link: "https://payoneer.com/pay/malik-studio" } },
-  { id: "pm-esfca", kind: "esfca", enabled: true, isDefault: false, fields: { holder: "Ayesha Malik", bank: "Standard Chartered Pakistan", iban: "PK36 SCBL 0000 0011 2345 6702", swift: "SCBLPKKX", purpose: "Export of IT services" } },
-  { id: "pm-pkrbank", kind: "pkrbank", enabled: true, isDefault: false, fields: { holder: "Ayesha Malik", bank: "HBL", iban: "PK36 HABB 0000 0011 2345 6702" } },
-  { id: "pm-raast", kind: "raast", enabled: true, isDefault: false, fields: { raastId: "0300 5550214", holder: "Ayesha Malik" } },
-  { id: "pm-jazzcash", kind: "jazzcash", enabled: false, isDefault: false, fields: { wallet: "0300 5550214", holder: "Ayesha Malik" } },
 ];
 
 const act = (id: string, days: number, hm: string, type: ActivityEntry["type"], action: string, record: string, detail: string): ActivityEntry => ({ id, at: ts(days, hm), type, action, record, detail });

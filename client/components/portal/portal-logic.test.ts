@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { seedInvoices, seedProjects } from "@/lib/seed";
 import type { Invoice, Project } from "@/lib/types";
 import { deriveProjectStage, dueLine, firstName, invoiceCaption, invoiceHero, methodsForInvoice, milestoneStats, projectCaption, projectInvoices, safeHttpUrl } from "./portal-logic";
-import { seedMethods } from "@/lib/seed";
+import { methodFixtures } from "@/lib/test/payment-methods";
 
 const proj = (id: string) => {
   const p = seedProjects.find((x) => x.id === id);
@@ -89,7 +89,7 @@ describe("invoice presentation", () => {
 describe("methodsForInvoice", () => {
   it("keeps the invoice order and drops disabled or missing methods", () => {
     const i = { ...inv("INV-0042"), paymentMethodIds: ["pm-raast", "pm-jazzcash", "pm-gone", "pm-payoneer"] };
-    expect(methodsForInvoice(i, seedMethods).map((m) => m.id)).toEqual(["pm-raast", "pm-payoneer"]);
+    expect(methodsForInvoice(i, methodFixtures()).map((m) => m.id)).toEqual(["pm-raast", "pm-payoneer"]);
   });
 });
 

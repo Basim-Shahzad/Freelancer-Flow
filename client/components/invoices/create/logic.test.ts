@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { calcTotals } from "@/lib/invoice";
-import { seedInvoices, seedMethods, seedProjects, seedTime } from "@/lib/seed";
+import { seedInvoices, seedProjects, seedTime } from "@/lib/seed";
+import { methodFixtures } from "@/lib/test/payment-methods";
 import { testClients } from "@/lib/test/clients";
 import type { Project } from "@/lib/types";
 import {
@@ -89,6 +90,7 @@ describe("parsers and helpers", () => {
     expect(dueDateFor("2026-10-05", 0)).toBe("2026-10-05");
   });
   it("defaultMethodIds picks the default enabled method", () => {
+    const seedMethods = methodFixtures();
     expect(defaultMethodIds(seedMethods)).toEqual(["pm-payoneer"]);
     expect(defaultMethodIds(seedMethods.map((m) => ({ ...m, isDefault: false })))).toEqual(["pm-payoneer"]); // first enabled
     expect(defaultMethodIds([])).toEqual([]);

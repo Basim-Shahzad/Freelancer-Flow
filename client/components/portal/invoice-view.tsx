@@ -13,16 +13,22 @@ import { fmtDate } from "@/lib/dates";
 import { deriveStatus, isLive } from "@/lib/invoice";
 import { useHydrated } from "@/lib/hooks/use-hydrated";
 import { useClientOptions } from "@/lib/hooks/clients";
+import { usePaymentMethods } from "@/lib/hooks/payment-methods";
 import { useAppStore } from "@/lib/store";
+import type { PaymentMethod } from "@/lib/types";
 import { HowToPay } from "./how-to-pay";
 import { dueLine, firstName, invoiceCaption, invoiceHero, isPortalVisible, lastPaymentDate, methodsForInvoice } from "./portal-logic";
 import { LinkInactive, PortalSkeleton } from "./portal-states";
 import { seedBusiness } from "@/lib/seed"; // portal stays on mock data until step 13
 
+const NO_METHODS: PaymentMethod[] = [];
+
 export function InvoicePortalView({ token }: { token: string }) {
   const hydrated = useHydrated();
   const invoice = useAppStore((s) => s.invoices.find((i) => i.shareToken === token));
-  const allMethods = useAppStore((s) => s.methods);
+  // The portal has no account until step 13, so this only resolves while the owner is signed in on this browser;
+  // for everyone else "How to pay" falls back to "contact the freelancer".
+  const allMethods = usePaymentMethods().data ?? NO_METHODS;
   const { clients } = useClientOptions();
   const projects = useAppStore((s) => s.projects);
   const business = seedBusiness;
