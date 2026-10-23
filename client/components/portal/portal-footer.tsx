@@ -2,7 +2,6 @@
 
 import { ThreadMark } from "@/components/brand";
 import { useHydrated } from "@/lib/hooks/use-hydrated";
-import { useAppStore } from "@/lib/store";
 import { seedBusiness } from "@/lib/seed"; // portal stays on mock data until step 13
 
 export function PortalFooter() {

@@ -1,7 +1,6 @@
 "use client";
 
 import { useHydrated } from "@/lib/hooks/use-hydrated";
-import { useAppStore } from "@/lib/store";
 import { Skeleton } from "@/components/ui/skeleton";
 import { seedBusiness } from "@/lib/seed"; // portal stays on mock data until step 13
 

@@ -17,6 +17,7 @@ const setProfile = (onboarded: boolean) => m.mock.onGet("/profile").reply(200, p
 const useGate = (opts: Parameters<typeof useAuthGate>[0]) => {
   const client = createTestQueryClient();
   const wrapper = ({ children }: { children: ReactNode }) => <QueryClientProvider client={client}>{children}</QueryClientProvider>;
+  // eslint-disable-next-line react-hooks/rules-of-hooks -- this is a renderHook callback; the helper's `use` name is only a test convenience
   return renderHook(() => useAuthGate(opts), { wrapper });
 };
 
