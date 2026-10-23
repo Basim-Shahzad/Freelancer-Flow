@@ -2,21 +2,26 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { toast as sonnerToast } from "sonner";
+import { mapMethodErrors } from "@/components/domain/payment-method-errors";
 import { PageSkeleton } from "@/components/ui/skeleton";
 import { clientToCreate } from "@/lib/api/mappers/clients";
+import { toCreate } from "@/lib/api/mappers/payment-methods";
 import { splitBusinessPatch } from "@/lib/api/mappers/profile";
 import { useAuthGate, useSession } from "@/lib/hooks/auth";
 import { useCreateClient } from "@/lib/hooks/clients";
+import { useCreatePaymentMethod } from "@/lib/hooks/payment-methods";
 import { useUpdateProfile } from "@/lib/hooks/profile";
 import { useApiToast } from "@/lib/hooks/use-api-toast";
+import { METHOD_KINDS, fieldsFor } from "@/lib/payment-methods";
 import { useAppStore } from "@/lib/store";
 import { sleep } from "../form-bits";
-import { buildCompletion, initialData, newProgress, runCompletion, STEP_COUNT, type OnboardingData } from "../onboarding-logic";
+import { MethodCreateError, buildCompletion, initialData, newProgress, runCompletion, STEP_COUNT, type OnboardingData } from "../onboarding-logic";
 import { COUNTRIES, COUNTRY_HINT_KEY, isClientBlank, type CountryCode } from "../schemas";
 import { BusinessStep } from "./business-step";
 import { ClientStep } from "./client-step";
 import { CurrencyStep } from "./currency-step";
-import { MethodsStep } from "./methods-step";
+import { MethodsStep, type MethodServerErrors } from "./methods-step";
 import { ReviewStep } from "./review-step";
 import { StepRail } from "./step-rail";
 import { readNext } from "../use-signed-in-redirect";
@@ -51,7 +56,7 @@ function readCountryHint(): CountryCode | undefined {
 function Wizard({ name, email, finishing }: { name?: string; email: string; finishing: React.RefObject<boolean> }) {
   const router = useRouter();
   const createClient = useCreateClient();
-  const upsertMethod = useAppStore((s) => s.upsertMethod);
+  const createMethod = useCreatePaymentMethod();
   const updateBusinessLocal = useAppStore((s) => s.updateBusinessLocal);
   const updateProfile = useUpdateProfile();
   const toast = useApiToast();
@@ -60,6 +65,7 @@ function Wizard({ name, email, finishing }: { name?: string; email: string; fini
   const [step, setStep] = useState(0);
   const [data, setData] = useState<OnboardingData>(() => initialData({ name, country: readCountryHint() }));
   const [busy, setBusy] = useState<"dashboard" | "project" | null>(null);
+  const [methodErrors, setMethodErrors] = useState<MethodServerErrors | null>(null);
   const h1 = useRef<HTMLHeadingElement>(null);
   const moved = useRef(false);
 
@@ -72,7 +78,6 @@ function Wizard({ name, email, finishing }: { name?: string; email: string; fini
     setBusy(to === "/dashboard" ? "dashboard" : "project");
     await sleep(600);
     const c = buildCompletion(data, email);
-    // Payment methods still use the mock store until step 5 gives them API hooks.
     finishing.current = true;
     try {
       await runCompletion(c, data.business.country, {
@@ -82,13 +87,23 @@ function Wizard({ name, email, finishing }: { name?: string; email: string; fini
           updateBusinessLocal(local);
         },
         addClient: async (client) => { await createClient.mutateAsync(clientToCreate(client)); },
-        addMethod: (m, i) => upsertMethod({ kind: m.kind, scheme: m.scheme, label: m.label, fields: m.fields, enabled: true, isDefault: i === 0 && useAppStore.getState().methods.length === 0 }),
+        addMethod: async (m, i) => { await createMethod.mutateAsync(toCreate(m, i === 0)); },
       }, done.current);
     } catch (e) {
       // Once the profile is saved the user counts as onboarded; keep the gate from bouncing them so Review can retry the rest.
       finishing.current = done.current.profile;
       setBusy(null);
-      toast.error(e, "We couldn’t save your studio. Check your connection and try again.");
+      const mapped = e instanceof MethodCreateError ? mapMethodErrors(e.cause, ["label", ...fieldsFor(e.draft.kind, e.draft.scheme).map((f) => f.key)]) : null;
+      if (e instanceof MethodCreateError && mapped) {
+        // The server rejected this method's details: send the user back to its form with the field errors.
+        const { kind } = e.draft;
+        setMethodErrors({ kind, errors: mapped });
+        patch({ methods: { ...data.methods, saved: data.methods.saved.filter((k) => k !== kind) } });
+        go(2);
+        sonnerToast.error(`Check the details for ${METHOD_KINDS[kind].label}.`);
+        return;
+      }
+      toast.error(e instanceof MethodCreateError ? e.cause : e, "We couldn’t save your studio. Check your connection and try again.");
       return;
     }
     toast.success("Your studio is ready.");
@@ -116,7 +131,7 @@ function Wizard({ name, email, finishing }: { name?: string; email: string; fini
               onNext={() => { if (isClientBlank(data.client)) patch({ client: { ...data.client, currency: data.currency.invoiceCurrency } }); go(2); }}
             />
           )}
-          {step === 2 && <MethodsStep value={data.methods} onChange={(methods) => patch({ methods })} onBack={() => go(1)} onNext={() => go(3)} onSkip={() => go(3)} />}
+          {step === 2 && <MethodsStep value={data.methods} serverErrors={methodErrors} onChange={(methods) => patch({ methods })} onBack={() => go(1)} onNext={() => go(3)} onSkip={() => go(3)} />}
           {step === 3 && (
             <ClientStep
               value={data.client}

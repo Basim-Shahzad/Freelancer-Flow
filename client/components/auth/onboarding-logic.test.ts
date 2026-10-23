@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
-import { buildCompletion, newProgress, runCompletion, buildSummary, estimateCurrency, initialData, methodsToCreate, previewAmount, validateMethods, type MethodsValues } from "./onboarding-logic";
+import { MethodCreateError, buildCompletion, newProgress, runCompletion, buildSummary, estimateCurrency, initialData, methodsToCreate, previewAmount, validateMethods, type MethodsValues } from "./onboarding-logic";
 
-const payoneer = { kind: "payoneer" as const, fields: { email: "a@b.co" } };
-const raast = { kind: "raast" as const, fields: { raastId: "0300 5550214", holder: "Ayesha" } };
+const payoneer = { kind: "payoneer" as const, label: "Payoneer", fields: { accountEmail: "a@b.co" } };
+const raast = { kind: "raast" as const, label: "Raast", fields: { raastId: "0300 5550214", accountTitle: "Ayesha" } };
 
 describe("validateMethods", () => {
   it("fails with nothing selected", () => {
@@ -83,14 +83,14 @@ describe("runCompletion", () => {
     d.client = { name: "Jordan", company: "Harbor", email: "j@h.co", whatsapp: "", currency: "USD" };
     return buildCompletion(d, "a@b.co");
   };
-  const steps = () => ({ saveProfile: vi.fn().mockResolvedValue(undefined), addClient: vi.fn().mockResolvedValue(undefined), addMethod: vi.fn() });
+  const steps = () => ({ saveProfile: vi.fn().mockResolvedValue(undefined), addClient: vi.fn().mockResolvedValue(undefined), addMethod: vi.fn().mockResolvedValue(undefined) });
 
   it("saves the profile first, then the client, then each method", async () => {
     const s = steps();
     const order: string[] = [];
     s.saveProfile.mockImplementation(async () => { order.push("profile"); });
     s.addClient.mockImplementation(async () => { order.push("client"); });
-    s.addMethod.mockImplementation((m: { kind: string }) => order.push(m.kind));
+    s.addMethod.mockImplementation(async (m: { kind: string }) => { order.push(m.kind); });
     const progress = newProgress();
     await runCompletion(completion(), "PK", s, progress);
     expect(order).toEqual(["profile", "client", "payoneer", "raast"]);
@@ -109,7 +109,7 @@ describe("runCompletion", () => {
 
   it("resumes after a partial failure without repeating finished steps", async () => {
     const s = steps();
-    s.addMethod.mockImplementationOnce(() => undefined).mockImplementationOnce(() => { throw new Error("storage full"); });
+    s.addMethod.mockResolvedValueOnce(undefined).mockRejectedValueOnce(new Error("storage full"));
     const progress = newProgress();
     await expect(runCompletion(completion(), "PK", s, progress)).rejects.toThrow("storage full");
     expect(progress).toEqual({ profile: true, client: true, methods: 1 });
@@ -131,6 +131,18 @@ describe("runCompletion", () => {
     expect(s.saveProfile).toHaveBeenCalledTimes(1);
     expect(s.addClient).toHaveBeenCalledTimes(2);
     expect(progress).toEqual({ profile: true, client: true, methods: 2 });
+  });
+
+  it("wraps a failed method in MethodCreateError carrying its draft, and resumes at that method", async () => {
+    const s = steps();
+    const cause = new Error("422");
+    s.addMethod.mockResolvedValueOnce(undefined).mockRejectedValueOnce(cause);
+    const progress = newProgress();
+    const err = await runCompletion(completion(), "PK", s, progress).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(MethodCreateError);
+    expect((err as MethodCreateError).draft.kind).toBe("raast");
+    expect((err as MethodCreateError).cause).toBe(cause);
+    expect(progress.methods).toBe(1);
   });
 
   it("skips the client when the step was left blank", async () => {

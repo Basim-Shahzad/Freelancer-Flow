@@ -2,6 +2,7 @@
 
 import { Check } from "lucide-react";
 import { useState } from "react";
+import type { MethodErrors } from "@/components/domain/payment-method-errors";
 import { PaymentMethodForm, type MethodDraft } from "@/components/domain/payment-method-form";
 import { Button } from "@/components/ui/button";
 import { Checkbox, ChoiceRow } from "@/components/ui/checkbox";
@@ -30,11 +31,15 @@ const BLURB: Partial<Record<PaymentMethodKind, string>> = {
   other: "Your own wording",
 };
 
-export function MethodsStep({ value, onChange, onBack, onNext, onSkip }: {
-  value: MethodsValues; onChange: (v: MethodsValues) => void; onBack: () => void; onNext: () => void; onSkip: () => void;
+/** Field errors from the server for one kind, set when saving it failed validation on the way out of onboarding. */
+export interface MethodServerErrors { kind: PaymentMethodKind; errors: MethodErrors }
+
+export function MethodsStep({ value, serverErrors, onChange, onBack, onNext, onSkip }: {
+  value: MethodsValues; serverErrors?: MethodServerErrors | null; onChange: (v: MethodsValues) => void; onBack: () => void; onNext: () => void; onSkip: () => void;
 }) {
-  const [active, setActive] = useState<PaymentMethodKind | undefined>(value.selected[0]);
+  const [active, setActive] = useState<PaymentMethodKind | undefined>(serverErrors?.kind ?? value.selected[0]);
   const [error, setError] = useState<string | null>(null);
+  const [formErrors, setFormErrors] = useState<MethodServerErrors | null>(serverErrors ?? null);
   const current = active && value.selected.includes(active) ? active : value.selected[0];
 
   const toggle = (k: PaymentMethodKind, on: boolean) => {
@@ -91,7 +96,8 @@ export function MethodsStep({ value, onChange, onBack, onNext, onSkip }: {
                 initial={value.drafts[current]}
                 submitLabel={value.saved.includes(current) ? "Details saved" : "Save details"}
                 onChange={(d) => draft(current, d, false)}
-                onSubmit={(d) => { setError(null); draft(current, d, true); }}
+                errors={formErrors?.kind === current ? formErrors.errors : null}
+                onSubmit={(d) => { setError(null); setFormErrors(null); draft(current, d, true); }}
               />
             </>
           ) : (

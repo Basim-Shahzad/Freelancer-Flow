@@ -1,4 +1,4 @@
-import type { MethodDraft } from "@/components/domain/payment-method-form";
+import type { MethodDraft } from "@/lib/api/mappers/payment-methods";
 import { METHOD_KINDS } from "@/lib/payment-methods";
 import { convertMinor } from "@/lib/fx";
 import type { ClientInput } from "@/lib/api/mappers/clients";
@@ -93,7 +93,15 @@ export const newProgress = (): CompletionProgress => ({ profile: false, client: 
 export interface CompletionSteps {
   saveProfile(business: Partial<BusinessProfile>, country: CountryCode): Promise<void>;
   addClient(client: NonNullable<Completion["client"]>): Promise<void>;
-  addMethod(method: MethodDraft, index: number): void;
+  addMethod(method: MethodDraft, index: number): Promise<void>;
+}
+
+/** A payment method could not be created. Carries the draft so the wizard can send the user back to its form. */
+export class MethodCreateError extends Error {
+  constructor(readonly draft: MethodDraft, readonly cause: unknown) {
+    super(cause instanceof Error ? cause.message : "Could not save a payment method");
+    this.name = "MethodCreateError";
+  }
 }
 
 /**
@@ -112,7 +120,11 @@ export async function runCompletion(c: Completion, country: CountryCode, steps: 
   }
   for (const [i, m] of c.methods.entries()) {
     if (i < progress.methods) continue;
-    steps.addMethod(m, i);
+    try {
+      await steps.addMethod(m, i);
+    } catch (e) {
+      throw new MethodCreateError(m, e);
+    }
     progress.methods = i + 1;
   }
 }
