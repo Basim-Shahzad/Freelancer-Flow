@@ -15,13 +15,15 @@ interface Props {
   index: number;
   count: number;
   selected: boolean;
+  /** A change is in flight (or the device is offline): reorder, toggle and default wait. Editing stays available. */
+  disabled?: boolean;
   onToggle: () => void;
   onMakeDefault: () => void;
   onMove: (dir: -1 | 1) => void;
   onEdit: () => void;
 }
 
-export function MethodRow({ method: m, index, count, selected, onToggle, onMakeDefault, onMove, onEdit }: Props) {
+export function MethodRow({ method: m, index, count, selected, disabled = false, onToggle, onMakeDefault, onMove, onEdit }: Props) {
   const title = methodTitle(m);
   const summary = methodSummary(m);
   return (
@@ -34,15 +36,16 @@ export function MethodRow({ method: m, index, count, selected, onToggle, onMakeD
       <LCell narrow="full" className="flex flex-wrap items-center gap-x-4">
         <Switch
           checked={m.enabled}
+          disabled={disabled}
           onCheckedChange={onToggle}
           aria-label={`Show ${title} on invoices`}
           label={<span className="@2xl:sr-only">On invoices</span>}
         />
-        {!m.isDefault && <Button variant="ghost" size="sm" className="min-h-11" onClick={onMakeDefault}>Make default</Button>}
+        {!m.isDefault && <Button variant="ghost" size="sm" className="min-h-11" disabled={disabled} onClick={onMakeDefault}>Make default</Button>}
       </LCell>
       <LCell end className="col-start-2 row-start-1 flex @2xl:col-auto @2xl:row-auto">
-        <Button variant="ghost" size="icon" aria-label={`Move ${title} up`} disabled={index === 0} onClick={() => onMove(-1)}><ChevronUp aria-hidden="true" /></Button>
-        <Button variant="ghost" size="icon" aria-label={`Move ${title} down`} disabled={index === count - 1} onClick={() => onMove(1)}><ChevronDown aria-hidden="true" /></Button>
+        <Button variant="ghost" size="icon" aria-label={`Move ${title} up`} disabled={disabled || index === 0} onClick={() => onMove(-1)}><ChevronUp aria-hidden="true" /></Button>
+        <Button variant="ghost" size="icon" aria-label={`Move ${title} down`} disabled={disabled || index === count - 1} onClick={() => onMove(1)}><ChevronDown aria-hidden="true" /></Button>
         <Button variant="ghost" aria-label={`Edit ${title}`} aria-expanded={selected} onClick={onEdit}>Edit</Button>
       </LCell>
     </LedgerRow>

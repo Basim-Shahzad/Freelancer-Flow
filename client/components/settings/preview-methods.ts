@@ -17,7 +17,7 @@ const hasValues = (fields: Record<string, string>) => Object.values(fields).some
 export function previewMethods(methods: PaymentMethod[], editing: Editing | null, draft: MethodDraft | null): PaymentMethod[] {
   const applied = methods.map((m) => (editing?.mode === "edit" && editing.id === m.id && draft ? { ...m, ...draft, fields: draft.fields } : m)).filter((m) => m.enabled);
   if (editing?.mode === "new" && draft && hasValues(draft.fields)) {
-    applied.push({ id: "draft", kind: draft.kind, scheme: draft.scheme, label: draft.label, fields: draft.fields, enabled: true, isDefault: false });
+    applied.push({ id: "draft", kind: draft.kind, scheme: draft.scheme, label: draft.label, fields: draft.fields, enabled: true, isDefault: false, sortOrder: applied.length });
   }
   return applied;
 }
