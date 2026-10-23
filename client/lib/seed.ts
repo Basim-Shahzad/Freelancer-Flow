@@ -1,6 +1,6 @@
 import { daysFromToday as d } from "./dates";
 import type {
-  ActivityEntry, BusinessLocal, BusinessProfile, Client, DataExport, Invoice, PaymentMethod, Project, TimeEntry,
+  ActivityEntry, BusinessLocal, BusinessProfile, DataExport, Invoice, PaymentMethod, Project, TimeEntry,
 } from "./types";
 
 /**
@@ -20,14 +20,6 @@ export const seedBusiness: BusinessProfile = {
 export const seedBusinessLocal: BusinessLocal = {
   phone: seedBusiness.phone, footerNote: seedBusiness.footerNote, invoicePrefix: seedBusiness.invoicePrefix, nextInvoiceNumber: seedBusiness.nextInvoiceNumber,
 };
-
-export const seedClients: Client[] = [
-  { id: "c-harbor", name: "Harbor Labs", contactName: "Jordan Reyes", email: "jordan@harborlabs.example", whatsapp: "+1 512 555 0142", city: "Austin", country: "US", currency: "USD", termsDays: 14, prefersMethods: ["payoneer", "esfca"], notes: "Prefers invoices on Mondays.", createdAt: ts(-120) },
-  { id: "c-gulberg", name: "Gulberg Textiles", contactName: "Hamza Qureshi", email: "hamza@gulbergtextiles.example", whatsapp: "+92 321 5550188", city: "Lahore", country: "PK", currency: "PKR", termsDays: 14, prefersMethods: ["pkrbank", "raast"], notes: "", createdAt: ts(-90) },
-  { id: "c-alnoor", name: "Al Noor Trading", contactName: "Sara Al Mansoori", email: "sara@alnoor.example", whatsapp: "+971 50 555 0117", city: "Dubai", country: "AE", currency: "USD", termsDays: 7, prefersMethods: ["payoneer"], notes: "Monthly retainer, invoice on the 1st.", createdAt: ts(-75) },
-  { id: "c-dua", name: "Dua Studio", contactName: "Dua Fatima", email: "dua@duastudio.example", whatsapp: "+92 333 5550166", city: "Karachi", country: "PK", currency: "PKR", termsDays: 7, prefersMethods: ["raast", "jazzcash"], notes: "", createdAt: ts(-60) },
-  { id: "c-kareem", name: "Kareem & Co.", contactName: "Imran Kareem", email: "imran@kareem.example", whatsapp: "+971 55 555 0129", city: "Dubai", country: "AE", currency: "USD", termsDays: 14, prefersMethods: ["esfca"], notes: "", createdAt: ts(-200) },
-];
 
 export const seedProjects: Project[] = [
   {

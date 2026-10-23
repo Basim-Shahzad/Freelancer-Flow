@@ -26,5 +26,8 @@ export function outstandingByCurrency(views: InvoiceView[]): Record<string, numb
   return out;
 }
 
-export const clientName = (clients: Client[], id?: string) => clients.find((c) => c.id === id)?.name ?? "—";
+/** How a client is shown in lists and documents: the company when there is one, else the person. */
+export const clientLabel = (c: Pick<Client, "name" | "companyName">) => c.companyName || c.name;
+
+export const clientName = (clients: Client[], id?: string) => { const c = clients.find((x) => x.id === id); return c ? clientLabel(c) : "—"; };
 export const projectName = (projects: Project[], id?: string) => projects.find((p) => p.id === id)?.name ?? "No project";

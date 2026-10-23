@@ -7,10 +7,10 @@ import { calcTotals, deriveStatus, formatInvoiceNumber } from "../invoice";
 import { formatMoney } from "../money";
 import { methodTitle } from "../payment-methods";
 import {
-  seedActivity, seedBusinessLocal, seedClients, seedExports, seedInvoices, seedMethods, seedProjects, seedTime,
+  seedActivity, seedBusinessLocal, seedExports, seedInvoices, seedMethods, seedProjects, seedTime,
 } from "../seed";
 import type {
-  ActivityEntry, ActivityType, BusinessLocal, Client, DataExport, Invoice, InvoiceEvent, InvoiceEventType,
+  ActivityEntry, ActivityType, BusinessLocal, DataExport, Invoice, InvoiceEvent, InvoiceEventType,
   InvoiceLine, Payment, PaymentMethod, Project, TimeEntry, TimerState,
 } from "../types";
 
@@ -43,7 +43,6 @@ interface State {
   online: boolean;
   /** Business fields the profile API does not store yet; the rest lives in react-query (see `useBusiness`). */
   businessLocal: BusinessLocal;
-  clients: Client[];
   projects: Project[];
   time: TimeEntry[];
   invoices: Invoice[];
@@ -59,10 +58,6 @@ interface Actions {
   markSynced(): void;
 
   updateBusinessLocal(patch: Partial<BusinessLocal>): void;
-
-  addClient(c: Omit<Client, "id" | "createdAt">): Client;
-  updateClient(id: string, patch: Partial<Client>): void;
-  deleteClient(id: string): void;
 
   addProject(p: Omit<Project, "id" | "shareToken">): Project;
   updateProject(id: string, patch: Partial<Project>): void;
@@ -110,7 +105,6 @@ const initial = (): State => ({
   hydrated: false,
   online: true,
   businessLocal: seedBusinessLocal,
-  clients: seedClients,
   projects: seedProjects,
   time: seedTime,
   invoices: seedInvoices,
@@ -139,19 +133,6 @@ export const useAppStore = create<AppStore>()(
         markSynced: () => set((s) => ({ time: s.time.map((t) => (t.unsynced ? { ...t, unsynced: false } : t)) })),
 
         updateBusinessLocal: (patch) => set((s) => ({ businessLocal: { ...s.businessLocal, ...patch } })),
-
-        addClient: (c) => {
-          const client: Client = { ...c, id: uid("c"), createdAt: nowISO() };
-          set((s) => ({ clients: [client, ...s.clients] }));
-          log("client", "Client added", client.name, client.email);
-          return client;
-        },
-        updateClient: (id, patch) => { set((s) => ({ clients: s.clients.map((c) => (c.id === id ? { ...c, ...patch } : c)) })); log("client", "Client updated", get().clients.find((c) => c.id === id)?.name ?? id, Object.keys(patch).join(", ")); },
-        deleteClient: (id) => {
-          const name = get().clients.find((c) => c.id === id)?.name ?? id;
-          set((s) => ({ clients: s.clients.filter((c) => c.id !== id) }));
-          log("client", "Client deleted", name, "");
-        },
 
         addProject: (p) => {
           const project: Project = { ...p, id: uid("p"), shareToken: `${p.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 16)}-${token().slice(0, 4)}` };
@@ -226,8 +207,7 @@ export const useAppStore = create<AppStore>()(
         updateInvoice: (id, patch) => { patchInvoice(id, (i) => ({ ...i, ...patch, events: [ev("edited", "Invoice edited"), ...i.events] })); },
         sendInvoice: (id, channel) => {
           const inv = get().invoices.find((i) => i.id === id);
-          const client = get().clients.find((c) => c.id === inv?.clientId);
-          const label = channel === "email" ? `Sent by email to ${client?.email ?? "client"}` : channel === "whatsapp" ? "Shared on WhatsApp" : "Link copied";
+          const label = channel === "email" ? "Sent by email" : channel === "whatsapp" ? "Shared on WhatsApp" : "Link copied";
           patchInvoice(id, (i) => ({ ...i, status: i.status === "draft" && channel !== "link" ? "unpaid" : i.status, events: [ev("sent", label), ...i.events] }));
           log("invoice", channel === "link" ? "Share link copied" : "Invoice sent", inv?.number ?? id, label);
         },
@@ -315,12 +295,14 @@ export const useAppStore = create<AppStore>()(
     },
     {
       name: "paylancr-v1",
-      version: 3,
+      version: 4,
       // v1 -> v2 added optional TimeEntry.startTime; old entries simply lack it.
       // v2 -> v3 moved `business` to the API (`useBusiness`) and dropped `session`; the fields the API lacks are kept in `businessLocal`.
+      // v3 -> v4 moved `clients` to the API (`useClients`); the stale mock clients (and their ids) are dropped.
       migrate: (persisted) => {
-        const { business, session: _session, ...rest } = (persisted ?? {}) as Record<string, unknown> & { business?: Partial<BusinessLocal> };
+        const { business, session: _session, clients: _clients, ...rest } = (persisted ?? {}) as Record<string, unknown> & { business?: Partial<BusinessLocal> };
         void _session;
+        void _clients;
         const businessLocal: BusinessLocal = {
           phone: business?.phone ?? seedBusinessLocal.phone,
           footerNote: business?.footerNote ?? seedBusinessLocal.footerNote,
@@ -332,7 +314,7 @@ export const useAppStore = create<AppStore>()(
       },
       storage: createJSONStorage(() => localStorage),
       skipHydration: true,
-      partialize: ({ businessLocal, clients, projects, time, invoices, methods, activity, exports, timer }) => ({ businessLocal, clients, projects, time, invoices, methods, activity, exports, timer }),
+      partialize: ({ businessLocal, projects, time, invoices, methods, activity, exports, timer }) => ({ businessLocal, projects, time, invoices, methods, activity, exports, timer }),
     },
   ),
 );
