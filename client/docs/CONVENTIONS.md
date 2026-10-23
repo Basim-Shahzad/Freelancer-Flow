@@ -93,4 +93,6 @@ Route protection (Step 2): there is no `middleware.ts` (the access token lives i
 
 Testing (`lib/test`): mock `next/navigation` per test file with `vi.mock("next/navigation", () => import("@/lib/test/navigation"))` and assert on the exported `router`. `renderWithProviders(ui, { auth })` gives a fresh `QueryClient` (retries off) and seeds the auth store; `mockApi()` returns `{ mock, refresh, reset, restore }` — axios-mock-adapter on the `api` instance and on the bare refresh client. Always `restore()` in `afterEach`. Cover success, 401→refresh→retry, 422, 404, 409 and network error for each service/hook.
 
+Sensitive data: payment-method `details` hold IBANs and wallet numbers. They live in react-query memory only: never persist them (no zustand `persist`, no query persister, no localStorage), never log them, never put them in a URL or query key.
+
 Per-step gate: `pnpm typecheck && pnpm lint && pnpm test && pnpm build`.

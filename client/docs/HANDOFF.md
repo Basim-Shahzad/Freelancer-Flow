@@ -47,7 +47,7 @@ Known: dashboard "Active projects" card still has small progress bars; seed has 
 
 `GET/PATCH /profile` is the source of truth for the business profile; read it through `useBusiness()` (view model) / `useProfile()` (query state) in `lib/hooks/profile`. `ownerName` and `email` come from the signed-in user. "Onboarded" is derived: the profile has a `businessName` (`useOnboarded()`).
 
-The API has no home for `phone`, `footerNote`, `logoName`, `invoicePrefix` and `nextInvoiceNumber` (`invoiceNumberFormat` is a different shape). They stay in the persisted store as `businessLocal` (persist version 3), so they do **not** follow the user across devices. The token-based client portal still reads the demo `seedBusiness` until step 13. Payment methods created during onboarding still go to the mock store until step 5.
+The API has no home for `phone`, `footerNote`, `logoName`, `invoicePrefix` and `nextInvoiceNumber` (`invoiceNumberFormat` is a different shape). They stay in the persisted store as `businessLocal` (persist version 3), so they do **not** follow the user across devices. The token-based client portal still reads the demo `seedBusiness` until step 13.
 
 ## Clients (API-backed since step 4)
 
@@ -58,3 +58,14 @@ The API has no home for `phone`, `footerNote`, `logoName`, `invoicePrefix` and `
 - Delete returns `409` when the client has invoices; the dialog shows the server message and keeps the client.
 - Stats that depend on unmigrated domains (worth per hour, outstanding, overdue, average days to pay, the invoice list) are hidden on the clients screens until steps 6 and 8.
 - Mock projects/invoices/time still carry mock `clientId`s (`c-harbor`, …). They no longer resolve and render an "Unknown client" fallback until their own step migrates them. Persist version is now 4 and drops the stale mock clients.
+
+## Payment methods (API-backed since step 5)
+
+`/payment-methods` is the source of truth: `usePaymentMethods()` (all methods in `sortOrder`, inactive included; filter on `enabled`), `usePaymentMethod(id)`, `useCreatePaymentMethod` / `useUpdatePaymentMethod` / `useDeletePaymentMethod`, and the optimistic-with-rollback `useReorderPaymentMethods` / `useSetDefaultPaymentMethod` / `useTogglePaymentMethod` in `lib/hooks/payment-methods`. The view model keeps lowercase `kind`s; `lib/api/mappers/payment-methods.ts` maps them to the API `type`s and `isActive` to `enabled`.
+
+- `fields` is the API's `details` object, keyed exactly as the server returns it (camelCase, normalised: IBANs upper-cased without spaces, PK mobiles as `+92…`). The form shows those values on re-open. A PATCH replaces `details` wholesale, and the server rejects unknown keys, so `toDetails` sends only the keys the kind (and `BANK_TRANSFER` scheme) accepts.
+- Keys per type: `PAYONEER` accountEmail / paymentRequestUrl (one of them) + optional accountHolder, bankName, iban, swiftBic · `ESFCA_WIRE` beneficiaryName, bankName, iban, swiftBic, bankAddress, purposeOfPayment? · `ELEVATE_PAY` accountHolder, accountNumber, routingNumber, bankName, accountType · `WISE_TO_IBAN` beneficiaryName, iban, bankName, note? · `PKR_BANK_TRANSFER` accountTitle, bankName, iban, accountNumber? · `RAAST` accountTitle + raastId / iban (one of them) · `JAZZCASH` / `EASYPAISA` mobileNumber, accountTitle · `OTHER` instructions (its name is the top-level `label`) · `BANK_TRANSFER` accountHolder, bankName, country, currency, bankAddress?, referenceNote?, `scheme` (a flat field, not nested) + the scheme's own keys (`BANK_SCHEMES` in `lib/payment-methods.ts`: IBAN, ACH, UK_SORT_CODE, SWIFT_OTHER).
+- Every method has a required top-level `label`. The first method created becomes the default; making an inactive method the default also activates it. `PUT /order` needs every id exactly once.
+- 422s come back as one message listing every problem (`"iban: …; swift_bic is required for scheme …"`). `mapMethodErrors` (`components/domain/payment-method-errors.ts`) splits it onto the form's fields; the form is not react-hook-form, so it takes an `errors` prop instead of `applyApiFieldErrors`.
+- Delete refetches rather than dropping the row: the server soft-deletes a method that invoice snapshots reference.
+- Interim behaviour until their own steps: mock invoices still reference `pm-…` ids that no longer exist, so their "How to pay" blocks list no methods. The client portal has no auth until step 13, so it only shows methods while the owner is signed in on that browser; everyone else sees "contact the freelancer". Invoice create waits for the methods query before it seeds its state. Persist version is now 5 and drops the stale mock methods.
