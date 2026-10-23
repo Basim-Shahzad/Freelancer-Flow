@@ -23,7 +23,8 @@ export type PaymentMethodKind =
   | "bank"
   | "other";
 
-export type BankScheme = "iban" | "ach" | "uk" | "swift";
+/** `scheme` of a BANK_TRANSFER, as the API names it. */
+export type BankScheme = "IBAN" | "ACH" | "UK_SORT_CODE" | "SWIFT_OTHER";
 
 export interface ClientProjectRef {
   id: string;
@@ -180,14 +181,22 @@ export interface Invoice {
   writtenOffAt?: string;
 }
 
+/**
+ * Payment method view model, mapped from the API in `lib/api/mappers/payment-methods.ts`. `fields` is the API's
+ * `details` object (camelCase keys, normalised by the server) minus `scheme`. It holds IBANs and wallet numbers:
+ * keep it in react-query memory only, never log it or persist it.
+ */
 export interface PaymentMethod {
   id: string;
   kind: PaymentMethodKind;
-  /** Custom label (required for "other"). */
-  label?: string;
+  /** Name shown to the client; the server requires one. */
+  label: string;
   scheme?: BankScheme;
+  /** `isActive` on the wire: shown on invoices. */
   enabled: boolean;
   isDefault: boolean;
+  sortOrder: number;
+  currency?: string;
   fields: Record<string, string>;
 }
 
