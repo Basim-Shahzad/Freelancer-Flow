@@ -60,7 +60,7 @@ export function unbilledOf(p: ProjectWithSchedule, time: TimeEntry[], today: str
   let items = 0;
   if (p.billingType === "hourly" && p.hourlyRate !== undefined) {
     for (const t of time) {
-      if (t.projectId === p.id && t.billable && !t.invoiceId) minutes += t.minutes;
+      if (t.projectId === p.id && t.billable && !t.isInvoiced) minutes += t.minutes;
     }
     amount += Math.round((minutes * p.hourlyRate) / 60);
   }
@@ -134,7 +134,7 @@ export function unbilledWeeks(p: Project, time: TimeEntry[]): WeekGroup[] {
   const rate = p.hourlyRate ?? 0;
   const groups = new Map<string, TimeEntry[]>();
   for (const t of time) {
-    if (t.projectId !== p.id || !t.billable || t.invoiceId) continue;
+    if (t.projectId !== p.id || !t.billable || t.isInvoiced) continue;
     const key = isoDate(startOfWeek(parse(t.date), { weekStartsOn: 1 }));
     groups.set(key, [...(groups.get(key) ?? []), t]);
   }

@@ -75,7 +75,7 @@ describe("unbilledSummary", () => {
       projectFixture({ id: "r", name: "R", billingType: "retainer", retainerAmount: 1000 }),
       projectFixture({ id: "d", name: "D", status: "completed", billingType: "hourly", hourlyRate: 100 }),
     ];
-    const time: TimeEntry[] = [{ id: "t", projectId: "h", description: "", date: "2026-10-01", minutes: 120, billable: true, updatedAt: "" }];
+    const time: TimeEntry[] = [{ id: "t", projectId: "h", description: "", date: "2026-10-01", minutes: 120, billable: true, isInvoiced: false, updatedAt: "" }];
     const s = unbilledSummary(projects, time, TODAY);
     expect(s.by).toEqual({ USD: 9000 });
     expect(s).toMatchObject({ minutes: 120, items: 0, projects: 1 });

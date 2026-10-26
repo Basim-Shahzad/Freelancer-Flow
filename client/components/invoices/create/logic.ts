@@ -52,7 +52,7 @@ export function itemsForProject(project: ProjectWithSchedule, time: TimeEntry[],
     case "hourly": {
       const rate = project.hourlyRate ?? 0;
       return time
-        .filter((t) => t.projectId === project.id && t.billable && !t.invoiceId)
+        .filter((t) => t.projectId === project.id && t.billable && !t.isInvoiced)
         .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0))
         .map((t) => {
           const qty = hoursOf(t.minutes);

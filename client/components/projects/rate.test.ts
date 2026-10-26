@@ -10,7 +10,7 @@ import {
 const TODAY = "2026-10-05";
 const own: OwnRate = { hourlyRate: 4000, defaultCurrency: "USD" };
 const project = (over: Partial<ProjectWithSchedule>): ProjectWithSchedule => scheduledProjectFixture({ budget: 360000, ...over });
-const entry = (minutes: number, over: Partial<TimeEntry> = {}): TimeEntry => ({ id: `t${minutes}`, projectId: "p", description: "x", date: "2026-10-01", minutes, billable: true, updatedAt: "", ...over });
+const entry = (minutes: number, over: Partial<TimeEntry> = {}): TimeEntry => ({ id: `t${minutes}`, projectId: "p", description: "x", date: "2026-10-01", minutes, billable: true, isInvoiced: false, updatedAt: "", ...over });
 const view = (display: InvoiceView["display"], total: number, balance = total, over: Partial<InvoiceView> = {}): InvoiceView =>
   ({ projectId: "p", number: "INV-1", currency: "USD", dueDate: "2026-10-20", display, totals: { total, balance, paid: total - balance }, ...over } as unknown as InvoiceView);
 const row = (p: ProjectWithSchedule, time: TimeEntry[] = [], views: InvoiceView[] = [], o: OwnRate = own, unbilledHourly = 0) => rateRow(p, { time, views, today: TODAY, own: o, unbilledHourly });

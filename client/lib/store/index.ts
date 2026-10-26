@@ -168,7 +168,7 @@ export const useAppStore = create<AppStore>()(
           set((st) => ({
             invoices: [inv, ...st.invoices],
             businessLocal: { ...st.businessLocal, nextInvoiceNumber: st.businessLocal.nextInvoiceNumber + 1 },
-            time: st.time.map((t) => (input.timeEntryIds?.includes(t.id) ? { ...t, invoiceId: inv.id } : t)),
+            time: st.time.map((t) => (input.timeEntryIds?.includes(t.id) ? { ...t, isInvoiced: true } : t)),
           }));
           log("invoice", input.asDraft ? "Draft created" : "Invoice created", number, formatMoney(calcTotals(inv).total, inv.currency));
           return inv;

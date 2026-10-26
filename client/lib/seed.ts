@@ -126,7 +126,7 @@ export const seedInvoices: Invoice[] = [
 ];
 
 const te = (id: string, projectId: string | undefined, description: string, days: number, hours: number, startTime: string, billable = true, invoiceId?: string): TimeEntry => ({
-  id, projectId, description, date: d(days), startTime, minutes: Math.round(hours * 60), billable, invoiceId, updatedAt: ts(days, "18:00"),
+  id, projectId, description, date: d(days), startTime, minutes: Math.round(hours * 60), billable, isInvoiced: Boolean(invoiceId), updatedAt: ts(days, "18:00"),
 });
 
 export const seedTime: TimeEntry[] = [

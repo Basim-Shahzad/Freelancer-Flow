@@ -13,7 +13,7 @@ const inv = (over: Partial<InvoiceView> & { display: InvoiceView["display"] }, n
 const hourly = (id: string, currency: "USD" | "PKR", rate: number): Project =>
   projectFixture({ id, name: id, billingType: "hourly", currency, hourlyRate: rate });
 const te = (projectId: string, minutes: number, extra: Partial<TimeEntry> = {}): TimeEntry =>
-  ({ id: projectId + minutes, projectId, description: "", date: TODAY, minutes, billable: true, updatedAt: "", ...extra });
+  ({ id: projectId + minutes, projectId, description: "", date: TODAY, minutes, billable: true, isInvoiced: false, updatedAt: "", ...extra });
 
 describe("stagesByCurrency", () => {
   const views = [
@@ -24,7 +24,7 @@ describe("stagesByCurrency", () => {
     inv({ display: "overdue", currency: "PKR", dueDate: "2026-09-05" }, 9000),
     inv({ display: "paid", currency: "PKR", payments: [pay("2026-10-02", 4000), pay("2026-09-20", 1)] }, 4000),
   ];
-  const by = stagesByCurrency(views, [hourly("a", "USD", 6000), hourly("b", "PKR", 100000)], [te("a", 90), te("a", 30, { billable: false }), te("b", 60, { invoiceId: "x" })], TODAY);
+  const by = stagesByCurrency(views, [hourly("a", "USD", 6000), hourly("b", "PKR", 100000)], [te("a", 90), te("a", 30, { billable: false }), te("b", 60, { isInvoiced: true })], TODAY);
 
   it("keeps every currency separate", () => {
     expect(by.USD?.drafted).toEqual({ amount: 800, count: 1 });

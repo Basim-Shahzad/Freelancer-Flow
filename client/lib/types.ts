@@ -180,15 +180,25 @@ export interface PortalProject {
 export interface TimeEntry {
   id: string;
   projectId?: string;
+  milestoneId?: string;
   description: string;
+  /** Local calendar day the entry starts on, "YYYY-MM-DD". */
   date: string;
-  /** Local start time "HH:MM" on `date`. Optional: older entries only have date + minutes. */
+  /** Local start time "HH:MM" on `date`. */
   startTime?: string;
+  /** UTC ISO start / end. `endAt` is absent while the timer runs. */
+  startAt?: string;
+  endAt?: string;
   minutes: number;
   billable: boolean;
-  invoiceId?: string;
-  /** Created or edited while offline and not yet synced. */
+  /** Locked to an invoice. The API exposes no invoice id on an entry. */
+  isInvoiced: boolean;
+  /** Hourly rate snapshot, minor units in the project's currency. */
+  hourlyRate?: number;
+  /** Queued in the offline outbox and not yet accepted by the server. */
   unsynced?: boolean;
+  /** The server flagged this entry as overlapping another one (non-blocking). */
+  overlap?: boolean;
   updatedAt: string;
 }
 

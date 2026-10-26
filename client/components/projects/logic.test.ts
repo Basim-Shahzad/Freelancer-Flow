@@ -9,7 +9,7 @@ const TODAY = "2026-10-05";
 const project = (over: Partial<ProjectWithSchedule> = {}): ProjectWithSchedule => scheduledProjectFixture(over);
 const view = (display: InvoiceView["display"], balance = 100, total = 100): InvoiceView =>
   ({ number: "INV-1", currency: "USD", dueDate: "2026-10-20", display, totals: { balance, total, paid: total - balance, subtotal: total, discount: 0, taxable: total, tax: 0 } } as unknown as InvoiceView);
-const entry = (over: Partial<TimeEntry>): TimeEntry => ({ id: "t", projectId: "p", description: "x", date: "2026-10-01", minutes: 60, billable: true, updatedAt: "", ...over });
+const entry = (over: Partial<TimeEntry>): TimeEntry => ({ id: "t", projectId: "p", description: "x", date: "2026-10-01", minutes: 60, billable: true, isInvoiced: false, updatedAt: "", ...over });
 const period = { id: "2026-10-01", label: "Oct 2026", start: "2026-10-01", end: "2026-10-31", amount: 5 };
 
 describe("deriveStage", () => {
@@ -23,7 +23,7 @@ describe("deriveStage", () => {
   it("is invoice when hourly time is unbilled, and instructions once billed", () => {
     const p = project({ billingType: "hourly", hourlyRate: 4500 });
     expect(deriveStage(p, [], [entry({})], TODAY).stage).toBe("invoice");
-    expect(deriveStage(p, [view("unpaid")], [entry({ invoiceId: "i" })], TODAY).stage).toBe("instructions");
+    expect(deriveStage(p, [view("unpaid")], [entry({ isInvoiced: true })], TODAY).stage).toBe("instructions");
   });
   it("is invoice for a draft", () => {
     expect(deriveStage(project(), [view("draft")], [], TODAY).stage).toBe("invoice");
@@ -62,7 +62,7 @@ describe("projectProgress", () => {
 describe("unbilled work", () => {
   const p = project({ billingType: "hourly", hourlyRate: 4500 });
   it("multiplies unbilled billable minutes by the rate in minor units", () => {
-    const u = unbilledOf(p, [entry({ minutes: 90 }), entry({ billable: false }), entry({ invoiceId: "i" }), entry({ projectId: "other" })], TODAY);
+    const u = unbilledOf(p, [entry({ minutes: 90 }), entry({ billable: false }), entry({ isInvoiced: true }), entry({ projectId: "other" })], TODAY);
     expect(u.minutes).toBe(90);
     expect(u.amount).toBe(6750);
   });
