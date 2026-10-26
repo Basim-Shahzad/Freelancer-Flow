@@ -1,29 +1,21 @@
-import type { InvoiceView } from "@/lib/selectors";
+import type { InvoiceStatusFilter } from "@/lib/hooks/invoices";
+import type { InvoiceStatus } from "@/lib/types";
 
-export type StatusFilter = "all" | "draft" | "unpaid" | "overdue" | "paid";
+/** Status filter options. "Unpaid" covers sent and partially paid invoices (the hook asks the server for both). */
+export const STATUS_FILTERS: { value: InvoiceStatusFilter; label: string }[] = [
+  { value: "all", label: "All statuses" },
+  { value: "draft", label: "Draft" },
+  { value: "unpaid", label: "Unpaid" },
+  { value: "overdue", label: "Overdue" },
+  { value: "paid", label: "Paid" },
+  { value: "written_off", label: "Written off" },
+  { value: "void", label: "Cancelled" },
+];
 
-/** "Unpaid" also covers partially paid invoices, as in the design. */
-export function matchesStatus(v: InvoiceView, f: StatusFilter): boolean {
-  if (f === "all") return true;
-  if (f === "unpaid") return v.display === "unpaid" || v.display === "partial";
-  return v.display === f;
-}
+/** Small tag next to an amount when it is not simply the total. */
+export const AMOUNT_TAGS: Partial<Record<InvoiceStatus, string>> = { partial: "balance", written_off: "written off", void: "cancelled" };
 
-export function matchesQuery(v: InvoiceView, q: string, projectName: string): boolean {
-  const needle = q.trim().toLowerCase();
-  if (!needle) return true;
-  return `${v.number} ${v.client?.companyName ?? ""} ${v.client?.name ?? ""} ${projectName}`.toLowerCase().includes(needle);
-}
-
-export function filterInvoices(views: InvoiceView[], o: { q: string; clientId: string; status: StatusFilter }): InvoiceView[] {
-  return views.filter((v) => (o.clientId === "all" || v.clientId === o.clientId) && matchesStatus(v, o.status) && matchesQuery(v, o.q, v.project?.name ?? ""));
-}
-
-/** Newest number first ("INV-0045" before "INV-0044"). */
-export const byNumberDesc = (a: { number: string }, b: { number: string }) => b.number.localeCompare(a.number, undefined, { numeric: true });
-
-/** "8 invoices · 1 overdue" */
-export function countLine(views: InvoiceView[]): string {
-  const overdue = views.filter((v) => v.display === "overdue").length;
-  return `${views.length} ${views.length === 1 ? "invoice" : "invoices"}${overdue ? ` · ${overdue} overdue` : ""}`;
+/** "8 invoices · 1 overdue" (the overdue count is the account-wide total, not the filtered one). */
+export function countLine(total: number, overdue = 0): string {
+  return `${total} ${total === 1 ? "invoice" : "invoices"}${overdue ? ` · ${overdue} overdue` : ""}`;
 }

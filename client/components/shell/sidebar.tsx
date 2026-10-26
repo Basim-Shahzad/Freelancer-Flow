@@ -6,8 +6,7 @@ import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { Logo } from "@/components/brand";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { deriveStatus } from "@/lib/invoice";
-import { useAppStore } from "@/lib/store";
+import { useInvoices } from "@/lib/hooks/invoices";
 import { cn } from "@/lib/utils";
 import { NAV, isActive } from "./nav";
 
@@ -17,7 +16,7 @@ import { NAV, isActive } from "./nav";
  */
 export function SidebarNav({ collapsed = false, onNavigate }: { collapsed?: boolean; onNavigate?: () => void }) {
   const pathname = usePathname();
-  const overdue = useAppStore((s) => s.invoices.filter((i) => deriveStatus(i) === "overdue").length);
+  const overdue = useInvoices({ status: "overdue", limit: 1 }).data?.total ?? 0;
 
   return (
     <nav aria-label="Primary" className={cn("flex w-full flex-col gap-6", collapsed && "items-center")}>
