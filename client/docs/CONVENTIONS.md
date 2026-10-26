@@ -40,7 +40,7 @@ lib/                   types, money, fx, dates, invoice (calcTotals/deriveStatus
 
 ## Key APIs (all already implemented — use, do not reimplement)
 - `lib/types.ts` — Client, Project (billingType fixed|hourly|retainer|milestone, milestones[], retainerPeriods[]), TimeEntry, Invoice, InvoiceLine,
-  Payment, PaymentMethod, ActivityEntry, BusinessProfile, TimerState, Session. **All amounts are integer minor units** (cents/paisa).
+  Payment, PaymentMethod, ActivityEntry, BusinessProfile, Session. **All amounts are integer minor units** (cents/paisa).
 - `lib/money.ts` — `formatAmount(minor,cur)` "1,250.00", `formatMoney` "USD 1,250.00", `parseAmount("1,250.5")→minor|null`, `formatDuration(min)` "1h 30m",
   `formatHours`, `parseDuration("1.5"|"1:30"|"90m")→min|null`. PKR shows no decimals.
 - `lib/fx.ts` — `convertMinor`, `FX_REF_DATE`, `ESTIMATE_LABEL`, `FX_DISCLAIMER`, `NO_PROCESSING`.
@@ -51,7 +51,7 @@ lib/                   types, money, fx, dates, invoice (calcTotals/deriveStatus
 - `lib/store/index.ts` — `useAppStore(selector)`; select narrow slices (primitive/stable values) to avoid re-render loops; never select a freshly-built array/object
   without `useShallow` (from `zustand/react/shallow`) or `useMemo` over raw slices. Actions: see the `Actions` interface (addClient, updateProject, createInvoice, sendInvoice,
   remindInvoice, recordPayment, reversePayment, writeOff, reverseWriteOff, voidInvoice, approveMilestone, requestMilestoneChanges, upsertMethod, moveMethod, setDefaultMethod,
-  toggleMethod, removeMethod, addTime, updateTime, deleteTime, bulkUpdateTime, resolveConflict, startTimer/stopTimer, requestExport/finishExport, signUp/logIn/logOut/completeOnboarding…).
+  toggleMethod, removeMethod, requestExport/finishExport, signUp/logIn/logOut/completeOnboarding…).
 - `lib/hooks/*` — `useHydrated`, `useIsOnline`, `useElapsed`/`formatClock`, `useCopy` (+ `<CopyButton>`).
 - Toasts: `import { toast } from "sonner"`.
 
@@ -92,6 +92,8 @@ Shared helpers (Step 1):
 Route protection (Step 2): there is no `middleware.ts` (the access token lives in memory), so gating is client-side via `useAuthGate({ require: "app" | "onboarding" })` (`lib/hooks/auth/use-auth-gate.ts`). It returns `ready` and never redirects or renders protected UI while the session is `idle|loading`. Signed-out users go to `/login?next=<path>` (`loginUrl`/`safeNext` in `lib/auth/next.ts` accept same-origin relative paths only); login and `useSignedInRedirect` honour `next` via `readNext()`. `useAuthStore.signOutReason` tells the gate why the session ended: `"expired"` (refresh failed mid-session → toast + `next`), `"manual"` (user logout / password change → plain `/login`), `null` (cold load, silent). Pass the reason to `clear(reason)`.
 
 Testing (`lib/test`): mock `next/navigation` per test file with `vi.mock("next/navigation", () => import("@/lib/test/navigation"))` and assert on the exported `router`. `renderWithProviders(ui, { auth })` gives a fresh `QueryClient` (retries off) and seeds the auth store; `mockApi()` returns `{ mock, refresh, reset, restore }` — axios-mock-adapter on the `api` instance and on the bare refresh client. Always `restore()` in `afterEach`. Cover success, 401→refresh→retry, 422, 404, 409 and network error for each service/hook.
+
+Offline-capable writes (time tracking): a mutation checks `useAppStore.getState().online`; offline, or on a network error, it enqueues into the persisted outbox (`lib/time/outbox-store.ts`) and resolves with `queued: true` instead of failing. Server errors (409, 422, ...) are never queued. Lists lay the queue over the server data (`mergeOutbox`) so queued rows show as "Unsynced". The outbox is replayed by `flushOutbox` (one flush at a time; a network failure keeps everything). Do not add a second queue: new offline writes become new `OutboxOp` types.
 
 Sensitive data: payment-method `details` hold IBANs and wallet numbers. They live in react-query memory only: never persist them (no zustand `persist`, no query persister, no localStorage), never log them, never put them in a URL or query key.
 
