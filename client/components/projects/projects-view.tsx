@@ -2,124 +2,132 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { Plus, Search } from "lucide-react";
+import { ChevronRight, Plus, Search } from "lucide-react";
 import { OfflineNotice } from "@/components/dashboard/offline-notice";
 import { StateBlock } from "@/components/domain/state-block";
 import { Button } from "@/components/ui/button";
 import { Input, InputAffix } from "@/components/ui/input";
-import { Card, CardFoot, CardHead, KpiStrip, Page, PageHeader, Toolbar } from "@/components/ui/section";
-import { Segmented } from "@/components/ui/segmented";
-import { PageSkeleton } from "@/components/ui/skeleton";
-import { todayISO } from "@/lib/dates";
-import { FX_DISCLAIMER } from "@/lib/fx";
-import { useHydrated } from "@/lib/hooks/use-hydrated";
-import { formatMoney } from "@/lib/money";
-import { toInvoiceView } from "@/lib/selectors";
-import { useClientOptions } from "@/lib/hooks/clients";
-import { useAppStore } from "@/lib/store";
-import { unbilledOf } from "./logic";
-import { KpiMoney } from "./kpi-money";
-import {
-  billedByCurrency, blendedByCurrency, matchesRateFilter, rateRow, sortRateRows, splitByCurrency, type RateFilter, type RateSort,
-} from "./rate";
-import { RateLedgerRow } from "./rate-row";
 import { Label } from "@/components/ui/label";
-import { useBusiness } from "@/lib/hooks/profile";
+import { LCell, LedgerHead, LedgerRow, LMain, LSub } from "@/components/ui/ledger";
+import { SelectField } from "@/components/ui/select";
+import { Card, CardHead, KpiStrip, Page, PageHeader, Toolbar } from "@/components/ui/section";
+import { Skeleton } from "@/components/ui/skeleton";
+import { fmtDate } from "@/lib/dates";
+import { statusToApi } from "@/lib/api/mappers/projects";
+import { useClientOptions } from "@/lib/hooks/clients";
+import { useProjects } from "@/lib/hooks/projects";
+import { useDebouncedValue } from "@/lib/hooks/use-debounced-value";
+import { formatDuration } from "@/lib/money";
+import { getApiErrorMessage, getApiErrorStatus } from "@/lib/services/api.service";
+import { useAppStore } from "@/lib/store";
+import type { ProjectStatus } from "@/lib/types";
+import { ClientDot } from "./client-dot";
+import { BILLING_LABEL, progressText, rateLabel, STATUS_LABEL } from "./logic";
+import { ProjectStatusChip } from "./project-status-chip";
+import { PROJECT_STATUSES } from "./schema";
 
-const FILTERS: { value: RateFilter; label: string }[] = [
-  { value: "open", label: "Open" },
-  { value: "finished", label: "Finished" },
-  { value: "all", label: "All" },
-];
-const SORTS: { value: RateSort; label: string }[] = [
-  { value: "worst", label: "Worst rate first" },
-  { value: "due", label: "Due soonest" },
-  { value: "newest", label: "Newest" },
-];
+const COLS = "minmax(0,1.6fr) minmax(0,.8fr) minmax(0,1.1fr) minmax(0,.5fr) minmax(0,.7fr) minmax(0,.6fr) 1.25rem";
+const ALL = "";
 
 export function ProjectsView() {
-  const hydrated = useHydrated();
-  const projects = useAppStore((s) => s.projects);
-  const { clients } = useClientOptions();
-  const invoices = useAppStore((s) => s.invoices);
-  const time = useAppStore((s) => s.time);
-  const hourlyRate = useBusiness().hourlyRate;
-  const base = useBusiness().defaultCurrency;
+  const online = useAppStore((s) => s.online);
   const [q, setQ] = useState("");
-  const [filter, setFilter] = useState<RateFilter>("open");
-  const [sort, setSort] = useState<RateSort>("worst");
-
-  const rows = useMemo(() => {
-    const today = todayISO();
-    const views = invoices.map((i) => toInvoiceView(i, clients, projects));
-    return projects.map((p) => rateRow(p, { time, views, today, own: { hourlyRate, defaultCurrency: base }, unbilledHourly: unbilledOf(p, time, today).amount }));
-  }, [projects, clients, invoices, time, hourlyRate, base]);
+  const [clientId, setClientId] = useState(ALL);
+  const [status, setStatus] = useState<ProjectStatus | typeof ALL>(ALL);
+  const search = useDebouncedValue(q.trim(), 300);
+  const query = useProjects({ search, clientId: clientId || undefined, status: status ? statusToApi(status) : undefined });
+  // Colours are keyed to a client's position in the full list so they stay stable while filtering.
+  const { clients } = useClientOptions();
   const clientIds = useMemo(() => clients.map((c) => c.id), [clients]);
 
-  if (!hydrated) return <PageSkeleton />;
-
-  const nameOf = (id: string) => clients.find((c) => c.id === id)?.name ?? "—";
-  const open = rows.filter((r) => r.open);
-  const below = open.filter((r) => r.verdict === "below").length;
-  const blended = blendedByCurrency(rows);
-  const needle = q.trim().toLowerCase();
-  const shown = sortRateRows(rows.filter((r) => matchesRateFilter(r, filter) && (!needle || `${r.project.name} ${nameOf(r.project.clientId)}`.toLowerCase().includes(needle))), sort);
-  const anyEstimated = shown.some((r) => r.floor?.estimated && r.verdict);
   const newBtn = <Button asChild><Link href="/projects/new"><Plus aria-hidden="true" />New project</Link></Button>;
+  const { data } = query;
 
-  if (projects.length === 0) {
+  if (query.isPending) {
+    if (!online) return <Shell actions={newBtn}><StateBlock kind="offline" cta={{ label: "Try again", onClick: () => void query.refetch() }} /></Shell>;
+    return <Shell actions={newBtn}><div role="status" aria-label="Loading projects" className="flex flex-col gap-3"><Skeleton className="h-16 w-full" /><Skeleton className="h-64 w-full" /></div></Shell>;
+  }
+  if (query.isError && !data) {
+    const retry = { label: query.isFetching ? "Retrying…" : "Try again", onClick: () => void query.refetch() };
+    if (!online) return <Shell actions={newBtn}><StateBlock kind="offline" cta={retry} /></Shell>;
+    if (getApiErrorStatus(query.error) === 429) return <Shell actions={newBtn}><StateBlock kind="error" title="Too many requests" body="You’re going a little fast. Wait a moment and try again." cta={retry} /></Shell>;
+    return <Shell actions={newBtn}><StateBlock kind="error" body={getApiErrorMessage(query.error)} cta={retry} /></Shell>;
+  }
+
+  const projects = data?.projects ?? [];
+  const total = data?.total ?? 0;
+  const filtering = search !== "" || q.trim() !== "" || clientId !== ALL || status !== ALL;
+
+  if (total === 0 && !filtering) {
     return (
-      <Page>
-        <PageHeader eyebrow="Projects" title="Projects" actions={newBtn} />
+      <Shell actions={newBtn}>
         <StateBlock kind="empty" title="No projects yet" body="A project ties a client to how you bill: fixed price, hourly, retainer or milestones. Time and invoices hang off it." cta={{ label: "New project", href: "/projects/new" }} />
-      </Page>
+      </Shell>
     );
   }
 
-  const kpis = [
-    { value: String(open.length), label: "Open projects" },
-    { value: Object.keys(blended).length ? <KpiMoney by={blended} base={base} /> : "—", label: "Blended hourly rate on fixed-fee work" },
-    ...(hourlyRate ? [{ value: String(below), label: `Below your ${formatMoney(hourlyRate, base)} rate`, tone: below > 0 ? ("bad" as const) : undefined }] : []),
-    { value: <KpiMoney by={billedByCurrency(rows)} base={base} />, label: "Billed so far on open projects" },
-  ];
-  const note = splitByCurrency(blended, base).others.length > 0 || splitByCurrency(billedByCurrency(rows), base).others.length > 0
-    ? "Currencies are shown side by side and never added together." : null;
-
   return (
     <Page>
-      <PageHeader eyebrow={`${open.length} open · ${rows.length - open.length} finished`} title="Projects" actions={newBtn} />
+      <PageHeader eyebrow={`${total} ${total === 1 ? "project" : "projects"}`} title="Projects" actions={newBtn} />
       <OfflineNotice />
-      <KpiStrip items={kpis} />
+      {!filtering && <KpiStrip items={[{ value: String(total), label: total === 1 ? "Project" : "Projects" }]} />}
       <Toolbar>
         <InputAffix className="min-w-0 flex-1 basis-64 @2xl:max-w-sm" prefix={<Search className="size-4" aria-hidden="true" />}>
           <Label className="sr-only" htmlFor="pj-q">Search projects</Label>
-          <Input id="pj-q" type="search" placeholder="Search by project or client" value={q} onChange={(e) => setQ(e.target.value)} />
+          <Input id="pj-q" type="search" placeholder="Search by project name" value={q} onChange={(e) => setQ(e.target.value)} />
         </InputAffix>
+        <SelectField
+          aria-label="Filter by client" className="min-w-40" value={clientId} onValueChange={setClientId}
+          options={[{ value: ALL, label: "All clients" }, ...clients.map((c) => ({ value: c.id, label: c.companyName || c.name }))]}
+        />
+        <SelectField
+          aria-label="Filter by status" className="min-w-40" value={status} onValueChange={(v) => setStatus(v as ProjectStatus | typeof ALL)}
+          options={[{ value: ALL, label: "All statuses" }, ...PROJECT_STATUSES.map((s) => ({ value: s, label: STATUS_LABEL[s] }))]}
+        />
       </Toolbar>
 
       <Card>
-        <CardHead
-          title="What each project is actually paying you"
-          sub={hourlyRate ? "Fee ÷ billable hours logged, set against your own hourly rate." : "Fee ÷ billable hours logged. Set “Your hourly rate” in Settings to see whether each project is above or below it."}
-          action={<Segmented label="Show projects" value={filter} onChange={setFilter} options={FILTERS} />}
-        />
-        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b border-border bg-background px-5 py-3">
-          <span className="text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">Sort</span>
-          <Segmented label="Sort projects" value={sort} onChange={setSort} options={SORTS} />
-        </div>
-        <section aria-label="Project list">
-          {shown.map((r) => <RateLedgerRow key={r.project.id} r={r} clientName={nameOf(r.project.clientId)} clientIds={clientIds} />)}
-          {shown.length === 0 && (
-            <p className="px-5 py-6 text-sm text-muted-foreground" role="status">
-              {needle ? `No projects match “${q.trim()}”.` : filter === "finished" ? "No finished projects yet." : "No open projects."}
-            </p>
+        <CardHead title="Your projects" />
+        <section aria-label="Project list" aria-busy={query.isFetching} className="px-5">
+          <LedgerHead cols={COLS}>
+            <span>Project</span><span>Status</span><span>Billing</span><span>Progress</span><span>Due</span><span>Time</span><span />
+          </LedgerHead>
+          {projects.map((p) => (
+            <LedgerRow key={p.id} cols={COLS} href={`/projects/${p.id}`} className="last:border-b-0">
+              <LCell>
+                <LMain>{p.name}</LMain>
+                <LSub className="mt-0.5 inline-flex items-center gap-1.5"><ClientDot clientId={p.clientId} clientIds={clientIds} />{p.client.name}</LSub>
+                <LSub className="@2xl:hidden">{BILLING_LABEL[p.billingType]} · {rateLabel(p)}</LSub>
+              </LCell>
+              <LCell end className="@2xl:justify-self-start @2xl:text-start"><ProjectStatusChip status={p.status} /></LCell>
+              <LCell narrow="hide"><span className="text-sm">{BILLING_LABEL[p.billingType]}</span><LSub className="num">{rateLabel(p)}</LSub></LCell>
+              <LCell narrow="hide"><span className="num text-sm" aria-label={p.progressPercent === null ? "No progress yet" : undefined}>{progressText(p)}</span></LCell>
+              <LCell narrow="hide"><span className="num text-sm text-muted-foreground">{p.dueDate ? fmtDate(p.dueDate) : "—"}</span></LCell>
+              <LCell narrow="hide"><span className="num text-sm text-muted-foreground">{p.totalTimeSpentMinutes > 0 ? formatDuration(p.totalTimeSpentMinutes) : "—"}</span></LCell>
+              <LCell narrow="hide"><ChevronRight className="size-4 text-muted-foreground" aria-hidden="true" /></LCell>
+            </LedgerRow>
+          ))}
+          {projects.length === 0 && (
+            <p className="py-6 text-sm text-muted-foreground" role="status">{q.trim() ? `No projects match “${q.trim()}”.` : "No projects match these filters."}</p>
           )}
         </section>
-        <CardFoot>
-          <span>Effective rate = fee ÷ billable hours logged so far. Hourly projects show your contract rate.</span>
-          {(anyEstimated || note) && <span>{anyEstimated ? `${FX_DISCLAIMER}. ` : ""}{note}</span>}
-        </CardFoot>
+        {query.hasNextPage && (
+          <div className="flex items-center gap-3 px-5 pb-5">
+            <Button variant="outline" loading={query.isFetchingNextPage} onClick={() => void query.fetchNextPage()}>Load more</Button>
+            <span className="text-sm text-muted-foreground">Showing {projects.length} of {total}</span>
+          </div>
+        )}
+        {query.isFetchNextPageError && <p role="alert" className="px-5 pb-5 text-sm text-error-ink">{getApiErrorMessage(query.error, "Couldn’t load more projects.")}</p>}
       </Card>
+    </Page>
+  );
+}
+
+function Shell({ actions, children }: { actions: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <Page>
+      <PageHeader eyebrow="Projects" title="Projects" actions={actions} />
+      {children}
     </Page>
   );
 }

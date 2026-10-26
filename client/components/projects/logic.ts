@@ -1,12 +1,12 @@
-import { addMonths, endOfMonth, format, startOfMonth, startOfWeek } from "date-fns";
-import { daysBetween, fmtDate, isoDate, parse } from "@/lib/dates";
+import { format, startOfWeek } from "date-fns";
+import { fmtDate, isoDate, parse } from "@/lib/dates";
 import { isLive } from "@/lib/invoice";
-import { formatHours, formatMoney, formatDuration } from "@/lib/money";
+import { formatHours, formatMoney } from "@/lib/money";
 import type { InvoiceView } from "@/lib/selectors";
 import type { Stage } from "@/components/domain/stage-thread";
-import type { BillingType, Currency, Project, RetainerPeriod, TimeEntry } from "@/lib/types";
+import type { BillingType, Milestone, MilestoneStatus, Project, ProjectStatus, ProjectWithSchedule, RetainerInterval, TimeEntry } from "@/lib/types";
 
-/** Pure project helpers: stage derivation, progress, unbilled work, summaries. */
+/** Pure project helpers: labels, stage derivation, progress, unbilled work. */
 
 export const BILLING_LABEL: Record<BillingType, string> = {
   fixed: "Fixed price",
@@ -15,19 +15,29 @@ export const BILLING_LABEL: Record<BillingType, string> = {
   milestone: "Milestones",
 };
 
-export const STATUS_LABEL: Record<Project["status"], string> = { active: "Active", paused: "Paused", completed: "Completed" };
+export const STATUS_LABEL: Record<ProjectStatus, string> = {
+  draft: "Draft", active: "Active", paused: "Paused", completed: "Completed", archived: "Archived", cancelled: "Cancelled",
+};
+
+export const INTERVAL_LABEL: Record<RetainerInterval, string> = { monthly: "month", quarterly: "quarter" };
 
 const STAGE_ORDER: Stage[] = ["work", "approval", "invoice", "instructions", "paid"];
 
-export const milestoneTotal = (p: Project) => p.milestones.reduce((s, m) => s + m.amount, 0);
+/** A project that has no milestones or periods loaded (list screens, screens not yet migrated). */
+export const withoutSchedule = (p: Project): ProjectWithSchedule => ({ ...p, milestones: [], retainerPeriods: [] });
 
-/** "USD 45.00 / h", "USD 1,300.00 / month", "PKR 370,000 total". */
+export const milestoneTotal = (milestones: Milestone[]) => milestones.reduce((s, m) => s + (m.amount ?? 0), 0);
+
+/** "USD 45.00 / h", "USD 1,300.00 / month", "PKR 370,000". */
 export function rateLabel(p: Project): string {
   switch (p.billingType) {
-    case "hourly": return p.hourlyRate !== undefined ? `${formatMoney(p.hourlyRate, p.currency)} / h` : "Rate not set";
-    case "retainer": return p.retainerAmount !== undefined ? `${formatMoney(p.retainerAmount, p.currency)} / month` : "Amount not set";
-    case "fixed": return p.fixedAmount !== undefined ? formatMoney(p.fixedAmount, p.currency) : "Price not set";
-    case "milestone": return `${formatMoney(milestoneTotal(p), p.currency)} total`;
+    case "hourly": return p.hourlyRate !== undefined ? `${formatMoney(p.hourlyRate, p.currency)} / h` : "Profile rate";
+    case "retainer": {
+      const per = p.retainerInterval ? INTERVAL_LABEL[p.retainerInterval] : "period";
+      return p.retainerAmount !== undefined ? `${formatMoney(p.retainerAmount, p.currency)} / ${per}` : "Amount not set";
+    }
+    case "fixed": return p.budget !== undefined ? formatMoney(p.budget, p.currency) : "Price not set";
+    case "milestone": return p.budget !== undefined ? formatMoney(p.budget, p.currency) : "Per milestone";
   }
 }
 
@@ -37,8 +47,11 @@ export const invoicedTotal = (views: InvoiceView[]) => views.filter(isInvoiced).
 
 export interface Unbilled { amount: number; minutes: number; items: number }
 
-/** Work that is done but not yet on an invoice. */
-export function unbilledOf(p: Project, time: TimeEntry[], today: string): Unbilled {
+/**
+ * Work that is done but not yet on an invoice. Approved milestones are not counted: the milestone API does not
+ * say whether one has been invoiced yet.
+ */
+export function unbilledOf(p: ProjectWithSchedule, time: TimeEntry[], today: string): Unbilled {
   let amount = 0;
   let minutes = 0;
   let items = 0;
@@ -48,9 +61,6 @@ export function unbilledOf(p: Project, time: TimeEntry[], today: string): Unbill
     }
     amount += Math.round((minutes * p.hourlyRate) / 60);
   }
-  for (const m of p.milestones) {
-    if (m.status === "approved" && !m.invoiceId) { amount += m.amount; items += 1; }
-  }
   if (p.billingType === "retainer") {
     for (const r of p.retainerPeriods) {
       if (!r.invoiceId && r.start <= today) { amount += r.amount; items += 1; }
@@ -59,14 +69,12 @@ export function unbilledOf(p: Project, time: TimeEntry[], today: string): Unbill
   return { amount, minutes, items };
 }
 
-function readyToInvoice(p: Project, views: InvoiceView[], time: TimeEntry[], today: string): string | null {
+function readyToInvoice(p: ProjectWithSchedule, views: InvoiceView[], time: TimeEntry[], today: string): string | null {
   const u = unbilledOf(p, time, today);
-  const ms = p.milestones.find((m) => m.status === "approved" && !m.invoiceId);
-  if (ms) return `“${ms.title}” is approved and ready to invoice.`;
   const period = p.billingType === "retainer" ? p.retainerPeriods.find((r) => !r.invoiceId && r.start <= today) : undefined;
   if (period) return `${period.label} is ready to invoice.`;
   if (p.billingType === "hourly" && u.minutes > 0) return `${formatHours(u.minutes)} tracked and ready to invoice.`;
-  if (p.billingType === "fixed" && (p.progress ?? 0) >= 100 && (p.fixedAmount ?? 0) > invoicedTotal(views)) return "Work is complete and the balance is ready to invoice.";
+  if (p.billingType === "fixed" && (p.progressPercent ?? 0) >= 100 && (p.budget ?? 0) > invoicedTotal(views)) return "Work is complete and the balance is ready to invoice.";
   return null;
 }
 
@@ -77,8 +85,8 @@ export interface StageInfo { stage: Stage; caption: string }
  * Precedence: milestone awaiting approval, then something to invoice (or a draft),
  * then an open invoice, then fully paid; otherwise still in work.
  */
-export function deriveStage(p: Project, views: InvoiceView[], time: TimeEntry[], today: string): StageInfo {
-  const awaiting = p.milestones.find((m) => m.status === "awaiting_approval");
+export function deriveStage(p: ProjectWithSchedule, views: InvoiceView[], time: TimeEntry[], today: string): StageInfo {
+  const awaiting = p.milestones.find((m) => m.status === "submitted");
   if (awaiting) return { stage: "approval", caption: `“${awaiting.title}” is waiting for the client’s approval.` };
 
   const ready = readyToInvoice(p, views, time, today);
@@ -95,7 +103,7 @@ export function deriveStage(p: Project, views: InvoiceView[], time: TimeEntry[],
 
   const anyPaid = views.some((v) => v.display === "paid");
   const allApproved = p.milestones.length > 0 && p.milestones.every((m) => m.status === "approved");
-  if (anyPaid && (p.status === "completed" || (p.progress ?? 0) >= 100 || allApproved)) return { stage: "paid", caption: "Everything is invoiced and paid." };
+  if (anyPaid && (p.status === "completed" || (p.progressPercent ?? 0) >= 100 || allApproved)) return { stage: "paid", caption: "Everything is invoiced and paid." };
 
   return { stage: "work", caption: "Work is in progress. Nothing to invoice yet." };
 }
@@ -107,62 +115,14 @@ export function stagePips(stage: Stage): ("done" | "current" | "todo")[] {
 
 export interface ProgressInfo { pct: number; basis: string }
 
-export function projectProgress(p: Project, today: string): ProgressInfo | null {
-  if (p.milestones.length > 0) {
-    const done = p.milestones.filter((m) => m.status === "approved").length;
-    return { pct: Math.round((done / p.milestones.length) * 100), basis: `${done} of ${p.milestones.length} milestones approved` };
-  }
-  if (p.billingType === "retainer") {
-    const cur = p.retainerPeriods.find((r) => r.start <= today && today <= r.end);
-    if (!cur) return null;
-    const total = daysBetween(cur.end, cur.start) + 1;
-    const elapsed = daysBetween(today, cur.start) + 1;
-    return { pct: Math.round((elapsed / total) * 100), basis: `of ${cur.label}` };
-  }
-  if (p.progress !== undefined) return { pct: Math.min(100, Math.max(0, p.progress)), basis: "set manually" };
-  return null;
+/** The server computes the percentage (milestones, else hours vs budget). `null` means "no progress to show". */
+export function projectProgress(p: Pick<Project, "progressPercent" | "milestonesEnabled">): ProgressInfo | null {
+  if (p.progressPercent === null) return null;
+  return { pct: Math.min(100, Math.max(0, p.progressPercent)), basis: p.milestonesEnabled ? "from milestones" : "from hours against the budget" };
 }
 
-export interface SummaryItem { label: string; money?: { amount: number; currency: Currency }; text?: string; sub?: string }
-
-export function projectSummary(p: Project, views: InvoiceView[], time: TimeEntry[], today: string): SummaryItem[] {
-  const cur = p.currency;
-  const invoiced = invoicedTotal(views);
-  switch (p.billingType) {
-    case "fixed": {
-      const price = p.fixedAmount ?? 0;
-      return [
-        { label: "Price", money: { amount: price, currency: cur } },
-        { label: "Invoiced", money: { amount: invoiced, currency: cur } },
-        { label: "Remaining", money: { amount: Math.max(price - invoiced, 0), currency: cur } },
-      ];
-    }
-    case "hourly": {
-      const tracked = time.filter((t) => t.projectId === p.id).reduce((s, t) => s + t.minutes, 0);
-      return [
-        { label: "Rate", money: { amount: p.hourlyRate ?? 0, currency: cur }, sub: "per hour" },
-        { label: "Tracked", text: formatDuration(tracked), sub: "all time" },
-        { label: "Unbilled", money: { amount: unbilledOf(p, time, today).amount, currency: cur } },
-      ];
-    }
-    case "retainer": {
-      const current = p.retainerPeriods.find((r) => r.start <= today && today <= r.end);
-      return [
-        { label: "Per month", money: { amount: p.retainerAmount ?? 0, currency: cur }, sub: p.retainerHours ? `${p.retainerHours} h included` : undefined },
-        { label: "Invoiced to date", money: { amount: invoiced, currency: cur } },
-        { label: "Current period", text: current?.label ?? "None", sub: current ? `ends ${fmtDate(current.end)}` : undefined },
-      ];
-    }
-    case "milestone": {
-      const approved = p.milestones.filter((m) => m.status === "approved").length;
-      return [
-        { label: "Budget", money: { amount: milestoneTotal(p), currency: cur } },
-        { label: "Invoiced", money: { amount: invoiced, currency: cur } },
-        { label: "Approved", text: `${approved} of ${p.milestones.length}`, sub: "milestones" },
-      ];
-    }
-  }
-}
+/** "45%" or "—" when the server has no progress for the project. */
+export const progressText = (p: Pick<Project, "progressPercent">) => (p.progressPercent === null ? "—" : `${p.progressPercent}%`);
 
 export interface WeekGroup { key: string; label: string; entries: number; minutes: number; amount: number; titles: string }
 
@@ -184,26 +144,42 @@ export function unbilledWeeks(p: Project, time: TimeEntry[]): WeekGroup[] {
     });
 }
 
-/** Monthly retainer periods from the start month through the current month (max 24). */
-export function buildRetainerPeriods(startISO: string, amount: number, today: string): RetainerPeriod[] {
-  const first = startOfMonth(parse(startISO));
-  const last = startOfMonth(parse(today));
-  const out: RetainerPeriod[] = [];
-  let cursor = first;
-  for (let i = 0; i < 24 && (cursor <= last || i === 0); i += 1) {
-    out.push({ id: `rp-${format(cursor, "yyyyMM")}`, label: format(cursor, "MMM yyyy"), start: isoDate(cursor), end: isoDate(endOfMonth(cursor)), amount });
-    cursor = addMonths(cursor, 1);
-  }
-  return out;
-}
+export type MilestoneTone = "done" | "wait" | "todo" | "warn";
 
 /** Plain-language state for a milestone row. */
-export function milestoneState(status: Project["milestones"][number]["status"]): { label: string; tone: "done" | "wait" | "todo" | "warn" } {
+export function milestoneState(status: MilestoneStatus): { label: string; tone: MilestoneTone } {
   switch (status) {
     case "approved": return { label: "Approved", tone: "done" };
-    case "awaiting_approval": return { label: "Awaiting approval", tone: "wait" };
-    case "changes_requested": return { label: "Changes requested", tone: "warn" };
-    case "upcoming": return { label: "Not started", tone: "todo" };
+    case "submitted": return { label: "Awaiting approval", tone: "wait" };
+    case "rejected": return { label: "Changes requested", tone: "warn" };
+    case "in_progress": return { label: "In progress", tone: "wait" };
+    case "pending": return { label: "Not started", tone: "todo" };
+  }
+}
+
+export interface MilestoneActions {
+  /** POST /milestones/{id}/submit: ask the client to approve. */
+  canSubmit: boolean;
+  /** Status changes the server allows through PATCH. */
+  moves: { to: MilestoneStatus; label: string }[];
+}
+
+/**
+ * What can be done to a milestone, mirroring the server's transition matrix:
+ * PENDING -> IN_PROGRESS; IN_PROGRESS -> PENDING / APPROVED (only when approval is not required);
+ * SUBMITTED -> IN_PROGRESS (withdraw); REJECTED -> IN_PROGRESS (rework). Submit works from
+ * PENDING, IN_PROGRESS and REJECTED. APPROVED is final.
+ */
+export function milestoneActions(m: Pick<Milestone, "status" | "approvalRequired">): MilestoneActions {
+  switch (m.status) {
+    case "pending": return { canSubmit: true, moves: [{ to: "in_progress", label: "Start work" }] };
+    case "in_progress": return {
+      canSubmit: true,
+      moves: [{ to: "pending", label: "Move back to not started" }, ...(m.approvalRequired ? [] : [{ to: "approved" as const, label: "Mark approved" }])],
+    };
+    case "submitted": return { canSubmit: false, moves: [{ to: "in_progress", label: "Withdraw submission" }] };
+    case "rejected": return { canSubmit: true, moves: [{ to: "in_progress", label: "Start rework" }] };
+    case "approved": return { canSubmit: false, moves: [] };
   }
 }
 

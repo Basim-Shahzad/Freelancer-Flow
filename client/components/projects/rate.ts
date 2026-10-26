@@ -2,7 +2,7 @@ import { daysBetween, fmtDate } from "@/lib/dates";
 import { convertMinor, ESTIMATE_LABEL, FX_REF_DATE } from "@/lib/fx";
 import { formatMoney } from "@/lib/money";
 import type { InvoiceView } from "@/lib/selectors";
-import { CURRENCIES, type Currency, type Project, type TimeEntry } from "@/lib/types";
+import { CURRENCIES, type Currency, type ProjectWithSchedule, type TimeEntry } from "@/lib/types";
 import { milestoneTotal } from "./logic";
 
 /**
@@ -51,10 +51,10 @@ export const VERDICT_TEXT: Record<Verdict, string> = { below: "Below your rate."
 export const hoursText = (minutes: number) => `${Number((minutes / 60).toFixed(1))} h`;
 
 /** What the project is billed as a total (null for plain hourly work, which has no fee). */
-export function projectFee(p: Project, today: string): number | null {
+export function projectFee(p: ProjectWithSchedule, today: string): number | null {
   switch (p.billingType) {
-    case "fixed": return p.fixedAmount ?? null;
-    case "milestone": { const t = milestoneTotal(p); return t > 0 ? t : null; }
+    case "fixed": return p.budget ?? null;
+    case "milestone": { const t = milestoneTotal(p.milestones); return t > 0 ? t : null; }
     case "retainer": { const t = p.retainerPeriods.filter((r) => r.start <= today).reduce((s, r) => s + r.amount, 0); return t > 0 ? t : null; }
     case "hourly": return null;
   }
@@ -66,11 +66,14 @@ export const billedOf = (views: InvoiceView[]) =>
 
 export interface NextDue { date: string; label: string }
 
+/** Draft, active and paused projects are open; completed, archived and cancelled ones are finished. */
+const isOpen = (p: Pick<ProjectWithSchedule, "status">) => p.status === "draft" || p.status === "active" || p.status === "paused";
+
 /** The nearest thing with a date on it: an unapproved milestone, the retainer period end, or an open invoice. */
-export function nextDue(p: Project, views: InvoiceView[], today: string): NextDue | null {
-  if (p.status === "completed") return null;
+export function nextDue(p: ProjectWithSchedule, views: InvoiceView[], today: string): NextDue | null {
+  if (!isOpen(p)) return null;
   const c: NextDue[] = [];
-  for (const m of p.milestones) if (m.status !== "approved") c.push({ date: m.dueDate, label: `“${m.title}”` });
+  for (const m of p.milestones) if (m.status !== "approved" && m.dueDate) c.push({ date: m.dueDate, label: `“${m.title}”` });
   if (p.billingType === "retainer") {
     const cur = p.retainerPeriods.find((r) => r.start <= today && today <= r.end);
     if (cur) c.push({ date: cur.end, label: `${cur.label} ends` });
@@ -81,7 +84,7 @@ export function nextDue(p: Project, views: InvoiceView[], today: string): NextDu
 }
 
 export interface RateRow {
-  project: Project;
+  project: ProjectWithSchedule;
   kind: "fee" | "hourly";
   fee: number | null;
   minutes: number;
@@ -100,7 +103,7 @@ export interface RateRow {
   open: boolean;
 }
 
-export function rateRow(p: Project, ctx: { time: TimeEntry[]; views: InvoiceView[]; today: string; own: OwnRate; unbilledHourly: number }): RateRow {
+export function rateRow(p: ProjectWithSchedule, ctx: { time: TimeEntry[]; views: InvoiceView[]; today: string; own: OwnRate; unbilledHourly: number }): RateRow {
   const views = ctx.views.filter((v) => v.projectId === p.id);
   const minutes = billableMinutes(p.id, ctx.time);
   const floor = floorFor(p.currency, ctx.own);
@@ -116,7 +119,7 @@ export function rateRow(p: Project, ctx: { time: TimeEntry[]; views: InvoiceView
     billed, notInvoiced: hourly ? ctx.unbilledHourly : Math.max((fee ?? 0) - billed, 0),
     due: nextDue(p, views, ctx.today),
     sortRate: rate === null ? null : convertMinor(rate, p.currency, ctx.own.defaultCurrency),
-    open: p.status !== "completed",
+    open: isOpen(p),
   };
 }
 
@@ -142,7 +145,7 @@ export function sortRateRows<T extends RateRow>(rows: T[], mode: RateSort): T[] 
       return a.due.date < b.due.date ? -1 : a.due.date > b.due.date ? 1 : byName(a, b);
     });
   }
-  return out.sort((a, b) => (a.project.startDate < b.project.startDate ? 1 : a.project.startDate > b.project.startDate ? -1 : byName(a, b)));
+  return out.sort((a, b) => (a.project.createdAt < b.project.createdAt ? 1 : a.project.createdAt > b.project.createdAt ? -1 : byName(a, b)));
 }
 
 /** Σ fee ÷ Σ hours per currency for open fee-based rows that have a usable rate. */
@@ -182,8 +185,8 @@ export function billingSummary(r: RateRow): string {
   const money = (n: number | undefined) => (n === undefined ? "not set" : formatMoney(n, p.currency));
   const head = p.billingType === "hourly" ? `Hourly, ${money(p.hourlyRate)} / h`
     : p.billingType === "retainer" ? `Retainer ${money(p.retainerAmount)} / month`
-      : p.billingType === "milestone" ? `Milestones ${formatMoney(milestoneTotal(p), p.currency)}`
-        : `Fixed fee ${money(p.fixedAmount)}`;
+      : p.billingType === "milestone" ? `Milestones ${formatMoney(milestoneTotal(p.milestones), p.currency)}`
+        : `Fixed fee ${money(p.budget)}`;
   return r.due ? `${head} · ${r.due.label} due ${fmtDate(r.due.date)}` : head;
 }
 
