@@ -3,14 +3,14 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { daysFromToday, nowISO, todayISO } from "../dates";
-import { calcTotals, deriveStatus, formatInvoiceNumber } from "../invoice";
+import { calcTotals, formatInvoiceNumber } from "../invoice";
 import { formatMoney } from "../money";
 import {
   seedActivity, seedBusinessLocal, seedExports, seedInvoices, seedPortalProjects, seedTime,
 } from "../seed";
 import type {
   ActivityEntry, ActivityType, BusinessLocal, DataExport, Invoice, InvoiceEvent, InvoiceEventType,
-  InvoiceLine, Payment, PortalProject, TimeEntry,
+  InvoiceLine, PortalProject, TimeEntry,
 } from "../types";
 
 export const uid = (prefix: string) =>
@@ -63,14 +63,7 @@ interface Actions {
 
   createInvoice(input: NewInvoiceInput): Invoice;
   updateInvoice(id: string, patch: Partial<Invoice>): void;
-  sendInvoice(id: string, channel: "email" | "whatsapp" | "link"): void;
   markViewed(id: string): void;
-  remindInvoice(id: string, channel: "email" | "whatsapp", tone: "polite" | "firm" | "final"): void;
-  recordPayment(id: string, p: Omit<Payment, "id" | "recordedAt">): void;
-  reversePayment(invoiceId: string, paymentId: string): void;
-  writeOff(id: string, reason?: string): void;
-  reverseWriteOff(id: string): void;
-  voidInvoice(id: string, reason?: string): void;
 
   requestExport(): DataExport;
   finishExport(id: string): void;
@@ -140,50 +133,9 @@ export const useAppStore = create<AppStore>()(
           return inv;
         },
         updateInvoice: (id, patch) => { patchInvoice(id, (i) => ({ ...i, ...patch, events: [ev("edited", "Invoice edited"), ...i.events] })); },
-        sendInvoice: (id, channel) => {
-          const inv = get().invoices.find((i) => i.id === id);
-          const label = channel === "email" ? "Sent by email" : channel === "whatsapp" ? "Shared on WhatsApp" : "Link copied";
-          patchInvoice(id, (i) => ({ ...i, status: i.status === "draft" && channel !== "link" ? "unpaid" : i.status, events: [ev("sent", label), ...i.events] }));
-          log("invoice", channel === "link" ? "Share link copied" : "Invoice sent", inv?.number ?? id, label);
-        },
         markViewed: (id) => patchInvoice(id, (i) => (i.events.some((e) => e.type === "viewed") ? i : { ...i, events: [ev("viewed", "Viewed by client"), ...i.events] })),
-        remindInvoice: (id, channel, tone) => {
-          const inv = get().invoices.find((i) => i.id === id);
-          const label = `Reminder sent ${channel === "email" ? "by email" : "on WhatsApp"} (${tone})`;
-          patchInvoice(id, (i) => ({ ...i, events: [ev("reminder", label), ...i.events] }));
-          log("invoice", "Reminder sent", inv?.number ?? id, label);
-        },
-        recordPayment: (id, p) => {
-          const payment: Payment = { ...p, id: uid("pay"), recordedAt: nowISO() };
-          const before = get().invoices.find((i) => i.id === id);
-          patchInvoice(id, (i) => {
-            const next = { ...i, payments: [...i.payments, payment] };
-            const extra: InvoiceEvent[] = [ev("payment", `Payment recorded · ${formatMoney(p.amount, i.currency)}`)];
-            if (deriveStatus(next) === "paid") extra.unshift(ev("paid", "Marked paid"));
-            return { ...next, events: [...extra, ...i.events] };
-          });
-          log("payment", "Payment recorded", before?.number ?? id, `${before ? formatMoney(p.amount, before.currency) : ""} · ${p.method}${p.reference ? ` · ref ${p.reference}` : ""}`);
-          const after = get().invoices.find((i) => i.id === id);
-          if (after && deriveStatus(after) === "paid") log("invoice", "Status changed to paid", after.number, "Fully paid");
-        },
-        reversePayment: (invoiceId, paymentId) => {
-          patchInvoice(invoiceId, (i) => ({ ...i, payments: i.payments.filter((p) => p.id !== paymentId), events: [ev("payment_reversed", "Payment reversed"), ...i.events] }));
-          log("payment", "Payment reversed", get().invoices.find((i) => i.id === invoiceId)?.number ?? invoiceId, "");
-        },
-        writeOff: (id, reason) => {
-          const inv = get().invoices.find((i) => i.id === id);
-          const amount = inv ? calcTotals(inv).balance : 0;
-          patchInvoice(id, (i) => ({ ...i, status: "written_off", writtenOffAt: nowISO(), events: [ev("written_off", `Written off · ${formatMoney(amount, i.currency)}${reason ? ` · reason: ${reason}` : ""}`), ...i.events] }));
-          log("invoice", "Written off", inv?.number ?? id, `${inv ? formatMoney(amount, inv.currency) : ""}${reason ? ` · reason: ${reason}` : ""}`);
-        },
-        reverseWriteOff: (id) => {
-          patchInvoice(id, (i) => ({ ...i, status: "unpaid", writtenOffAt: undefined, events: [ev("write_off_reversed", "Write-off reversed"), ...i.events] }));
-          log("invoice", "Write-off reversed", get().invoices.find((i) => i.id === id)?.number ?? id, "");
-        },
-        voidInvoice: (id, reason) => {
-          patchInvoice(id, (i) => ({ ...i, status: "void", events: [ev("void", `Voided${reason ? ` · reason: ${reason}` : ""}`), ...i.events] }));
-          log("invoice", "Invoice voided", get().invoices.find((i) => i.id === id)?.number ?? id, reason ?? "");
-        },
+        // Sending, reminding, payments, write-off and cancelling run on the API (`lib/hooks/invoices`); the rest of the
+        // mock invoice actions go with the create flow (step 9) and the dashboard/export/portal (steps 11-14).
 
         requestExport: () => {
           const x: DataExport = { id: uid("x"), requestedAt: nowISO(), status: "preparing", fileName: `paylancr-export-${todayISO()}.zip`, sizeLabel: "4.2 MB" };
