@@ -4,6 +4,8 @@
  * the field name ends in `At` (full ISO timestamp).
  */
 
+import type { ApiInvoiceEventType, ApiPaymentMethod } from "./api/invoices.types";
+
 export type Currency = "USD" | "PKR" | "EUR" | "GBP" | "AED";
 export const CURRENCIES: Currency[] = ["USD", "PKR", "EUR", "GBP", "AED"];
 
@@ -242,6 +244,113 @@ export interface InvoiceEvent {
   label: string;
 }
 
+/** One line of a server invoice. `fromTime` lines are quantities of hours. */
+export interface InvoiceItem {
+  id: string;
+  description: string;
+  quantity: number;
+  /** Minor units. */
+  unitPrice: number;
+  amount: number;
+  fromTime: boolean;
+}
+
+/** A payment recorded against a server invoice. `method` may be a legacy value (CARD, CHEQUE, PAYPAL). */
+export interface InvoicePayment {
+  id: string;
+  amount: number;
+  /** ISO timestamp. */
+  paidAt: string;
+  method: ApiPaymentMethod;
+  reference?: string;
+}
+
+export interface InvoiceTaxLine {
+  name: string;
+  /** Percent, as the server's decimal string. */
+  rate: string;
+  amount: number;
+  isInclusive: boolean;
+  isWithholding: boolean;
+}
+
+export interface InvoiceIssuer {
+  name?: string;
+  businessName?: string;
+  address?: string;
+  taxRegistrationNumber?: string;
+  taxLabel?: string;
+}
+
+/**
+ * Invoice view model, mapped from the API in `lib/api/mappers/invoices.ts`. Every total comes from the server
+ * (never recomputed). `status` is the server's `displayStatus` mapped onto the existing chip statuses
+ * (SENT -> unpaid, PARTIALLY_PAID -> partial, CANCELLED -> void).
+ */
+export interface InvoiceDetail {
+  id: string;
+  number: string;
+  status: InvoiceStatus;
+  currency: Currency;
+  /** ISO dates (YYYY-MM-DD). */
+  issueDate: string;
+  dueDate: string;
+  clientId: string;
+  projectId: string;
+  client: { id: string; name: string };
+  project: { id: string; name: string };
+  issuer: InvoiceIssuer;
+  items: InvoiceItem[];
+  payments: InvoicePayment[];
+  /** The payment methods snapshotted onto the invoice, in display order. */
+  methods: PaymentMethod[];
+  /** Minor units. */
+  subtotal: number;
+  discountRate: string;
+  discountAmount: number;
+  taxes: InvoiceTaxLine[];
+  taxNote?: string;
+  taxAmount: number;
+  withholdingAmount: number;
+  total: number;
+  amountPaid: number;
+  balanceDue: number;
+  notes?: string;
+  /** Free-text "additional note" shown beside the payment methods. */
+  paymentInstructions?: string;
+  paymentDisclaimer: string;
+  sentAt?: string;
+  viewedAt?: string;
+  /** When the invoice became fully paid. */
+  paymentAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** A list row: the list endpoint returns the same shape as the detail. */
+export type InvoiceSummary = InvoiceDetail;
+
+export interface InvoiceTimelineEvent {
+  id: string;
+  type: ApiInvoiceEventType;
+  at: string;
+  detail?: string;
+}
+
+/** The result of send / remind: the links to hand to the client, and whether the email went out. */
+export interface InvoiceShare {
+  portalUrl: string;
+  pdfUrl: string;
+  whatsappUrl: string;
+  /** Null when no email was attempted. */
+  emailDelivered: boolean | null;
+  invoice: InvoiceDetail;
+}
+
+/**
+ * The mock invoice (Phase 1 store). Still used by the create flow, dashboard, export and portal until steps 9-14
+ * migrate them; the list and detail screens use `InvoiceDetail`.
+ */
 export interface Invoice {
   id: string;
   number: string;
@@ -281,6 +390,8 @@ export interface PaymentMethod {
   sortOrder: number;
   currency?: string;
   fields: Record<string, string>;
+  /** Payoneer payment-request link on an invoice snapshot: a link-out, never a charge. */
+  payLink?: string;
 }
 
 export type ActivityType = "invoice" | "payment" | "project" | "client" | "time" | "settings";
