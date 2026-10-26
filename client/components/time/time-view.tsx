@@ -1,54 +1,81 @@
 "use client";
 
+import axios from "axios";
 import { Plus } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
+import { QueryBoundary } from "@/components/domain/query-boundary";
 import { StateBlock } from "@/components/domain/state-block";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
-import { SelectField } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 import { Notice } from "@/components/ui/notice";
 import { Page, PageHeader, Toolbar } from "@/components/ui/section";
 import { Segmented } from "@/components/ui/segmented";
-import { PageSkeleton } from "@/components/ui/skeleton";
+import { SelectField } from "@/components/ui/select";
+import type { BulkChange } from "@/lib/api/mappers/time-entries";
 import { fmtDay, todayISO } from "@/lib/dates";
-import { useHydrated } from "@/lib/hooks/use-hydrated";
-import { formatDuration } from "@/lib/money";
 import { useClientOptions } from "@/lib/hooks/clients";
 import { useProjectOptions } from "@/lib/hooks/projects";
+import { useAllTimeEntries, useBulkUpdateTimeEntries, useDeleteTimeEntries, useRunningTimer } from "@/lib/hooks/time-entries";
+import { useApiToast } from "@/lib/hooks/use-api-toast";
+import { formatDuration } from "@/lib/money";
+import { getApiErrorMessage } from "@/lib/services/api.service";
 import { useAppStore } from "@/lib/store";
-import type { TimeEntry } from "@/lib/types";
+import type { Client, Project, TimeEntry } from "@/lib/types";
 import { BulkBar } from "./bulk-bar";
-import { ConflictPanel } from "./conflict-panel";
-import { EntryForm, projectLabel } from "./entry-form";
+import { ConflictPanel, RejectedPanel } from "./conflict-panel";
+import { EntryForm } from "./entry-form";
 import { EntryRow } from "./entry-row";
 import {
-  ALL_PROJECTS, DEFAULT_FILTERS, NO_PROJECT, deriveConflicts, filterEntries, groupByDay, matchesFilters, weekTotalMinutes,
+  ALL_PROJECTS, DEFAULT_FILTERS, filterEntries, groupByDay, matchesFilters, weekTotalMinutes,
   type BillFilter, type InvoicedFilter, type TimeFilters,
 } from "./logic";
+import { projectLabel } from "./project-label";
 import { RunningRow, useRunningMinutes } from "./running-row";
 import { WeekView } from "./week-view";
-import { Label } from "@/components/ui/label";
 
 type ViewMode = "week" | "list";
 
 type Panel = { kind: "add" } | { kind: "edit"; entry: TimeEntry } | null;
 
+/**
+ * The Time screen. The API lists time per project (there is no "list all" endpoint), so entries are fetched for
+ * every project and combined. The offline outbox is laid over them.
+ */
 export function TimeView() {
-  const hydrated = useHydrated();
-  if (!hydrated) return <PageSkeleton rows={6} />;
-  return <TimeScreen />;
+  const { projects, isLoading: projectsLoading, isError: projectsError } = useProjectOptions();
+  const { clients } = useClientOptions();
+  const currencyOf = useMemo(() => (id: string) => projects.find((p) => p.id === id)?.currency, [projects]);
+  const projectIds = useMemo(() => projects.map((p) => p.id), [projects]);
+  const entries = useAllTimeEntries(projectIds, currencyOf);
+  const { running } = useRunningTimer(currencyOf);
+
+  const query = {
+    data: entries.data,
+    isPending: projectsLoading || entries.isPending,
+    isError: projectsError || entries.isError,
+    error: entries.error,
+    isFetching: entries.isFetching,
+    refetch: () => entries.refetch(),
+  };
+
+  return (
+    <Page>
+      <QueryBoundary query={query} isEmpty={() => false}>
+        {(time) => <TimeScreen time={time} projects={projects} clients={clients} running={running} />}
+      </QueryBoundary>
+    </Page>
+  );
 }
 
-function TimeScreen() {
-  const time = useAppStore((s) => s.time);
-  const { projects } = useProjectOptions();
-  const { clients } = useClientOptions();
-  const invoices = useAppStore((s) => s.invoices);
-  const timer = useAppStore((s) => s.timer);
+interface ScreenProps { time: TimeEntry[]; projects: Project[]; clients: Client[]; running: TimeEntry | null }
+
+function TimeScreen({ time, projects, clients, running }: ScreenProps) {
   const online = useAppStore((s) => s.online);
-  const bulkUpdateTime = useAppStore((s) => s.bulkUpdateTime);
-  const deleteTime = useAppStore((s) => s.deleteTime);
+  const bulk = useBulkUpdateTimeEntries();
+  const remove = useDeleteTimeEntries();
+  const { error } = useApiToast();
 
   const [filters, setFilters] = useState<TimeFilters>(DEFAULT_FILTERS);
   const [panel, setPanel] = useState<Panel>(null);
@@ -58,33 +85,52 @@ function TimeScreen() {
   const [view, setView] = useState<ViewMode>("week");
 
   const today = todayISO();
-  const runningMinutes = useRunningMinutes(timer.startedAt, timer.running);
-  const showRunning = timer.running && matchesFilters({ projectId: timer.projectId, billable: true, invoiced: false }, filters);
+  const runningMinutes = useRunningMinutes(running?.startAt, Boolean(running));
+  const showRunning = Boolean(running) && matchesFilters({ projectId: running?.projectId, billable: running?.billable ?? true, invoiced: false }, filters);
 
   const filtered = useMemo(() => filterEntries(time, filters), [time, filters]);
   const groups = useMemo(() => groupByDay(filtered, showRunning ? { date: today, minutes: runningMinutes } : undefined), [filtered, showRunning, today, runningMinutes]);
-  const weekMinutes = useMemo(() => weekTotalMinutes(time, today, timer.running ? runningMinutes : 0), [time, today, timer.running, runningMinutes]);
-  const conflicts = useMemo(() => deriveConflicts(time), [time]);
-  const invoiceById = useMemo(() => new Map(invoices.map((i) => [i.id, { id: i.id, number: i.number }])), [invoices]);
+  const weekMinutes = useMemo(() => weekTotalMinutes(time, today, running ? runningMinutes : 0), [time, today, running, runningMinutes]);
 
   const label = (id?: string) => {
     const p = projects.find((x) => x.id === id);
-    return p ? projectLabel(p, clients) : "Internal";
+    return p ? projectLabel(p, clients) : "Unknown project";
   };
-  const visibleIds = useMemo(() => new Set(filtered.filter((t) => !t.invoiceId).map((t) => t.id)), [filtered]);
+  const visibleIds = useMemo(() => new Set(filtered.filter((t) => !t.isInvoiced).map((t) => t.id)), [filtered]);
   const targets = [...selected].filter((id) => visibleIds.has(id));
-  const hasAny = time.length > 0 || timer.running;
+  const targetEntries = time.filter((t) => targets.includes(t.id));
+  const sharedProject = useMemo(() => {
+    const ids = new Set(targetEntries.map((t) => t.projectId));
+    const only = ids.size === 1 ? [...ids][0] : undefined;
+    return projects.find((p) => p.id === only);
+  }, [targetEntries, projects]);
+  const hasAny = time.length > 0 || Boolean(running);
 
   const toggle = (id: string) => setSelected((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   const exitSelect = () => { setSelectMode(false); setSelected(new Set()); };
   const setFilter = <K extends keyof TimeFilters>(k: K, v: TimeFilters[K]) => setFilters((f) => ({ ...f, [k]: v }));
 
-  const doDelete = () => {
-    deleteTime(targets);
-    toast.success(`${targets.length} ${targets.length === 1 ? "entry" : "entries"} deleted`);
-    setConfirmDelete(false);
-    exitSelect();
+  /** 409 (invoiced), 404 (not yours) and 422 (milestone from another project) come back as the server's `detail`. */
+  const showBulkError = (e: unknown) => {
+    if (e instanceof Error && !axios.isAxiosError(e)) toast.error(e.message);
+    else error(e, "Couldn’t update these entries.");
   };
+
+  const applyBulk = (change: BulkChange, done: string) =>
+    bulk.mutate({ ids: targets, change }, { onSuccess: () => { toast.success(done); exitSelect(); }, onError: showBulkError });
+
+  const doDelete = () =>
+    remove.mutate(targetEntries, {
+      onSuccess: (r) => {
+        const n = r.deleted + r.queued;
+        if (n > 0) toast.success(`${n} ${n === 1 ? "entry" : "entries"} deleted`, { description: r.queued > 0 ? "Kept on this device. It uploads when you’re back online." : undefined });
+        const failed = r.failed[0];
+        if (failed) toast.error(`${r.failed.length} could not be deleted. ${getApiErrorMessage(failed.error, "Try again.")}`);
+        setConfirmDelete(false);
+        exitSelect();
+      },
+      onError: (e) => { error(e, "Couldn’t delete these entries."); setConfirmDelete(false); },
+    });
 
   const weekMode = view === "week" && hasAny;
   const viewToggle = hasAny && (
@@ -103,27 +149,27 @@ function TimeScreen() {
       entry={panel.kind === "edit" ? panel.entry : undefined}
       projects={projects}
       clients={clients}
-      defaultProjectId={filters.project !== ALL_PROJECTS && filters.project !== NO_PROJECT ? filters.project : timer.projectId}
+      defaultProjectId={filters.project !== ALL_PROJECTS ? filters.project : running?.projectId}
       onClose={() => setPanel(null)}
     />
   );
   const above = (
     <>
       {offline}
-      <ConflictPanel conflicts={conflicts} />
+      <ConflictPanel />
+      <RejectedPanel />
       {entryForm}
     </>
   );
 
   return (
-    <Page>
+    <>
       {weekMode ? (
         <WeekView
           time={time}
           projects={projects}
           clients={clients}
-          invoices={invoices}
-          timer={timer}
+          running={running}
           actions={<>{viewToggle}{addButton}</>}
           between={above}
           onEdit={(entry) => setPanel({ kind: "edit", entry })}
@@ -152,7 +198,7 @@ function TimeScreen() {
             <Label className="sr-only" htmlFor="tm-proj">Project</Label>
             <SelectField
               id="tm-proj" className="w-auto min-w-44" value={filters.project} onValueChange={(v) => setFilter("project", v)}
-              options={[{ value: ALL_PROJECTS, label: "All projects" }, ...projects.map((p) => ({ value: p.id, label: projectLabel(p, clients) })), { value: NO_PROJECT, label: "No project (internal)" }]}
+              options={[{ value: ALL_PROJECTS, label: "All projects" }, ...projects.map((p) => ({ value: p.id, label: projectLabel(p, clients) }))]}
             />
             <Segmented<BillFilter> label="Billable" value={filters.billable} onChange={(v) => setFilter("billable", v)} options={[{ value: "all", label: "All" }, { value: "billable", label: "Billable" }, { value: "non-billable", label: "Non-billable" }]} />
             <Segmented<InvoicedFilter> label="Invoiced" value={filters.invoiced} onChange={(v) => setFilter("invoiced", v)} options={[{ value: "all", label: "All" }, { value: "uninvoiced", label: "Uninvoiced" }, { value: "invoiced", label: "Invoiced" }]} />
@@ -165,13 +211,12 @@ function TimeScreen() {
                 <span className="num text-sm text-muted-foreground">{formatDuration(g.minutes)}</span>
               </div>
               <div role="table" aria-label={`Entries for ${fmtDay(g.date)}`}>
-                {g.date === today && showRunning && <RunningRow project={label(timer.projectId)} />}
+                {g.date === today && showRunning && running && <RunningRow entry={running} project={label(running.projectId)} />}
                 {g.entries.map((t) => (
                   <EntryRow
                     key={t.id}
                     entry={t}
                     project={label(t.projectId)}
-                    invoice={t.invoiceId ? invoiceById.get(t.invoiceId) : undefined}
                     selectMode={selectMode}
                     selected={selected.has(t.id)}
                     onToggle={toggle}
@@ -188,8 +233,9 @@ function TimeScreen() {
               count={targets.length}
               projects={projects}
               clients={clients}
-              onProject={(projectId) => { bulkUpdateTime(targets, { projectId }); toast.success(`Moved ${targets.length} to ${label(projectId)}`); }}
-              onBillable={(billable) => { bulkUpdateTime(targets, { billable }); toast.success(`Marked ${targets.length} ${billable ? "billable" : "non-billable"}`); }}
+              sharedProject={sharedProject}
+              busy={bulk.isPending}
+              onChange={(change) => applyBulk(change, `Updated ${targets.length} ${targets.length === 1 ? "entry" : "entries"}`)}
               onDelete={() => setConfirmDelete(true)}
             />
           )}
@@ -201,12 +247,11 @@ function TimeScreen() {
           <DialogTitle>Delete {targets.length} {targets.length === 1 ? "entry" : "entries"}?</DialogTitle>
           <DialogDescription>This can’t be undone. Invoiced entries are locked and are never deleted.</DialogDescription>
           <div className="flex flex-wrap gap-2">
-            <Button variant="destructive" onClick={doDelete}>Delete {targets.length}</Button>
+            <Button variant="destructive" loading={remove.isPending} onClick={doDelete}>Delete {targets.length}</Button>
             <DialogClose asChild><Button variant="ghost">Keep them</Button></DialogClose>
           </div>
         </DialogContent>
       </Dialog>
-    </Page>
+    </>
   );
 }
-

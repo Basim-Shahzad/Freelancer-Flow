@@ -8,7 +8,7 @@ import { getApiErrorMessage, getApiErrorStatus } from "@/lib/services/api.servic
 import { useAppStore } from "@/lib/store";
 
 interface Props<T> {
-  query: Pick<UseQueryResult<T>, "data" | "isPending" | "isError" | "error" | "refetch" | "isFetching">;
+  query: Pick<UseQueryResult<T>, "data" | "isPending" | "isError" | "error" | "isFetching"> & { refetch: () => unknown };
   /** Rendered with the data once loaded and non-empty. */
   children: (data: T) => React.ReactNode;
   /** Return true when the loaded data counts as "empty". Defaults to empty arrays / `{ items: [] }`. */

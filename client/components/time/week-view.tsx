@@ -9,7 +9,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Card, CardFoot, CardHead, PageHeader } from "@/components/ui/section";
 import { format, parse, todayISO } from "@/lib/dates";
 import { formatHours, formatMoney } from "@/lib/money";
-import type { Client, Invoice, Project, TimeEntry, TimerState } from "@/lib/types";
+import type { Client, Project, TimeEntry } from "@/lib/types";
 import { WeekAgenda } from "./week-agenda";
 import { WeekGrid } from "./week-grid";
 import {
@@ -24,8 +24,8 @@ interface Props {
   time: TimeEntry[];
   projects: Project[];
   clients: Client[];
-  invoices: Invoice[];
-  timer: TimerState;
+  /** The API's running entry, if any. */
+  running: TimeEntry | null;
   /** Page header actions (view toggle, Add time). */
   actions: ReactNode;
   /** Rendered between the header and the cards (offline notice, conflicts, entry form). */
@@ -48,8 +48,7 @@ function MoneyList({ money }: { money: ReturnType<typeof moneyList> }) {
   return <span className="num">{money.map(([c, a]) => formatMoney(a, c)).join(" and ")}</span>;
 }
 
-export function WeekView({ time, projects, clients, invoices, timer, actions, between, onEdit }: Props) {
-  const router = useRouter();
+export function WeekView({ time, projects, clients, running, actions, between, onEdit }: Props) {
   const nowMs = useNow();
   const today = todayISO();
   const current = weekStartOf(today);
@@ -57,25 +56,25 @@ export function WeekView({ time, projects, clients, invoices, timer, actions, be
   const isCurrent = weekStart === current;
 
   const { days, classified } = useMemo(
-    () => buildWeek(weekStart, time, { projects, clients, invoices, timer, nowMs, today }),
-    [weekStart, time, projects, clients, invoices, timer, nowMs, today],
+    () => buildWeek(weekStart, time, { projects, clients, running, nowMs, today }),
+    [weekStart, time, projects, clients, running, nowMs, today],
   );
   const runningBlock = days.flatMap((d) => d.blocks).find((b) => b.state === "live");
   const runningMinutes = runningBlock?.minutes ?? 0;
   const summary = useMemo(() => summarizeWeek(classified, runningMinutes), [classified, runningMinutes]);
   const rows = useMemo(
-    () => projectBreakdown(classified, runningBlock ? { projectId: timer.projectId, minutes: runningMinutes } : undefined),
-    [classified, runningBlock, runningMinutes, timer.projectId],
+    () => projectBreakdown(classified, runningBlock ? { projectId: running?.projectId, minutes: runningMinutes } : undefined),
+    [classified, runningBlock, runningMinutes, running?.projectId],
   );
-  const allClassified = useMemo(() => classifyAll(time, projects, invoices, today), [time, projects, invoices, today]);
+  const allClassified = useMemo(() => classifyAll(time, projects), [time, projects]);
   const unbilled = useMemo(() => unbilledByProject(allClassified), [allClassified]);
   const byDate = useMemo(() => minutesByDate(time), [time]);
   const heat = useMemo(() => heatWeeks(current), [current]);
   const weekTotal = days.reduce((s, d) => s + d.minutes, 0);
 
+  /** Locked entries open too: the form shows why they can't be edited. */
   const open = (b: BlockItem) => {
-    if (b.invoice) router.push(`/invoices/${b.invoice.id}`);
-    else if (b.entry) onEdit(b.entry);
+    if (b.entry) onEdit(b.entry);
   };
 
   const wd = weekDays(weekStart);

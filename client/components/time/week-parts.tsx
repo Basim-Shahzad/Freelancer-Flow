@@ -45,7 +45,7 @@ interface BlockProps {
   onOpen: (b: BlockItem) => void;
 }
 
-/** One time entry. A button (opens the entry editor, or the invoice when the entry is locked). The running timer is not interactive. */
+/** One time entry. A button (opens the entry editor, which shows why a locked entry can't be edited). The running timer is not interactive. */
 export function WeekBlock({ block: b, variant, style, onOpen }: BlockProps) {
   const tall = variant === "card" || b.endMin - b.startMin >= 54;
   const content = (
@@ -53,12 +53,12 @@ export function WeekBlock({ block: b, variant, style, onOpen }: BlockProps) {
       <span className="flex min-w-0 items-center gap-1 font-semibold leading-tight">
         {b.state === "live" && <span aria-hidden="true" className="size-1.5 shrink-0 rounded-full bg-primary-foreground motion-safe:animate-pulse" />}
         <span className="truncate">{b.projectName}</span>
-        {b.invoice && <Lock className="size-3 shrink-0" aria-hidden="true" />}
+        {b.invoiced && <Lock className="size-3 shrink-0" aria-hidden="true" />}
       </span>
       {variant === "card" && <span className="block truncate text-xs opacity-90">{b.clientName} · {b.description}</span>}
       {tall && (
         <span className="num block truncate text-xs opacity-90">
-          {shortDuration(b.minutes)} · {STATE_LABEL[b.state]}{b.state === "live" && " now"}{b.unsynced && " · unsynced"}
+          {shortDuration(b.minutes)} · {STATE_LABEL[b.state]}{b.state === "live" && " now"}{b.unsynced && " · unsynced"}{b.overlap && " · overlaps"}
         </span>
       )}
     </>

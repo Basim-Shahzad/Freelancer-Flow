@@ -1,17 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { projectFixture } from "@/lib/test/projects";
-import type { Invoice, Project, TimeEntry } from "@/lib/types";
+import { timeEntryFixture } from "@/lib/test/time-entries";
+import type { Project, TimeEntry } from "@/lib/types";
 import {
   amountFor, axisTicks, blockGeometry, bucketWeek, classifyAll, classifyEntry, heatBackground, heatLevel, heatWeeks, hourRange, isWeekend,
   layoutDay, moneyList, projectBreakdown, shiftWeek, shortDuration, summarizeWeek, unbilledByProject, weekDays, weekStartOf,
 } from "./week-logic";
 
-const entry = (o: Partial<TimeEntry> & { id: string }): TimeEntry => ({ description: "x", date: "2026-10-05", minutes: 60, billable: true, projectId: "h", updatedAt: "2026-10-05T10:00:00.000Z", ...o });
+const entry = (o: Partial<TimeEntry> & { id: string }): TimeEntry => timeEntryFixture({ description: "x", projectId: "h", startTime: undefined, ...o });
 const project = (o: Partial<Project> & { id: string }): Project => projectFixture({ name: o.id, billingType: "hourly", hourlyRate: 6000, budget: undefined, ...o });
-const invoice = (o: Partial<Invoice>): Invoice => ({
-  id: "i", number: "INV-1", clientId: "c", currency: "USD", status: "unpaid", issueDate: "2026-09-01", dueDate: "2026-12-31",
-  lines: [{ id: "l", description: "d", qty: 1, rate: 10000 }], taxPercent: 0, discount: 0, paymentMethodIds: [], note: "", shareToken: "t", payments: [], events: [], ...o,
-});
 
 describe("weeks", () => {
   it("starts on Monday and lists 7 days", () => {
@@ -39,22 +36,18 @@ describe("weeks", () => {
 
 describe("classifyEntry", () => {
   const hourly = project({ id: "h" });
-  it("non-billable and internal time", () => {
-    expect(classifyEntry(entry({ id: "a", billable: false }), hourly, undefined)).toBe("nonbill");
-    expect(classifyEntry(entry({ id: "a", projectId: undefined }), undefined, undefined)).toBe("nonbill");
+  it("non-billable time and entries whose project is unknown", () => {
+    expect(classifyEntry(entry({ id: "a", billable: false }), hourly)).toBe("nonbill");
+    expect(classifyEntry(entry({ id: "a", projectId: undefined }), undefined)).toBe("nonbill");
   });
   it("fixed, milestone and retainer are inside the fee", () => {
     for (const billingType of ["fixed", "milestone", "retainer"] as const) {
-      expect(classifyEntry(entry({ id: "a" }), project({ id: "h", billingType }), undefined)).toBe("fee");
+      expect(classifyEntry(entry({ id: "a" }), project({ id: "h", billingType }))).toBe("fee");
     }
   });
-  it("hourly: unbilled, invoiced, paid; void releases hours", () => {
-    expect(classifyEntry(entry({ id: "a" }), hourly, undefined)).toBe("unbilled");
-    expect(classifyEntry(entry({ id: "a", invoiceId: "i" }), hourly, invoice({}))).toBe("invoiced");
-    expect(classifyEntry(entry({ id: "a", invoiceId: "i" }), hourly, invoice({ status: "draft" }))).toBe("invoiced");
-    expect(classifyEntry(entry({ id: "a", invoiceId: "i" }), hourly, invoice({ dueDate: "2020-01-01" }))).toBe("invoiced"); // overdue is still invoiced
-    expect(classifyEntry(entry({ id: "a", invoiceId: "i" }), hourly, invoice({ payments: [{ id: "p", amount: 10000, date: "2026-09-02", method: "bank", reference: "", recordedAt: "" }] }))).toBe("paid");
-    expect(classifyEntry(entry({ id: "a", invoiceId: "i" }), hourly, invoice({ status: "void" }))).toBe("unbilled");
+  it("hourly: unbilled until it is locked to an invoice", () => {
+    expect(classifyEntry(entry({ id: "a" }), hourly)).toBe("unbilled");
+    expect(classifyEntry(entry({ id: "a", isInvoiced: true }), hourly)).toBe("invoiced");
   });
 });
 
@@ -99,7 +92,6 @@ describe("summaries", () => {
       entry({ id: "4", minutes: 30, billable: false }),
     ],
     projects,
-    [],
   );
   it("values minutes per currency without summing across them", () => {
     expect(amountFor(90, 6000)).toBe(9000);

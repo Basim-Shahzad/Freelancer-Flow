@@ -4,8 +4,10 @@ import { parseDuration } from "@/lib/money";
 /** Add / edit time entry form. `duration` is free text parsed with parseDuration. */
 export const entrySchema = z.object({
   description: z.string().trim().min(1, "Describe what you worked on"),
-  /** "" = no project (internal). */
-  projectId: z.string(),
+  /** The API has no internal time: every entry belongs to a project. */
+  projectId: z.string().min(1, "Choose a project"),
+  /** "" = no milestone. */
+  milestoneId: z.string(),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Choose a date"),
   duration: z.string().refine((v) => {
     const m = parseDuration(v);

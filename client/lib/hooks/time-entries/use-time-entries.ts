@@ -248,7 +248,7 @@ export interface AllTimeEntries {
   isPending: boolean;
   isError: boolean;
   isFetching: boolean;
-  error: unknown;
+  error: Error | null;
   refetch: () => Promise<unknown>;
 }
 

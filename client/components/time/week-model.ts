@@ -1,7 +1,6 @@
 import { clientHue } from "@/lib/client-hue";
 import { minutesOfHHMM } from "@/lib/dates";
-import type { Client, Invoice, Project, TimerState } from "@/lib/types";
-import type { TimeEntry } from "@/lib/types";
+import type { Client, Project, TimeEntry } from "@/lib/types";
 import {
   classifyAll, hhmm, layoutDay, shortDuration, STATE_LABEL, weekDays,
   type BillState, type ClassifiedEntry, type RawBlock,
@@ -22,15 +21,18 @@ export interface BlockItem {
   lane: number;
   lanes: number;
   minutes: number;
-  /** Invoice the entry is locked to, if any. */
-  invoice?: { id: string; number: string };
+  /** Locked to an invoice. */
+  invoiced: boolean;
+  /** Waiting in the offline outbox. */
   unsynced: boolean;
+  /** The server flagged this entry as overlapping another one. */
+  overlap: boolean;
   label: string;
 }
 
 export interface DayModel { date: string; blocks: BlockItem[]; minutes: number }
 
-interface Ctx { projects: Project[]; clients: Client[]; invoices: Invoice[]; timer: TimerState; nowMs: number; today: string }
+interface Ctx { projects: Project[]; clients: Client[]; running: TimeEntry | null; nowMs: number; today: string }
 
 const minuteOfDay = (ms: number): number => { const d = new Date(ms); return d.getHours() * 60 + d.getMinutes(); };
 
@@ -38,19 +40,18 @@ const minuteOfDay = (ms: number): number => { const d = new Date(ms); return d.g
 export function buildWeek(weekStart: string, entries: TimeEntry[], ctx: Ctx): { days: DayModel[]; classified: ClassifiedEntry[] } {
   const dates = weekDays(weekStart);
   const inWeek = entries.filter((e) => e.date >= (dates[0] ?? "") && e.date <= (dates[6] ?? ""));
-  const classified = classifyAll(inWeek, ctx.projects, ctx.invoices, ctx.today);
+  const classified = classifyAll(inWeek, ctx.projects);
   const clientIds = ctx.clients.map((c) => c.id);
-  const iById = new Map(ctx.invoices.map((i) => [i.id, i]));
   const cById = new Map(ctx.clients.map((c) => [c.id, c]));
   const pById = new Map(ctx.projects.map((p) => [p.id, p]));
-  const timerOn = ctx.timer.running && Boolean(ctx.timer.startedAt);
+  const startedAt = ctx.running?.startAt;
 
   const days = dates.map((date): DayModel => {
     const items = classified.filter((c) => c.entry.date === date);
     const raw: RawBlock[] = items.map((c) => ({ id: c.entry.id, minutes: c.entry.minutes, order: c.entry.updatedAt, startMin: minutesOfHHMM(c.entry.startTime) }));
     let runningMeta: { start: number; minutes: number } | undefined;
-    if (timerOn && date === ctx.today && ctx.timer.startedAt) {
-      const started = new Date(ctx.timer.startedAt).getTime();
+    if (ctx.running && startedAt && date === ctx.today) {
+      const started = new Date(startedAt).getTime();
       const sameDay = new Date(started).toDateString() === new Date(ctx.nowMs).toDateString();
       const start = sameDay ? minuteOfDay(started) : 0;
       const minutes = Math.max(1, Math.floor((ctx.nowMs - started) / 60_000));
@@ -65,28 +66,27 @@ export function buildWeek(weekStart: string, entries: TimeEntry[], ctx: Ctx): { 
       if (!b) continue;
       const project = c.project;
       const client = project ? cById.get(project.clientId) : undefined;
-      const invoice = c.entry.invoiceId ? iById.get(c.entry.invoiceId) : undefined;
-      const projectName = project?.name ?? "Internal";
+      const projectName = project?.name ?? "Unknown project";
       const clientName = client?.name ?? "No client";
       blocks.push({
         id: c.entry.id, entry: c.entry, state: c.state, projectName, clientName, description: c.entry.description,
         hue: project ? clientHue(project.clientId, clientIds) : "var(--hue-6)",
         startMin: b.startMin, endMin: b.endMin, lane: b.lane, lanes: b.lanes, minutes: c.entry.minutes,
-        invoice: invoice ? { id: invoice.id, number: invoice.number } : undefined, unsynced: Boolean(c.entry.unsynced),
-        label: `${projectName}, ${clientName}, ${hhmm(b.startMin)}–${hhmm(b.endMin)}, ${shortDuration(c.entry.minutes)}, ${STATE_LABEL[c.state]}${invoice ? ` on ${invoice.number}` : ""}`,
+        invoiced: c.entry.isInvoiced, unsynced: Boolean(c.entry.unsynced), overlap: Boolean(c.entry.overlap),
+        label: `${projectName}, ${clientName}, ${hhmm(b.startMin)}–${hhmm(b.endMin)}, ${shortDuration(c.entry.minutes)}, ${STATE_LABEL[c.state]}${c.entry.isInvoiced ? ", locked to an invoice" : ""}${c.entry.overlap ? ", overlaps another entry" : ""}`,
       });
     }
-    if (runningMeta) {
+    if (runningMeta && ctx.running) {
       const b = laid.get("__running");
-      const project = ctx.timer.projectId ? pById.get(ctx.timer.projectId) : undefined;
+      const project = ctx.running.projectId ? pById.get(ctx.running.projectId) : undefined;
       const client = project ? cById.get(project.clientId) : undefined;
       if (b) {
-        const projectName = project?.name ?? "Internal";
+        const projectName = project?.name ?? "Unknown project";
         const clientName = client?.name ?? "No client";
         blocks.push({
-          id: "__running", state: "live", projectName, clientName, description: ctx.timer.description || "Untitled",
+          id: "__running", state: "live", projectName, clientName, description: ctx.running.description || "Untitled",
           hue: project ? clientHue(project.clientId, clientIds) : "var(--hue-6)",
-          startMin: b.startMin, endMin: b.endMin, lane: b.lane, lanes: b.lanes, minutes: runningMeta.minutes, unsynced: false,
+          startMin: b.startMin, endMin: b.endMin, lane: b.lane, lanes: b.lanes, minutes: runningMeta.minutes, invoiced: false, unsynced: Boolean(ctx.running.unsynced), overlap: false,
           label: `${projectName}, ${clientName}, started ${hhmm(b.startMin)}, ${shortDuration(runningMeta.minutes)} so far, running`,
         });
       }

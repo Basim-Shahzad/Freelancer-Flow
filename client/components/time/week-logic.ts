@@ -1,7 +1,6 @@
 import { startOfWeek } from "date-fns";
 import { addDays, isoDate, parse } from "@/lib/dates";
-import { deriveStatus } from "@/lib/invoice";
-import type { Currency, Invoice, Project, TimeEntry } from "@/lib/types";
+import type { Currency, Project, TimeEntry } from "@/lib/types";
 
 /** Pure logic for the week view: bucketing, block geometry, billing-state classification, heatmap. */
 
@@ -48,25 +47,19 @@ export const STATE_LABEL: Record<BillState, string> = {
 
 /**
  * How far the money has got for one entry.
- * - internal / non-billable time → "nonbill"
+ * - non-billable time → "nonbill"
  * - fixed, milestone and retainer projects are already priced → "fee"
- * - hourly: on a paid invoice → "paid", on any other live invoice → "invoiced", else "unbilled".
- *   A void invoice releases its hours, so they count as unbilled again.
+ * - hourly: locked to an invoice → "invoiced", else "unbilled".
+ *   The API exposes only `isInvoiced` on an entry (no invoice id), so "paid" cannot be told apart yet; it comes
+ *   back with the invoices migration.
  */
 export function classifyEntry(
-  e: Pick<TimeEntry, "billable" | "projectId" | "invoiceId">,
+  e: Pick<TimeEntry, "billable" | "projectId" | "isInvoiced">,
   project: Pick<Project, "billingType"> | undefined,
-  invoice: Invoice | undefined,
-  today?: string,
 ): BillState {
   if (!e.billable || !e.projectId || !project) return "nonbill";
   if (project.billingType !== "hourly") return "fee";
-  if (!e.invoiceId) return "unbilled";
-  if (!invoice) return "invoiced";
-  const status = deriveStatus(invoice, today);
-  if (status === "paid") return "paid";
-  if (status === "void") return "unbilled";
-  return "invoiced";
+  return e.isInvoiced ? "invoiced" : "unbilled";
 }
 
 /** Money for `minutes` at an hourly rate (minor units, rounded). */
@@ -80,12 +73,11 @@ export const moneyList = (m: MoneyByCurrency): [Currency, number][] =>
 
 export interface ClassifiedEntry { entry: TimeEntry; state: BillState; project?: Project }
 
-export function classifyAll(entries: TimeEntry[], projects: Project[], invoices: Invoice[], today?: string): ClassifiedEntry[] {
+export function classifyAll(entries: TimeEntry[], projects: Project[]): ClassifiedEntry[] {
   const pById = new Map(projects.map((p) => [p.id, p]));
-  const iById = new Map(invoices.map((i) => [i.id, i]));
   return entries.map((entry) => {
     const project = entry.projectId ? pById.get(entry.projectId) : undefined;
-    return { entry, project, state: classifyEntry(entry, project, entry.invoiceId ? iById.get(entry.invoiceId) : undefined, today) };
+    return { entry, project, state: classifyEntry(entry, project) };
   });
 }
 
