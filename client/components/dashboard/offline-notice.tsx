@@ -1,13 +1,13 @@
 "use client";
 
 import { WifiOff } from "lucide-react";
-import { useShallow } from "zustand/react/shallow";
 import { useAppStore } from "@/lib/store";
+import { useQueuedCount } from "@/lib/time/outbox-store";
 
 /** Shown on data screens while offline. Reads are from the last sync; edits queue on this device. */
 export function OfflineNotice({ detail }: { detail?: string }) {
   const online = useAppStore((s) => s.online);
-  const unsynced = useAppStore(useShallow((s) => s.time.filter((t) => t.unsynced).length));
+  const unsynced = useQueuedCount();
   if (online) return null;
   return (
     <div role="status" className="flex items-start gap-3 rounded-lg border border-[color-mix(in_srgb,var(--warning)_55%,var(--border))] bg-warning-tint px-3 py-3 text-sm">

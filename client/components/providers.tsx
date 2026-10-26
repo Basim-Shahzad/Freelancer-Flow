@@ -6,6 +6,7 @@ import { ThemeProvider } from "next-themes";
 import { Toaster } from "sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuthBootstrap } from "@/lib/hooks/auth";
+import { useTimeSync } from "@/lib/hooks/time-entries";
 import { useOnlineSync } from "@/lib/hooks/use-online";
 import { useAppStore } from "@/lib/store";
 
@@ -19,6 +20,7 @@ function StoreBootstrap() {
   }, []);
   useOnlineSync();
   useAuthBootstrap();
+  useTimeSync();
   return null;
 }
 

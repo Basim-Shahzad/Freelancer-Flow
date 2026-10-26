@@ -2,11 +2,15 @@
 
 import { Square } from "lucide-react";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { LCell, LedgerRow, LMain, LSub } from "@/components/ui/ledger";
 import { Tag } from "@/components/ui/tag";
+import { useApiToast } from "@/lib/hooks/use-api-toast";
 import { formatClock, useElapsed } from "@/lib/hooks/use-elapsed";
-import { useAppStore } from "@/lib/store";
+import { useStopTimer } from "@/lib/hooks/time-entries";
+import { formatDuration } from "@/lib/money";
+import type { TimeEntry } from "@/lib/types";
 import { ENTRY_COLS } from "./entry-row";
 
 /** Whole minutes elapsed on the running timer, refreshed every 15 s (cheap for day/week totals). */
@@ -30,22 +34,27 @@ export function RunningBadge() {
   );
 }
 
-/** The live timer entry (from the store timer). It becomes a normal entry when stopped. */
-export function RunningRow({ project }: { project: string }) {
-  const timer = useAppStore((s) => s.timer);
-  const stopTimer = useAppStore((s) => s.stopTimer);
-  const seconds = useElapsed(timer.startedAt, timer.running);
+/** The live timer entry, from the API. It becomes a normal entry when stopped. */
+export function RunningRow({ entry, project }: { entry: TimeEntry; project: string }) {
+  const stopTimer = useStopTimer();
+  const { error } = useApiToast();
+  const seconds = useElapsed(entry.startAt, true);
+  const stop = () =>
+    stopTimer.mutate({ entry }, {
+      onSuccess: (r) => toast.success(`Saved ${formatDuration(r.entry.minutes)}`, { description: r.queued ? "Kept on this device. It uploads when you’re back online." : project }),
+      onError: (e) => error(e, "Couldn’t stop the timer"),
+    });
   return (
     <LedgerRow cols={ENTRY_COLS}>
       <LCell>
-        <LMain>{timer.description || "Untitled"}</LMain>
+        <LMain>{entry.description || "Untitled"}</LMain>
         <LSub className="flex flex-wrap items-center gap-x-2">{project}<span aria-hidden="true">·</span><RunningBadge /></LSub>
       </LCell>
-      <LCell narrow="hide"><Tag>Billable</Tag></LCell>
-      <LCell narrow="hide"><span /></LCell>
+      <LCell narrow="hide"><Tag>{entry.billable ? "Billable" : "Non-billable"}</Tag></LCell>
+      <LCell narrow="hide"><div className="flex flex-wrap gap-1.5">{entry.unsynced && <Tag tone="warning">Unsynced</Tag>}</div></LCell>
       <LCell end className="flex items-center justify-end gap-1">
         <span className="num font-semibold" aria-label="Elapsed time">{formatClock(seconds)}</span>
-        <Button variant="ghost" size="icon-sm" aria-label="Stop timer" onClick={() => stopTimer()}><Square aria-hidden="true" /></Button>
+        <Button variant="ghost" size="icon-sm" aria-label="Stop timer" disabled={stopTimer.isPending} onClick={stop}><Square aria-hidden="true" /></Button>
       </LCell>
     </LedgerRow>
   );

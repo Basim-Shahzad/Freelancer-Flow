@@ -9,25 +9,34 @@ import { Button } from "@/components/ui/button";
 import { Card, CardBody, CardHead } from "@/components/ui/section";
 import { clientHue } from "@/lib/client-hue";
 import { isoDate, parse } from "@/lib/dates";
+import { useApiToast } from "@/lib/hooks/use-api-toast";
 import { formatClock, useElapsed } from "@/lib/hooks/use-elapsed";
 import { formatDuration, formatHours, formatMoney } from "@/lib/money";
 import { useClientOptions } from "@/lib/hooks/clients";
 import { useProjectOptions } from "@/lib/hooks/projects";
+import { useRunningTimer, useStopTimer } from "@/lib/hooks/time-entries";
 import { useAppStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
 import { bucketDayStrip, entrySegments, liveSegment } from "./day-strip";
 
-/** "Today" card: running timer (start / stop / edit via the store), day strip, and week stats. */
+/**
+ * "Today" card: the running timer (from the API; stop here, start from the top bar where the project is chosen),
+ * day strip, and week stats. The day strip and week totals still read the mock `time` slice until step 11.
+ */
 export function TodayCard({ today, unbilledMinutes, className }: { today: string; unbilledMinutes: number; className?: string }) {
-  const timer = useAppStore((s) => s.timer);
+  const { running } = useRunningTimer();
   const { projects } = useProjectOptions();
   const { clients } = useClientOptions();
   const time = useAppStore((s) => s.time);
-  const stop = useAppStore((s) => s.stopTimer);
-  const start = useAppStore((s) => s.startTimer);
-  const elapsed = useElapsed(timer.startedAt, timer.running);
+  const stopTimer = useStopTimer();
+  const { error } = useApiToast();
+  const isRunning = Boolean(running);
+  const startedAt = running?.startAt;
+  const timerProjectId = running?.projectId;
+  const timerDescription = running?.description ?? "";
+  const elapsed = useElapsed(startedAt, isRunning);
 
-  const project = projects.find((p) => p.id === timer.projectId);
+  const project = projects.find((p) => p.id === timerProjectId);
   const client = clients.find((c) => c.id === project?.clientId);
   const where = project ? `${client?.name ?? "Client"} · ${project.name}` : "No project";
   const rate = project?.billingType === "hourly" && project.hourlyRate !== undefined ? project.hourlyRate : undefined;
@@ -35,29 +44,33 @@ export function TodayCard({ today, unbilledMinutes, className }: { today: string
   const stats = useMemo(() => {
     const clientIds = clients.map((c) => c.id);
     const hourlyIds = new Set(projects.filter((p) => p.billingType === "hourly").map((p) => p.id));
-    const runningMin = timer.running ? Math.floor(elapsed / 60) : 0;
-    const now = timer.running && timer.startedAt ? new Date(new Date(timer.startedAt).getTime() + elapsed * 1000) : new Date();
+    const runningMin = isRunning ? Math.floor(elapsed / 60) : 0;
+    const now = isRunning && startedAt ? new Date(new Date(startedAt).getTime() + elapsed * 1000) : new Date();
     const weekFrom = isoDate(startOfWeek(parse(today), { weekStartsOn: 1 }));
     const todays = time.filter((t) => t.date === today);
     const sum = (list: { minutes: number }[]) => list.reduce((a, t) => a + t.minutes, 0);
     const slots = bucketDayStrip([
       ...entrySegments(todays.map((t) => ({ minutes: t.minutes, updatedAt: t.updatedAt, startTime: t.startTime, key: projects.find((p) => p.id === t.projectId)?.clientId })), today)
         .map((s) => ({ ...s, key: s.key ? clientHue(s.key, clientIds) : undefined })),
-      ...(timer.running && timer.startedAt ? [liveSegment(timer.startedAt, now, today)].filter((s) => s !== null) : []),
+      ...(isRunning && startedAt ? [liveSegment(startedAt, now, today)].filter((s) => s !== null) : []),
     ]);
-    const timerHourly = timer.running && !!timer.projectId && hourlyIds.has(timer.projectId);
+    const timerHourly = isRunning && !!timerProjectId && hourlyIds.has(timerProjectId);
     return {
       slots,
       logged: sum(todays) + runningMin,
       hourly: sum(todays.filter((t) => t.projectId && hourlyIds.has(t.projectId))) + (timerHourly ? runningMin : 0),
       week: sum(time.filter((t) => t.date >= weekFrom && t.date <= today)) + runningMin,
     };
-  }, [clients, projects, time, timer.running, timer.startedAt, timer.projectId, elapsed, today]);
+  }, [clients, projects, time, isRunning, startedAt, timerProjectId, elapsed, today]);
 
   const onStop = () => {
-    const e = stop();
-    if (e) toast.success(`Saved ${formatDuration(e.minutes)}`, { description: where });
+    if (!running) return;
+    stopTimer.mutate({ entry: running }, {
+      onSuccess: (r) => toast.success(`Saved ${formatDuration(r.entry.minutes)}`, { description: r.queued ? "Kept on this device. It uploads when you’re back online." : where }),
+      onError: (e) => error(e, "Couldn’t stop the timer"),
+    });
   };
+  const focusTimer = () => document.getElementById("gt-project")?.focus();
 
   const statCells = [
     ...(rate !== undefined && project ? [{ v: <>{formatMoney(rate, project.currency)}</>, k: "Hourly rate on this project" }] : []),
@@ -71,21 +84,21 @@ export function TodayCard({ today, unbilledMinutes, className }: { today: string
         <CardBody className="flex flex-col gap-5 pb-5">
           <div className="@container">
             <div className="flex min-w-0 items-center gap-3">
-              <span aria-hidden="true" className={cn("size-2 shrink-0 rounded-full bg-muted-foreground", timer.running && "bg-success animate-[pulse-dot_1.6s_ease-in-out_infinite]")} />
-              <div role="timer" aria-label={timer.running ? "Timer running, elapsed time" : "Timer stopped, elapsed time"} className={cn("num min-w-0 font-serif text-[clamp(1.5rem,11cqi,2rem)] font-medium leading-none tracking-[-0.02em]", !timer.running && "text-muted-foreground")}>{formatClock(elapsed)}</div>
+              <span aria-hidden="true" className={cn("size-2 shrink-0 rounded-full bg-muted-foreground", isRunning && "bg-success animate-[pulse-dot_1.6s_ease-in-out_infinite]")} />
+              <div role="timer" aria-label={isRunning ? "Timer running, elapsed time" : "Timer stopped, elapsed time"} className={cn("num min-w-0 font-serif text-[clamp(1.5rem,11cqi,2rem)] font-medium leading-none tracking-[-0.02em]", !isRunning && "text-muted-foreground")}>{formatClock(elapsed)}</div>
             </div>
             <div className="mt-2 ps-5">
               <div className="text-sm font-semibold leading-snug">{where}</div>
-              <div className="text-xs leading-snug text-muted-foreground">{timer.description || "No description"}{timer.running ? " · billable" : " · timer stopped"}</div>
+              <div className="text-xs leading-snug text-muted-foreground">{timerDescription || "No description"}{isRunning ? " · billable" : " · timer stopped"}</div>
             </div>
             <div className="mt-3 flex flex-wrap gap-2 ps-5">
-              {timer.running ? (
+              {isRunning ? (
                 <>
-                  <Button variant="outline" size="sm" onClick={onStop}>Stop</Button>
+                  <Button variant="outline" size="sm" onClick={onStop} loading={stopTimer.isPending}>Stop</Button>
                   <Button variant="ghost" size="sm" asChild><Link href="/time">Edit entry</Link></Button>
                 </>
               ) : (
-                <Button variant="outline" size="sm" onClick={() => start()}><Play fill="currentColor" aria-hidden="true" />Start timer</Button>
+                <Button variant="outline" size="sm" onClick={focusTimer}><Play fill="currentColor" aria-hidden="true" />Start timer</Button>
               )}
             </div>
           </div>
@@ -95,7 +108,7 @@ export function TodayCard({ today, unbilledMinutes, className }: { today: string
               <span><b className="num font-semibold text-foreground">{formatDuration(stats.logged)}</b> logged</span>
               <span><span className="num">{formatDuration(stats.hourly)}</span> on hourly projects</span>
             </div>
-            <div role="img" aria-label={`Day strip, 08:00 to 20:00: ${formatDuration(stats.logged)} logged today${timer.running ? ", timer running" : ""}`} className="flex h-7 gap-0.5">
+            <div role="img" aria-label={`Day strip, 08:00 to 20:00: ${formatDuration(stats.logged)} logged today${isRunning ? ", timer running" : ""}`} className="flex h-7 gap-0.5">
               {stats.slots.map((slot, i) => (
                 <span
                   key={i}
