@@ -1,4 +1,5 @@
 import { InvoiceDocument } from "@/components/domain/invoice-document";
+import { legacyToDocInvoice } from "@/lib/invoice-doc";
 import { seedBusiness, seedInvoices } from "@/lib/seed";
 import type { Client, Currency, PaymentMethod } from "@/lib/types";
 
@@ -38,7 +39,7 @@ export function ClientPreview({ neutral, estimateIn }: { neutral?: boolean; esti
         tabIndex={0}
         className="mx-auto h-[640px] w-[min(100%,390px)] overflow-auto rounded-lg border border-rule bg-background p-3"
       >
-        <InvoiceDocument invoice={invoice} client={client} business={business} methods={methods} projectName="Mobile app" reveal estimateIn={estimateIn} />
+        <InvoiceDocument invoice={legacyToDocInvoice(invoice)} client={client} business={business} methods={methods} projectName="Mobile app" reveal estimateIn={estimateIn} />
       </div>
       <p className="mx-auto max-w-[390px] text-center t-caption">
         There is no pay button. Your client copies the details and pays you directly from their own bank or app.

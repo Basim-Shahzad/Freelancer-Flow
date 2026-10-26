@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { InvoiceDocument } from "@/components/domain/invoice-document";
 import type { MethodDraft } from "@/components/domain/payment-method-form";
 import { useClientOptions } from "@/lib/hooks/clients";
+import { legacyToDocInvoice } from "@/lib/invoice-doc";
 import { useAppStore } from "@/lib/store";
 import type { PaymentMethod } from "@/lib/types";
 import { pickPreviewInvoice, sampleInvoice } from "./preview-methods";
@@ -19,7 +20,7 @@ export function MethodPreview({ methods }: { methods: PaymentMethod[] }) {
   return (
     <aside aria-label="Live invoice preview" className="flex flex-col gap-2 @4xl:sticky @4xl:top-4">
       <span className="t-eyebrow">Live preview · what your client sees</span>
-      <InvoiceDocument part="payments" invoice={invoice} client={client} business={business} methods={methods} />
+      <InvoiceDocument part="payments" invoice={legacyToDocInvoice(invoice)} client={client} business={business} methods={methods} />
       <p className="t-caption">
         Shown with enabled methods only, in this order. Account numbers are masked here; your client sees them in full on the share link.
       </p>

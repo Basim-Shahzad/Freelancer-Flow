@@ -12,6 +12,7 @@ import { Section } from "@/components/ui/section";
 import { fmtDate } from "@/lib/dates";
 import { counterpartOf } from "@/lib/fx";
 import { deriveStatus, isLive } from "@/lib/invoice";
+import { legacyToDocInvoice } from "@/lib/invoice-doc";
 import { FxRatesProvider, usePortalExchangeRates } from "@/lib/hooks/exchange-rates";
 import { useHydrated } from "@/lib/hooks/use-hydrated";
 import { useClientOptions } from "@/lib/hooks/clients";
@@ -96,7 +97,7 @@ export function InvoicePortalView({ token }: { token: string }) {
       )}
 
       <Section title="Invoice" id="pi-doc" className="print:[&>div]:hidden">
-        <InvoiceDocument part="lines" reveal invoice={inv} client={client} business={business} methods={[]} projectName={project?.name} status={display} className="print:border-0 print:p-0" />
+        <InvoiceDocument part="lines" reveal invoice={legacyToDocInvoice(inv, display)} client={client} business={business} methods={[]} projectName={project?.name} className="print:border-0 print:p-0" />
       </Section>
     </FxRatesProvider>
   );

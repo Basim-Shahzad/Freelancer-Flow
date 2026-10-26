@@ -5,6 +5,7 @@ import { KV } from "@/components/ui/section";
 import { Tag } from "@/components/ui/tag";
 import { fmtDate } from "@/lib/dates";
 import { calcTotals } from "@/lib/invoice";
+import { legacyToDocInvoice } from "@/lib/invoice-doc";
 import { formatMoney } from "@/lib/money";
 import { methodTitle } from "@/lib/payment-methods";
 import type { BusinessProfile, Client, Invoice, PaymentMethod, Project } from "@/lib/types";
@@ -29,7 +30,7 @@ export function StepReview({ invoice, client, project, business, methods, termsD
         </KV>
       </div>
       <h3 className="t-h3">What your client will see</h3>
-      <InvoiceDocument invoice={invoice} client={client} business={business} methods={methods} projectName={project?.name} status="draft" />
+      <InvoiceDocument invoice={legacyToDocInvoice(invoice, "draft")} client={client} business={business} methods={methods} projectName={project?.name} />
       <p className="t-caption">This is the same layout as the PDF. Draft numbers are final once you create the invoice.</p>
     </section>
   );
