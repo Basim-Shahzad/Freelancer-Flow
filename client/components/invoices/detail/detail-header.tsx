@@ -1,33 +1,29 @@
 "use client";
 
 import Link from "next/link";
-import { Printer } from "lucide-react";
+import { Download } from "lucide-react";
 import { StatusChip } from "@/components/domain/status-chip";
 import { Button } from "@/components/ui/button";
 import { daysBetween, fmtDate, todayISO } from "@/lib/dates";
-import { daysOverdue } from "@/lib/invoice";
 import { formatMoney } from "@/lib/money";
-import type { Client, Invoice, InvoiceStatus, Project } from "@/lib/types";
+import type { InvoiceDetail } from "@/lib/types";
 import { claimTail } from "./messages";
 
 interface Props {
-  invoice: Invoice;
-  status: InvoiceStatus;
-  total: number;
-  paid: number;
-  balance: number;
-  client?: Client;
-  project?: Project;
-  onPrint: () => void;
+  invoice: InvoiceDetail;
+  onDownload: () => void;
+  downloading: boolean;
+  offline: boolean;
 }
 
-/** Breadcrumb, title + status chip, one data-driven sentence, and the Print / PDF pill. */
-export function DetailHeader({ invoice, status, total, paid, balance, client, project, onPrint }: Props) {
-  const lastPaid = invoice.payments.map((p) => p.date).sort().at(-1);
+/** Breadcrumb, title + status chip, one data-driven sentence, and the Download PDF pill. */
+export function DetailHeader({ invoice, onDownload, downloading, offline }: Props) {
+  const { currency, status } = invoice;
+  const paidOn = invoice.paymentAt ?? [...invoice.payments].map((p) => p.paidAt).sort().at(-1);
   const tail = claimTail(status, {
-    paid: formatMoney(paid, invoice.currency), balance: formatMoney(balance, invoice.currency), dueDate: fmtDate(invoice.dueDate),
-    overdueDays: daysOverdue(invoice), daysToDue: daysBetween(invoice.dueDate, todayISO()), paidDate: fmtDate(lastPaid),
-    daysToPay: lastPaid ? daysBetween(lastPaid, invoice.issueDate) : -1,
+    paid: formatMoney(invoice.amountPaid, currency), balance: formatMoney(invoice.balanceDue, currency), dueDate: fmtDate(invoice.dueDate),
+    overdueDays: Math.max(daysBetween(todayISO(), invoice.dueDate), 0), daysToDue: daysBetween(invoice.dueDate, todayISO()), paidDate: fmtDate(paidOn),
+    daysToPay: paidOn ? daysBetween(paidOn, invoice.issueDate) : -1,
   });
 
   return (
@@ -45,13 +41,13 @@ export function DetailHeader({ invoice, status, total, paid, balance, client, pr
           <StatusChip status={status} />
         </div>
         <p className="max-w-[64ch] text-sm text-muted-foreground">
-          <span className="num">{formatMoney(total, invoice.currency)}</span>
-          {client ? ` to ${client.name}` : ""}
-          {project && <> for <Link href={`/projects/${project.id}`} className="font-medium text-primary-ink underline decoration-1 underline-offset-[3px]">{project.name}</Link></>}
+          <span className="num">{formatMoney(invoice.total, currency)}</span>
+          {` to ${invoice.client.name}`}
+          {" for "}<Link href={`/projects/${invoice.project.id}`} className="font-medium text-primary-ink underline decoration-1 underline-offset-[3px]">{invoice.project.name}</Link>
           {`. ${tail}`}
         </p>
       </div>
-      <Button variant="outline" onClick={onPrint} className="print:hidden"><Printer aria-hidden="true" />Print / PDF</Button>
+      <Button variant="outline" onClick={onDownload} loading={downloading} disabled={offline} className="print:hidden"><Download aria-hidden="true" />Download PDF</Button>
     </header>
   );
 }

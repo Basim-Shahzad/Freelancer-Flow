@@ -3,40 +3,55 @@
 import { useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input, InputAffix } from "@/components/ui/input";
 import { FormSelect } from "@/components/ui/select";
 import { Field } from "@/components/ui/label";
 import { Notice } from "@/components/ui/notice";
+import { applyApiFieldErrors } from "@/lib/api/field-errors";
+import { PAYMENT_METHOD_LABEL, preferredPaymentMethod, RECORDABLE_METHODS, toPaymentCreate } from "@/lib/api/mappers/invoices";
 import { todayISO } from "@/lib/dates";
+import { useRecordPayment } from "@/lib/hooks/invoices";
+import { useApiToast } from "@/lib/hooks/use-api-toast";
 import { formatAmount, formatMoney, parseAmount } from "@/lib/money";
-import { methodTitle } from "@/lib/payment-methods";
-import { useAppStore } from "@/lib/store";
-import type { Invoice, PaymentMethod } from "@/lib/types";
+import { getApiErrorMessage, getApiErrorStatus } from "@/lib/services/api.service";
+import type { InvoiceDetail } from "@/lib/types";
 import { recordSchema, type RecordValues } from "./schemas";
 
-interface Props { invoice: Invoice; balance: number; methods: PaymentMethod[]; onClose: () => void }
+interface Props { invoice: InvoiceDetail; onClose: () => void }
+
+const OPTIONS = RECORDABLE_METHODS.map((m) => ({ value: m, label: PAYMENT_METHOD_LABEL[m] }));
 
 /** Record a payment received outside Paylancr. Amount defaults to the balance and can't exceed it. */
-export function RecordPanel({ invoice, balance, methods, onClose }: Props) {
-  const recordPayment = useAppStore((s) => s.recordPayment);
+export function RecordPanel({ invoice, onClose }: Props) {
+  const toast = useApiToast();
+  const record = useRecordPayment();
   const ref = useRef<HTMLElement>(null);
-  const options = [...new Set([...methods.map((m) => methodTitle(m)), "Other"])];
-  const preferred = methods.find((m) => invoice.paymentMethodIds[0] === m.id);
+  const balance = invoice.balanceDue;
+  const today = todayISO();
 
-  const { register, control, handleSubmit, formState: { errors } } = useForm<RecordValues>({
+  const form = useForm<RecordValues>({
     resolver: zodResolver(recordSchema(balance)),
-    defaultValues: { amount: formatAmount(balance, invoice.currency), date: todayISO(), method: preferred ? methodTitle(preferred) : (options[0] ?? "Other"), reference: "" },
+    defaultValues: { amount: formatAmount(balance, invoice.currency), date: today, method: preferredPaymentMethod(invoice.methods), reference: "" },
   });
+  const { register, control, handleSubmit, formState: { errors } } = form;
   useEffect(() => { ref.current?.focus(); }, []);
 
-  const submit = handleSubmit((v) => {
+  const submit = handleSubmit(async (v) => {
     const amount = parseAmount(v.amount) ?? 0;
-    recordPayment(invoice.id, { amount, date: v.date, method: v.method, reference: v.reference });
-    toast.success(`Payment recorded · ${formatMoney(amount, invoice.currency)}`);
-    onClose();
+    try {
+      await record.mutateAsync({
+        id: invoice.id,
+        body: toPaymentCreate({ amount, date: v.date, method: v.method as (typeof RECORDABLE_METHODS)[number], reference: v.reference }, invoice.currency, today),
+      });
+      toast.success(`Payment recorded · ${formatMoney(amount, invoice.currency)}`);
+      onClose();
+    } catch (e) {
+      applyApiFieldErrors(form, e, { paidAt: "date" });
+    }
   });
+
+  const serverError = errors.root?.message ?? (record.isError && getApiErrorStatus(record.error) !== 422 ? getApiErrorMessage(record.error, "Couldn’t record the payment.") : undefined);
 
   return (
     <section ref={ref} tabIndex={-1} id="panel-record" aria-labelledby="id-rec" className="flex flex-col gap-4 border-y border-rule py-4 outline-none print:hidden">
@@ -46,15 +61,16 @@ export function RecordPanel({ invoice, balance, methods, onClose }: Props) {
           <Field label="Amount received" htmlFor="rp-a" error={errors.amount?.message}>
             <InputAffix prefix={invoice.currency}><Input id="rp-a" inputMode="decimal" aria-invalid={Boolean(errors.amount)} {...register("amount")} /></InputAffix>
           </Field>
-          <Field label="Date" htmlFor="rp-d" error={errors.date?.message}><Input id="rp-d" type="date" aria-invalid={Boolean(errors.date)} {...register("date")} /></Field>
+          <Field label="Date" htmlFor="rp-d" error={errors.date?.message}><Input id="rp-d" type="date" max={today} aria-invalid={Boolean(errors.date)} {...register("date")} /></Field>
           <Field label="Method" htmlFor="rp-m" error={errors.method?.message}>
-            <FormSelect id="rp-m" control={control} name="method" options={options.map((o) => ({ value: o, label: o }))} />
+            <FormSelect id="rp-m" control={control} name="method" options={OPTIONS} />
           </Field>
-          <Field label="Reference" htmlFor="rp-r" optional error={errors.reference?.message}><Input id="rp-r" placeholder="Transaction ID" {...register("reference")} /></Field>
+          <Field label="Reference" htmlFor="rp-r" optional error={errors.reference?.message} hint="A transaction ID only. No card numbers, IBANs or ID numbers."><Input id="rp-r" placeholder="Transaction ID" {...register("reference")} /></Field>
         </div>
-        <Notice>If your client withheld tax, record the full invoice amount and note the withholding. Withholding is recorded at receipt, not on the invoice.</Notice>
+        {serverError && <Notice tone="error">{serverError}</Notice>}
+        <Notice>If your client withheld tax, the invoice already shows it; record what actually reached you, up to the balance.</Notice>
         <div className="flex flex-wrap gap-2">
-          <Button type="submit">Save payment</Button>
+          <Button type="submit" loading={record.isPending}>Save payment</Button>
           <Button type="button" variant="ghost" onClick={onClose}>Cancel</Button>
         </div>
       </form>

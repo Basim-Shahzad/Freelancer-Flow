@@ -1,129 +1,115 @@
 "use client";
 
-import { useState } from "react";
-import { toast } from "sonner";
+import { useMemo, useState } from "react";
+import { OfflineNotice } from "@/components/dashboard/offline-notice";
 import { InvoiceDocument } from "@/components/domain/invoice-document";
 import { StateBlock } from "@/components/domain/state-block";
-import { Notice } from "@/components/ui/notice";
 import { Card, CardBody, Page, Split } from "@/components/ui/section";
 import { PageSkeleton } from "@/components/ui/skeleton";
-import { fmtDate } from "@/lib/dates";
-import { useCopy } from "@/lib/hooks/use-copy";
-import { useHydrated } from "@/lib/hooks/use-hydrated";
-import { calcTotals, deriveStatus, isLive } from "@/lib/invoice";
-import { formatMoney } from "@/lib/money";
-import { useClientOptions } from "@/lib/hooks/clients";
-import { useProjectOptions } from "@/lib/hooks/projects";
-import { usePaymentMethods } from "@/lib/hooks/payment-methods";
+import { useClient } from "@/lib/hooks/clients";
+import { useInvoice, useInvoiceEvents, useInvoicePdf } from "@/lib/hooks/invoices";
+import { useBusiness } from "@/lib/hooks/profile";
+import { useApiToast } from "@/lib/hooks/use-api-toast";
+import { isLive } from "@/lib/invoice";
+import { issuerToBusiness, toDocInvoice } from "@/lib/invoice-doc";
+import { getApiErrorMessage, getApiErrorStatus } from "@/lib/services/api.service";
 import { useAppStore } from "@/lib/store";
-import type { PaymentMethod } from "@/lib/types";
 import { ActionBar, type PanelKind } from "./action-bar";
 import { ConfirmPanel } from "./confirm-panel";
 import { DetailHeader } from "./detail-header";
 import { EventsTimeline } from "./events-timeline";
-import { shareLink, shareMessage, whatsappUrl } from "./messages";
 import { MoneySummary } from "./money-summary";
 import { PaymentsSection } from "./payments-section";
-import { PrintStyles } from "./print-styles";
 import { RecordPanel } from "./record-panel";
 import { RemindPanel } from "./remind-panel";
-import { useBusiness } from "@/lib/hooks/profile";
+import { SendDialog } from "./send-dialog";
+
+/** Saves a Blob as `filename` through a temporary link. */
+function saveBlob(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
 
 export function InvoiceDetailView({ id }: { id: string }) {
-  const hydrated = useHydrated();
-  if (!hydrated) return <PageSkeleton rows={4} />;
-  return <DetailScreen id={id} />;
-}
-
-const NO_METHODS: PaymentMethod[] = [];
-
-function NotFound() {
-  return (
-    <Page width="narrow">
-      <StateBlock kind="empty" title="Invoice not found" body="It may have been deleted, or the link is out of date. Your other invoices are unaffected." cta={{ label: "Back to invoices", href: "/invoices" }} />
-    </Page>
-  );
-}
-
-function DetailScreen({ id }: { id: string }) {
-  const invoice = useAppStore((s) => s.invoices.find((i) => i.id === id));
-  const { clients } = useClientOptions();
-  const { projects } = useProjectOptions();
-  // Methods only fill the document's "How to pay" block and the record-payment options; show the invoice without them while they load.
-  const methods = usePaymentMethods().data ?? NO_METHODS;
-  const business = useBusiness();
   const online = useAppStore((s) => s.online);
-  const sendInvoice = useAppStore((s) => s.sendInvoice);
+  const toast = useApiToast();
+  const query = useInvoice(id);
+  const invoice = query.data;
+  const eventsQuery = useInvoiceEvents(invoice ? id : undefined);
+  const clientQuery = useClient(invoice?.clientId);
+  const business = useBusiness();
+  const pdf = useInvoicePdf();
   const [panel, setPanel] = useState<PanelKind | null>(null);
-  const { copied, copy } = useCopy();
+  const [sendOpen, setSendOpen] = useState(false);
+  const doc = useMemo(() => (invoice ? toDocInvoice(invoice) : undefined), [invoice]);
 
-  if (!invoice) return <NotFound />;
+  if (query.isPending) {
+    if (!online) return <Page><StateBlock kind="offline" cta={{ label: "Try again", onClick: () => void query.refetch() }} /></Page>;
+    return <PageSkeleton rows={4} />;
+  }
+  if (query.isError || !invoice || !doc) {
+    const retry = { label: query.isFetching ? "Retrying…" : "Try again", onClick: () => void query.refetch() };
+    if (getApiErrorStatus(query.error) === 404) {
+      return <Page width="narrow"><StateBlock kind="empty" title="Invoice not found" body="It may have been deleted, or the link is out of date. Your other invoices are unaffected." cta={{ label: "Back to invoices", href: "/invoices" }} /></Page>;
+    }
+    if (!online) return <Page><StateBlock kind="offline" cta={retry} /></Page>;
+    if (getApiErrorStatus(query.error) === 429) return <Page><StateBlock kind="error" title="Too many requests" body="Wait a moment and try again." cta={retry} /></Page>;
+    return <Page><StateBlock kind="error" body={getApiErrorMessage(query.error)} cta={retry} /></Page>;
+  }
 
-  const status = deriveStatus(invoice);
-  const t = calcTotals(invoice);
-  const client = clients.find((c) => c.id === invoice.clientId);
-  const project = projects.find((p) => p.id === invoice.projectId);
-  const docMethods = invoice.paymentMethodIds.map((mid) => methods.find((m) => m.id === mid)).filter((m): m is PaymentMethod => Boolean(m));
-  const link = () => shareLink(window.location.origin, invoice.shareToken);
+  const { status } = invoice;
+  const live = isLive(status);
+  const offline = !online;
+  const client = clientQuery.data ?? { name: invoice.client.name, companyName: "", address: "" };
   const togglePanel = (p: PanelKind) => setPanel((cur) => (cur === p ? null : p));
   const close = () => setPanel(null);
 
-  const sendEmail = () => {
-    sendInvoice(invoice.id, "email");
-    toast.success(`${invoice.number} sent`, { description: client?.email ? `Emailed to ${client.email}` : undefined });
-  };
-  const shareWhatsApp = () => {
-    const text = shareMessage({
-      contactName: client?.name ?? "there", ownerName: business.ownerName, businessName: business.businessName, number: invoice.number,
-      amount: formatMoney(t.balance || t.total, invoice.currency), dueDate: fmtDate(invoice.dueDate), link: link(),
-    });
-    sendInvoice(invoice.id, "whatsapp");
-    window.open(whatsappUrl(client?.whatsapp, text), "_blank", "noopener,noreferrer");
-    toast.success("Opened in WhatsApp", { description: "Press send in WhatsApp to share it." });
-  };
-  const copyLink = () => {
-    void copy("link", link());
-    sendInvoice(invoice.id, "link");
-    toast.success("Link copied", { description: "Your client sees payment instructions only. There is no pay button." });
-  };
-  const print = () => {
-    const prev = document.title;
-    document.title = `${invoice.number} · ${business.businessName}`;
-    const restore = () => { document.title = prev; window.removeEventListener("afterprint", restore); };
-    window.addEventListener("afterprint", restore);
-    window.print();
+  const download = async () => {
+    try {
+      saveBlob(await pdf.mutateAsync(invoice.id), `${invoice.number}.pdf`);
+    } catch (e) {
+      toast.error(e, "Couldn’t download the PDF.");
+    }
   };
 
-  const live = isLive(status);
   return (
     <Page>
-      <PrintStyles />
       <div className="flex flex-col gap-6 print:hidden">
-        <DetailHeader invoice={invoice} status={status} total={t.total} paid={t.paid} balance={t.balance} client={client} project={project} onPrint={print} />
-        {!online && <Notice tone="warn" role="status"><b>You’re offline.</b> Sending, reminders and recording payments are paused. Copy link and Print / PDF still work.</Notice>}
-        {panel === "record" && live && <RecordPanel invoice={invoice} balance={t.balance} methods={methods.filter((m) => m.enabled || invoice.paymentMethodIds.includes(m.id))} onClose={close} />}
-        {panel === "remind" && live && <RemindPanel invoice={invoice} status={status} balance={t.balance} client={client} onClose={close} />}
-        {(panel === "writeoff" || panel === "reverse" || panel === "void") && <ConfirmPanel key={panel} kind={panel} invoice={invoice} balance={t.balance} onClose={close} />}
+        <DetailHeader invoice={invoice} onDownload={() => void download()} downloading={pdf.isPending} offline={offline} />
+        <OfflineNotice detail="Sending, reminders, recording payments and the PDF download need a connection and are paused." />
+        {panel === "record" && live && <RecordPanel invoice={invoice} onClose={close} />}
+        {panel === "remind" && live && <RemindPanel invoice={invoice} onClose={close} />}
+        {(panel === "writeoff" || panel === "reverse" || panel === "cancel") && <ConfirmPanel key={panel} kind={panel} invoice={invoice} onClose={close} />}
       </div>
 
       <Split className="gap-6">
         <Card data-print-area className="min-w-0 print:rounded-none print:border-0">
-          <InvoiceDocument invoice={invoice} client={client} business={business} methods={docMethods} projectName={project?.name} className="rounded-none border-0 print:p-0" />
+          <InvoiceDocument
+            invoice={doc} client={client} business={issuerToBusiness(invoice.issuer, business)} methods={invoice.methods}
+            projectName={invoice.project.name} reveal className="rounded-none border-0 print:p-0"
+          />
         </Card>
         <aside className="min-w-0 print:hidden @4xl:sticky @4xl:top-6" aria-label="Actions, payments and activity">
           <Card className="@4xl:max-h-[calc(100dvh-3rem)] @4xl:overflow-y-auto">
             <CardBody>
-              <ActionBar
-                status={status} offline={!online} copied={copied === "link"} panel={panel}
-                onSendEmail={sendEmail} onWhatsApp={shareWhatsApp} onCopy={copyLink} onPanel={togglePanel}
-              />
+              <ActionBar status={status} offline={offline} panel={panel} onSend={() => setSendOpen(true)} onPanel={togglePanel} />
             </CardBody>
-            <PaymentsSection invoice={invoice} canReverse={status !== "void"} offline={!online} />
-            <EventsTimeline invoice={invoice} status={status} />
-            <MoneySummary totals={t} currency={invoice.currency} taxPercent={invoice.taxPercent} />
+            <PaymentsSection invoice={invoice} canVoid={status !== "void" && status !== "draft"} offline={offline} />
+            <EventsTimeline
+              invoice={invoice} status={status} events={eventsQuery.data} isLoading={eventsQuery.isPending && eventsQuery.fetchStatus !== "idle"}
+              error={eventsQuery.error} onRetry={() => void eventsQuery.refetch()}
+            />
+            <MoneySummary invoice={invoice} />
           </Card>
         </aside>
       </Split>
+      <SendDialog invoice={invoice} open={sendOpen} onOpenChange={setSendOpen} offline={offline} />
     </Page>
   );
 }

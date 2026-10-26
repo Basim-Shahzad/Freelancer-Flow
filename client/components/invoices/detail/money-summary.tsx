@@ -1,15 +1,18 @@
 import { CardBody, CardHead } from "@/components/ui/section";
-import type { InvoiceTotals } from "@/lib/invoice";
 import { formatMoney } from "@/lib/money";
-import type { Currency } from "@/lib/types";
+import type { InvoiceDetail } from "@/lib/types";
 
-/** Key/values in the invoice's own currency. Nothing is summed across currencies. */
-export function MoneySummary({ totals, currency, taxPercent }: { totals: InvoiceTotals; currency: Currency; taxPercent: number }) {
+/** Key/values in the invoice's own currency, straight from the server (nothing is recomputed or summed across currencies). */
+export function MoneySummary({ invoice }: { invoice: InvoiceDetail }) {
+  const c = invoice.currency;
   const rows: [string, string][] = [
-    ["Subtotal, net of discount", formatMoney(totals.taxable, currency)],
-    [`Tax (${taxPercent}%)`, formatMoney(totals.tax, currency)],
-    ["Paid so far", formatMoney(totals.paid, currency)],
-    ["Balance", formatMoney(totals.balance, currency)],
+    ["Subtotal", formatMoney(invoice.subtotal, c)],
+    ...(invoice.discountAmount > 0 ? [["Discount", `− ${formatMoney(invoice.discountAmount, c)}`] as [string, string]] : []),
+    ...invoice.taxes.filter((t) => !t.isWithholding).map((t): [string, string] => [`${t.name} (${Number(t.rate)}%)`, formatMoney(t.amount, c)]),
+    ...(invoice.withholdingAmount > 0 ? [["Withholding", `− ${formatMoney(invoice.withholdingAmount, c)}`] as [string, string]] : []),
+    ["Total", formatMoney(invoice.total, c)],
+    ["Paid so far", formatMoney(invoice.amountPaid, c)],
+    ["Balance", formatMoney(invoice.balanceDue, c)],
   ];
   return (
     <section aria-labelledby="id-money">
