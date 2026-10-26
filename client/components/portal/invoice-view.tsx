@@ -14,6 +14,7 @@ import { deriveStatus, isLive } from "@/lib/invoice";
 import { useHydrated } from "@/lib/hooks/use-hydrated";
 import { useClientOptions } from "@/lib/hooks/clients";
 import { usePaymentMethods } from "@/lib/hooks/payment-methods";
+import { useProjectOptions } from "@/lib/hooks/projects";
 import { useAppStore } from "@/lib/store";
 import type { PaymentMethod } from "@/lib/types";
 import { HowToPay } from "./how-to-pay";
@@ -30,7 +31,7 @@ export function InvoicePortalView({ token }: { token: string }) {
   // for everyone else "How to pay" falls back to "contact the freelancer".
   const allMethods = usePaymentMethods().data ?? NO_METHODS;
   const { clients } = useClientOptions();
-  const projects = useAppStore((s) => s.projects);
+  const { byId: projectsById } = useProjectOptions();
   const business = seedBusiness;
   const online = useAppStore((s) => s.online);
   const markViewed = useAppStore((s) => s.markViewed);
@@ -49,7 +50,7 @@ export function InvoicePortalView({ token }: { token: string }) {
   const inv = active;
   const owner = firstName(business.ownerName);
   const client = clients.find((c) => c.id === inv.clientId);
-  const project = projects.find((p) => p.id === inv.projectId);
+  const project = inv.projectId ? projectsById.get(inv.projectId) : undefined;
   const display = deriveStatus(inv);
   const hero = invoiceHero(inv, display);
   const paid = display === "paid";

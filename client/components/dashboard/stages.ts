@@ -1,5 +1,5 @@
 import { daysBetween } from "@/lib/dates";
-import { unbilledOf } from "@/components/projects/logic";
+import { isOpenProject, unbilledOf, withoutSchedule } from "@/components/projects/logic";
 import type { InvoiceView } from "@/lib/selectors";
 import { CURRENCIES, type Currency, type Project, type TimeEntry } from "@/lib/types";
 import { monthRange } from "./aggregate";
@@ -39,8 +39,9 @@ export function stagesByCurrency(views: InvoiceView[], projects: Project[], time
   const month = monthRange(today);
 
   for (const p of projects) {
-    if (p.status === "completed") continue;
-    const u = unbilledOf(p, time, today);
+    if (!isOpenProject(p)) continue;
+    // The dashboard does not load each project's milestones or retainer periods, so only hourly time counts as unbilled here.
+    const u = unbilledOf(withoutSchedule(p), time, today);
     if (u.amount <= 0) continue;
     const s = get(p.currency).unbilled;
     s.amount += u.amount;

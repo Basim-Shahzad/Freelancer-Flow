@@ -1,9 +1,11 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { QueryBoundary } from "@/components/domain/query-boundary";
+import { StateBlock } from "@/components/domain/state-block";
+import { isOpenProject, withoutSchedule } from "@/components/projects/logic";
 import { Button } from "@/components/ui/button";
 import { Notice } from "@/components/ui/notice";
 import { Page, PageHeader, Split } from "@/components/ui/section";
@@ -12,11 +14,13 @@ import { todayISO } from "@/lib/dates";
 import { useHydrated } from "@/lib/hooks/use-hydrated";
 import { formatInvoiceNumber } from "@/lib/invoice";
 import { useClientOptions } from "@/lib/hooks/clients";
+import { useMilestones } from "@/lib/hooks/milestones";
 import { usePaymentMethods } from "@/lib/hooks/payment-methods";
+import { useProjectOptions, useRetainerPeriods } from "@/lib/hooks/projects";
 import { useAppStore } from "@/lib/store";
-import type { PaymentMethod } from "@/lib/types";
+import type { PaymentMethod, Project, ProjectWithSchedule } from "@/lib/types";
 import {
-  STEPS, buildInput, buildTransientInvoice, defaultMethodIds, initialSelection, itemsForProject, newManualRow, projectNote, readyIds,
+  STEPS, buildInput, buildTransientInvoice, defaultMethodIds, initialSelection, itemsForProject, newManualRow, projectNote,
   validateStep, type FlowState,
 } from "./logic";
 import { StepBar } from "./step-bar";
@@ -34,18 +38,19 @@ interface Props { projectId?: string; period?: string }
 
 export function InvoiceCreateView(props: Props) {
   const hydrated = useHydrated();
-  // The flow seeds its state from the payment methods, so wait for them (a later refetch error must not unmount it).
+  // The flow seeds its state from the payment methods and the projects, so wait for them (a later refetch error must not unmount it).
   const methodsQuery = usePaymentMethods();
-  if (!hydrated) return <PageSkeleton rows={4} />;
+  const projectOptions = useProjectOptions();
+  if (!hydrated || projectOptions.isLoading) return <PageSkeleton rows={4} />;
+  if (projectOptions.isError) return <Page><StateBlock kind="error" body="Couldn’t load your projects." /></Page>;
   if (!methodsQuery.data) {
     return <QueryBoundary query={methodsQuery} isEmpty={() => false} loading={<PageSkeleton rows={4} />}>{() => null}</QueryBoundary>;
   }
-  return <CreateFlow {...props} methods={methodsQuery.data} />;
+  return <CreateFlow {...props} methods={methodsQuery.data} projects={projectOptions.projects} />;
 }
 
-function CreateFlow({ projectId, period, methods }: Props & { methods: PaymentMethod[] }) {
+function CreateFlow({ projectId, period, methods, projects }: Props & { methods: PaymentMethod[]; projects: Project[] }) {
   const router = useRouter();
-  const projects = useAppStore((s) => s.projects);
   const { clients } = useClientOptions();
   const time = useAppStore((s) => s.time);
   const invoices = useAppStore((s) => s.invoices);
@@ -59,9 +64,9 @@ function CreateFlow({ projectId, period, methods }: Props & { methods: PaymentMe
   const [state, setState] = useState<FlowState>(() => {
     const p = projects.find((x) => x.id === projectId);
     const c = clients.find((x) => x.id === p?.clientId);
-    const items = p ? itemsForProject(p, time, invoices) : [];
+    // The selection is seeded below, once the project's milestones / retainer periods have loaded.
     return {
-      projectId: p?.id ?? "", selected: initialSelection(items, period, p), manual: [newManualRow()], tax: "0", discount: "0",
+      projectId: p?.id ?? "", selected: [], manual: [newManualRow()], tax: "0", discount: "0",
       termsDays: c?.termsDays ?? business.defaultTermsDays, methodIds: defaultMethodIds(methods),
     };
   });
@@ -71,13 +76,35 @@ function CreateFlow({ projectId, period, methods }: Props & { methods: PaymentMe
 
   const project = projects.find((p) => p.id === state.projectId);
   const client = clients.find((c) => c.id === project?.clientId);
-  const items = useMemo(() => (project ? itemsForProject(project, time, invoices) : []), [project, time, invoices]);
+
+  // Only the chosen project's milestones / retainer periods are fetched; the others are summarised without them.
+  const milestonesQuery = useMilestones(project?.id, project?.currency ?? "USD", !!project?.milestonesEnabled);
+  const periodsQuery = useRetainerPeriods(project);
+  const scheduleLoading = !!project && ((project.milestonesEnabled && milestonesQuery.isPending) || (project.billingType === "retainer" && periodsQuery.isPending));
+  const scheduleFailed = !!project && ((project.milestonesEnabled && milestonesQuery.isError) || (project.billingType === "retainer" && periodsQuery.isError));
+  const scheduled = useMemo<ProjectWithSchedule | undefined>(
+    () => (project ? { ...project, milestones: milestonesQuery.data ?? [], retainerPeriods: periodsQuery.data ?? [] } : undefined),
+    [project, milestonesQuery.data, periodsQuery.data],
+  );
+  const items = useMemo(() => (scheduled ? itemsForProject(scheduled, time, invoices) : []), [scheduled, time, invoices]);
+
+  const seededFor = useRef<string | null>(null);
+  useEffect(() => {
+    if (!scheduled || scheduleLoading || seededFor.current === scheduled.id) return;
+    seededFor.current = scheduled.id;
+    setState((s) => ({ ...s, selected: initialSelection(items, period, scheduled) }));
+  }, [scheduled, scheduleLoading, items, period]);
   const orderedMethodIds = useMemo(() => enabledMethods.filter((m) => state.methodIds.includes(m.id)).map((m) => m.id), [enabledMethods, state.methodIds]);
   const chosenMethods = useMemo(() => enabledMethods.filter((m) => orderedMethodIds.includes(m.id)), [enabledMethods, orderedMethodIds]);
   const number = formatInvoiceNumber(business.invoicePrefix, business.nextInvoiceNumber);
 
   const choices = useMemo(
-    () => projects.filter((p) => p.status !== "completed" || p.id === state.projectId).map((p) => ({ project: p, client: clients.find((c) => c.id === p.clientId), note: projectNote(p, itemsForProject(p, time, invoices)) })),
+    () => projects.filter((p) => isOpenProject(p) || p.id === state.projectId).map((p) => ({
+      project: p,
+      client: clients.find((c) => c.id === p.clientId),
+      // Milestones and retainer periods load per project, so those are only summarised once the project is chosen.
+      note: p.milestonesEnabled || p.billingType === "retainer" ? "choose it to see what is ready" : projectNote(p, itemsForProject(withoutSchedule(p), time, invoices)),
+    })),
     [projects, clients, time, invoices, state.projectId],
   );
 
@@ -92,8 +119,8 @@ function CreateFlow({ projectId, period, methods }: Props & { methods: PaymentMe
   const chooseProject = (id: string) => {
     const p = projects.find((x) => x.id === id);
     const c = clients.find((x) => x.id === p?.clientId);
-    const its = p ? itemsForProject(p, time, invoices) : [];
-    setState((s) => ({ ...s, projectId: id, selected: readyIds(its), termsDays: c?.termsDays ?? s.termsDays, methodIds: defaultMethodIds(methods) }));
+    seededFor.current = null; // the effect above picks the new project's ready items once its schedule is in
+    setState((s) => ({ ...s, projectId: id, selected: [], termsDays: c?.termsDays ?? s.termsDays, methodIds: defaultMethodIds(methods) }));
     setError(null);
   };
   const toggle = (key: "selected" | "methodIds", id: string) => patch({ [key]: state[key].includes(id) ? state[key].filter((x) => x !== id) : [...state[key], id] });
@@ -143,7 +170,14 @@ function CreateFlow({ projectId, period, methods }: Props & { methods: PaymentMe
               {error && <p role="alert" className="text-sm text-error-ink">{error}</p>}
             </>
           )}
-          {step === 2 && project && (
+          {step === 2 && project && scheduleLoading && <div role="status" aria-label="Loading what is ready to invoice"><PageSkeleton rows={2} /></div>}
+          {step === 2 && project && scheduleFailed && (
+            <Notice tone="error" role="alert">
+              Couldn’t load this project’s milestones or retainer periods, so what is ready to invoice may be incomplete.{" "}
+              <button type="button" className="font-medium underline underline-offset-[3px]" onClick={() => { void milestonesQuery.refetch(); void periodsQuery.refetch(); }}>Try again</button>
+            </Notice>
+          )}
+          {step === 2 && project && !scheduleLoading && (
             <>
               <StepItems project={project} items={items} selected={state.selected} manual={state.manual} error={error} onToggle={(id) => toggle("selected", id)} onManual={(manual) => patch({ manual })} />
               {error && <p role="alert" className="flex items-center gap-1 text-sm text-error-ink">{error}</p>}

@@ -1,11 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { seedActivity, seedBusiness, seedInvoices, seedProjects, seedTime } from "@/lib/seed";
+import { seedActivity, seedBusiness, seedInvoices, seedTime } from "@/lib/seed";
 import { methodFixtures } from "@/lib/test/payment-methods";
+import { testProjects } from "@/lib/test/projects";
 import { testClients } from "@/lib/test/clients";
 import type { DataExport } from "@/lib/types";
 import { buildExportJson, csvCell, exportFileName, exportPhase, formatBytes, invoicesToCsv, isExpired } from "./export-builder";
 
-const src = { business: seedBusiness, clients: testClients, projects: seedProjects, time: seedTime, invoices: seedInvoices, methods: methodFixtures(), activity: seedActivity };
+const src = { business: seedBusiness, clients: testClients, projects: testProjects, time: seedTime, invoices: seedInvoices, methods: methodFixtures(), activity: seedActivity };
 const NOW = new Date("2026-10-05T12:00:00Z");
 
 describe("buildExportJson", () => {
@@ -43,7 +44,7 @@ describe("csv", () => {
     expect(csvCell("-2+3")).toBe("'-2+3");
   });
   it("writes a header and one row per invoice with decimal amounts", () => {
-    const csv = invoicesToCsv(seedInvoices, testClients, seedProjects, "2026-10-05");
+    const csv = invoicesToCsv(seedInvoices, testClients, testProjects, "2026-10-05");
     const lines = csv.replace("﻿", "").trim().split("\r\n");
     expect(lines[0]).toMatch(/^Number,Client,Project/);
     expect(lines).toHaveLength(seedInvoices.length + 1);

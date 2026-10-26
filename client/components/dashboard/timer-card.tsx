@@ -12,6 +12,7 @@ import { isoDate, parse } from "@/lib/dates";
 import { formatClock, useElapsed } from "@/lib/hooks/use-elapsed";
 import { formatDuration, formatHours, formatMoney } from "@/lib/money";
 import { useClientOptions } from "@/lib/hooks/clients";
+import { useProjectOptions } from "@/lib/hooks/projects";
 import { useAppStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
 import { bucketDayStrip, entrySegments, liveSegment } from "./day-strip";
@@ -19,7 +20,7 @@ import { bucketDayStrip, entrySegments, liveSegment } from "./day-strip";
 /** "Today" card: running timer (start / stop / edit via the store), day strip, and week stats. */
 export function TodayCard({ today, unbilledMinutes, className }: { today: string; unbilledMinutes: number; className?: string }) {
   const timer = useAppStore((s) => s.timer);
-  const projects = useAppStore((s) => s.projects);
+  const { projects } = useProjectOptions();
   const { clients } = useClientOptions();
   const time = useAppStore((s) => s.time);
   const stop = useAppStore((s) => s.stopTimer);

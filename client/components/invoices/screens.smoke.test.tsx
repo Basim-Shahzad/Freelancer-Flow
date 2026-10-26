@@ -9,6 +9,7 @@ import { clientKeys } from "@/lib/hooks/clients";
 import { createTestQueryClient, mockApi, profileFixture, renderWithProviders } from "@/lib/test";
 import { testClientItems } from "@/lib/test/clients";
 import { paymentMethodResponses } from "@/lib/test/payment-methods";
+import { testProjectResponses, testProjects } from "@/lib/test/projects";
 
 const push = vi.fn();
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push, replace: vi.fn() }), usePathname: () => "/" }));
@@ -20,6 +21,8 @@ beforeEach(() => {
   m.mock.onGet("/profile").reply(200, profileFixture());
   m.mock.onGet("/clients").reply(200, { clients: testClientItems, total: testClientItems.length });
   m.mock.onGet("/payment-methods").reply(200, { paymentMethods: paymentMethodResponses() });
+  m.mock.onGet("/projects").reply(200, { projects: testProjectResponses(), total: testProjects.length });
+  m.mock.onGet(/\/projects\/[^/]+\/milestones\/$/).reply(200, { milestones: [], total: 0 });
   vi.stubGlobal("ResizeObserver", class { observe() {} unobserve() {} disconnect() {} });
   useAppStore.getState().resetDemo();
   push.mockClear();

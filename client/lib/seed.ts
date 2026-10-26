@@ -1,6 +1,6 @@
 import { daysFromToday as d } from "./dates";
 import type {
-  ActivityEntry, BusinessLocal, BusinessProfile, DataExport, Invoice, Project, TimeEntry,
+  ActivityEntry, BusinessLocal, BusinessProfile, DataExport, Invoice, PortalProject, TimeEntry,
 } from "./types";
 
 /**
@@ -21,7 +21,8 @@ export const seedBusinessLocal: BusinessLocal = {
   phone: seedBusiness.phone, footerNote: seedBusiness.footerNote, invoicePrefix: seedBusiness.invoicePrefix, nextInvoiceNumber: seedBusiness.nextInvoiceNumber,
 };
 
-export const seedProjects: Project[] = [
+/** Projects for the token-based client portal (`/p/[token]`); the authenticated app reads projects from the API. */
+export const seedPortalProjects: PortalProject[] = [
   {
     id: "p-harbor", clientId: "c-harbor", name: "Mobile app", billingType: "hourly", currency: "USD", status: "active",
     startDate: d(-110), hourlyRate: 4500, progress: 60, milestones: [], retainerPeriods: [], shareToken: "harbor-mobile-7Kq2", notes: "Checkout, onboarding and settings.",

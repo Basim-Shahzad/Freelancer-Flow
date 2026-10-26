@@ -18,6 +18,7 @@ import { fmtDate } from "@/lib/dates";
 import { useHydrated } from "@/lib/hooks/use-hydrated";
 import { toInvoiceView, type InvoiceView } from "@/lib/selectors";
 import { useClientOptions } from "@/lib/hooks/clients";
+import { useProjectOptions } from "@/lib/hooks/projects";
 import { useAppStore } from "@/lib/store";
 import { byNumberDesc, countLine, filterInvoices, type StatusFilter } from "./list-logic";
 import { Label } from "@/components/ui/label";
@@ -34,7 +35,7 @@ export function InvoicesView() {
 function InvoicesScreen() {
   const invoices = useAppStore((s) => s.invoices);
   const { clients } = useClientOptions();
-  const projects = useAppStore((s) => s.projects);
+  const { projects } = useProjectOptions();
   const online = useAppStore((s) => s.online);
   const [q, setQ] = useState("");
   const [clientId, setClientId] = useState("all");

@@ -6,11 +6,11 @@ import { daysFromToday, isoDate, localHHMM, nowISO, todayISO } from "../dates";
 import { calcTotals, deriveStatus, formatInvoiceNumber } from "../invoice";
 import { formatMoney } from "../money";
 import {
-  seedActivity, seedBusinessLocal, seedExports, seedInvoices, seedProjects, seedTime,
+  seedActivity, seedBusinessLocal, seedExports, seedInvoices, seedPortalProjects, seedTime,
 } from "../seed";
 import type {
   ActivityEntry, ActivityType, BusinessLocal, DataExport, Invoice, InvoiceEvent, InvoiceEventType,
-  InvoiceLine, Payment, Project, TimeEntry, TimerState,
+  InvoiceLine, Payment, PortalProject, TimeEntry, TimerState,
 } from "../types";
 
 export const uid = (prefix: string) =>
@@ -30,9 +30,6 @@ export interface NewInvoiceInput {
   note?: string;
   /** Time entry ids to mark invoiced. */
   timeEntryIds?: string[];
-  /** Milestone / retainer references to mark invoiced. */
-  milestoneIds?: string[];
-  retainerPeriodIds?: string[];
   asDraft?: boolean;
 }
 
@@ -42,7 +39,8 @@ interface State {
   online: boolean;
   /** Business fields the profile API does not store yet; the rest lives in react-query (see `useBusiness`). */
   businessLocal: BusinessLocal;
-  projects: Project[];
+  /** Mock projects for the account-less client portal only (`/p/[token]`), until step 13. */
+  portalProjects: PortalProject[];
   time: TimeEntry[];
   invoices: Invoice[];
   activity: ActivityEntry[];
@@ -57,9 +55,6 @@ interface Actions {
 
   updateBusinessLocal(patch: Partial<BusinessLocal>): void;
 
-  addProject(p: Omit<Project, "id" | "shareToken">): Project;
-  updateProject(id: string, patch: Partial<Project>): void;
-  deleteProject(id: string): void;
   /** Client portal actions (called from the no-login share link). */
   approveMilestone(projectId: string, milestoneId: string): void;
   requestMilestoneChanges(projectId: string, milestoneId: string, comment: string): void;
@@ -97,7 +92,7 @@ const initial = (): State => ({
   hydrated: false,
   online: true,
   businessLocal: seedBusinessLocal,
-  projects: seedProjects,
+  portalProjects: seedPortalProjects,
   time: seedTime,
   invoices: seedInvoices,
   activity: seedActivity,
@@ -125,26 +120,14 @@ export const useAppStore = create<AppStore>()(
 
         updateBusinessLocal: (patch) => set((s) => ({ businessLocal: { ...s.businessLocal, ...patch } })),
 
-        addProject: (p) => {
-          const project: Project = { ...p, id: uid("p"), shareToken: `${p.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 16)}-${token().slice(0, 4)}` };
-          set((s) => ({ projects: [project, ...s.projects] }));
-          log("project", "Project created", project.name, project.billingType);
-          return project;
-        },
-        updateProject: (id, patch) => { set((s) => ({ projects: s.projects.map((p) => (p.id === id ? { ...p, ...patch } : p)) })); log("project", "Project updated", get().projects.find((p) => p.id === id)?.name ?? id, Object.keys(patch).join(", ")); },
-        deleteProject: (id) => {
-          const name = get().projects.find((p) => p.id === id)?.name ?? id;
-          set((s) => ({ projects: s.projects.filter((p) => p.id !== id) }));
-          log("project", "Project deleted", name, "");
-        },
         approveMilestone: (projectId, milestoneId) => {
-          set((s) => ({ projects: s.projects.map((p) => p.id !== projectId ? p : { ...p, milestones: p.milestones.map((m) => m.id === milestoneId ? { ...m, status: "approved", approvedAt: nowISO(), comment: undefined } : m) }) }));
-          const p = get().projects.find((x) => x.id === projectId);
+          set((s) => ({ portalProjects: s.portalProjects.map((p) => p.id !== projectId ? p : { ...p, milestones: p.milestones.map((m) => m.id === milestoneId ? { ...m, status: "approved", approvedAt: nowISO(), comment: undefined } : m) }) }));
+          const p = get().portalProjects.find((x) => x.id === projectId);
           log("project", "Milestone approved by client", p?.name ?? projectId, `“${p?.milestones.find((m) => m.id === milestoneId)?.title}” via share link`);
         },
         requestMilestoneChanges: (projectId, milestoneId, comment) => {
-          set((s) => ({ projects: s.projects.map((p) => p.id !== projectId ? p : { ...p, milestones: p.milestones.map((m) => m.id === milestoneId ? { ...m, status: "changes_requested", comment } : m) }) }));
-          const p = get().projects.find((x) => x.id === projectId);
+          set((s) => ({ portalProjects: s.portalProjects.map((p) => p.id !== projectId ? p : { ...p, milestones: p.milestones.map((m) => m.id === milestoneId ? { ...m, status: "changes_requested", comment } : m) }) }));
+          const p = get().portalProjects.find((x) => x.id === projectId);
           log("project", "Changes requested by client", p?.name ?? projectId, comment.slice(0, 80));
         },
 
@@ -186,11 +169,6 @@ export const useAppStore = create<AppStore>()(
             invoices: [inv, ...st.invoices],
             businessLocal: { ...st.businessLocal, nextInvoiceNumber: st.businessLocal.nextInvoiceNumber + 1 },
             time: st.time.map((t) => (input.timeEntryIds?.includes(t.id) ? { ...t, invoiceId: inv.id } : t)),
-            projects: st.projects.map((p) => p.id !== input.projectId ? p : {
-              ...p,
-              milestones: p.milestones.map((m) => (input.milestoneIds?.includes(m.id) ? { ...m, invoiceId: inv.id } : m)),
-              retainerPeriods: p.retainerPeriods.map((r) => (input.retainerPeriodIds?.includes(r.id) ? { ...r, invoiceId: inv.id } : r)),
-            }),
           }));
           log("invoice", input.asDraft ? "Draft created" : "Invoice created", number, formatMoney(calcTotals(inv).total, inv.currency));
           return inv;
@@ -254,16 +232,18 @@ export const useAppStore = create<AppStore>()(
     },
     {
       name: "paylancr-v1",
-      version: 5,
+      version: 6,
       // v1 -> v2 added optional TimeEntry.startTime; old entries simply lack it.
       // v2 -> v3 moved `business` to the API (`useBusiness`) and dropped `session`; the fields the API lacks are kept in `businessLocal`.
       // v3 -> v4 moved `clients` to the API (`useClients`); the stale mock clients (and their ids) are dropped.
       // v4 -> v5 moved `methods` to the API (`usePaymentMethods`); the stale mock methods (and their ids) are dropped.
+      // v5 -> v6 moved `projects` to the API (`useProjects`); only the client-portal mock projects stay, as `portalProjects`.
       migrate: (persisted) => {
-        const { business, session: _session, clients: _clients, methods: _methods, ...rest } = (persisted ?? {}) as Record<string, unknown> & { business?: Partial<BusinessLocal> };
+        const { business, session: _session, clients: _clients, methods: _methods, projects: _projects, ...rest } = (persisted ?? {}) as Record<string, unknown> & { business?: Partial<BusinessLocal> };
         void _session;
         void _clients;
         void _methods;
+        void _projects;
         const businessLocal: BusinessLocal = {
           phone: business?.phone ?? seedBusinessLocal.phone,
           footerNote: business?.footerNote ?? seedBusinessLocal.footerNote,
@@ -275,7 +255,7 @@ export const useAppStore = create<AppStore>()(
       },
       storage: createJSONStorage(() => localStorage),
       skipHydration: true,
-      partialize: ({ businessLocal, projects, time, invoices, activity, exports, timer }) => ({ businessLocal, projects, time, invoices, activity, exports, timer }),
+      partialize: ({ businessLocal, portalProjects, time, invoices, activity, exports, timer }) => ({ businessLocal, portalProjects, time, invoices, activity, exports, timer }),
     },
   ),
 );

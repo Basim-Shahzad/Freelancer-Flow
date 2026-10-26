@@ -15,6 +15,7 @@ import { fmtDay, todayISO } from "@/lib/dates";
 import { useHydrated } from "@/lib/hooks/use-hydrated";
 import { formatDuration } from "@/lib/money";
 import { useClientOptions } from "@/lib/hooks/clients";
+import { useProjectOptions } from "@/lib/hooks/projects";
 import { useAppStore } from "@/lib/store";
 import type { TimeEntry } from "@/lib/types";
 import { BulkBar } from "./bulk-bar";
@@ -41,7 +42,7 @@ export function TimeView() {
 
 function TimeScreen() {
   const time = useAppStore((s) => s.time);
-  const projects = useAppStore((s) => s.projects);
+  const { projects } = useProjectOptions();
   const { clients } = useClientOptions();
   const invoices = useAppStore((s) => s.invoices);
   const timer = useAppStore((s) => s.timer);

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { InvoiceView } from "@/lib/selectors";
-import type { Project, TimeEntry } from "@/lib/types";
+import { milestoneFixture, scheduledProjectFixture } from "@/lib/test/projects";
+import type { ProjectWithSchedule, TimeEntry } from "@/lib/types";
 import {
   billedOf, billingSummary, blendedByCurrency, billedByCurrency, effectiveRate, floorFor, hoursText, matchesRateFilter, MIN_RATE_MINUTES,
   minutesFeeBuys, nextDue, rateRow, rateSentence, relativeDays, sortRateRows, splitByCurrency, verdictOf, type OwnRate, type RateRow,
@@ -8,14 +9,11 @@ import {
 
 const TODAY = "2026-10-05";
 const own: OwnRate = { hourlyRate: 4000, defaultCurrency: "USD" };
-const project = (over: Partial<Project>): Project => ({
-  id: "p", clientId: "c", name: "P", billingType: "fixed", currency: "USD", status: "active", startDate: "2026-08-01",
-  milestones: [], retainerPeriods: [], shareToken: "t", notes: "", fixedAmount: 360000, ...over,
-});
+const project = (over: Partial<ProjectWithSchedule>): ProjectWithSchedule => scheduledProjectFixture({ budget: 360000, ...over });
 const entry = (minutes: number, over: Partial<TimeEntry> = {}): TimeEntry => ({ id: `t${minutes}`, projectId: "p", description: "x", date: "2026-10-01", minutes, billable: true, updatedAt: "", ...over });
 const view = (display: InvoiceView["display"], total: number, balance = total, over: Partial<InvoiceView> = {}): InvoiceView =>
   ({ projectId: "p", number: "INV-1", currency: "USD", dueDate: "2026-10-20", display, totals: { total, balance, paid: total - balance }, ...over } as unknown as InvoiceView);
-const row = (p: Project, time: TimeEntry[] = [], views: InvoiceView[] = [], o: OwnRate = own, unbilledHourly = 0) => rateRow(p, { time, views, today: TODAY, own: o, unbilledHourly });
+const row = (p: ProjectWithSchedule, time: TimeEntry[] = [], views: InvoiceView[] = [], o: OwnRate = own, unbilledHourly = 0) => rateRow(p, { time, views, today: TODAY, own: o, unbilledHourly });
 
 describe("effectiveRate", () => {
   it("is fee divided by hours", () => {
@@ -71,14 +69,14 @@ describe("rateRow", () => {
     expect(r.overMinutes).toBeNull();
   });
   it("uses the contract rate for hourly work and the supplied unbilled amount", () => {
-    const r = row(project({ billingType: "hourly", hourlyRate: 4500, fixedAmount: undefined }), [entry(600)], [], own, 12345);
+    const r = row(project({ billingType: "hourly", hourlyRate: 4500, budget: undefined }), [entry(600)], [], own, 12345);
     expect(r.kind).toBe("hourly");
     expect(r.rate).toBe(4500);
     expect(r.verdict).toBe("above");
     expect(r.notInvoiced).toBe(12345);
   });
   it("sums retainer periods that have started", () => {
-    const p = project({ billingType: "retainer", fixedAmount: undefined, retainerPeriods: [
+    const p = project({ billingType: "retainer", budget: undefined, retainerPeriods: [
       { id: "a", label: "Sep", start: "2026-09-01", end: "2026-09-30", amount: 100000 },
       { id: "b", label: "Oct", start: "2026-10-01", end: "2026-10-31", amount: 100000 },
       { id: "c", label: "Nov", start: "2026-11-01", end: "2026-11-30", amount: 100000 },
@@ -94,7 +92,7 @@ describe("rateRow", () => {
     expect(r.sortRate).toBeNull();
   });
   it("orders by a converted rate for foreign-currency projects", () => {
-    const r = row(project({ currency: "PKR", fixedAmount: 18000000 }), [entry(10 * 60)]);
+    const r = row(project({ currency: "PKR", budget: 18000000 }), [entry(10 * 60)]);
     expect(r.rate).toBe(1800000);
     expect(r.floor?.estimated).toBe(true);
     expect(r.sortRate).toBe(6461);
@@ -107,8 +105,8 @@ describe("billedOf and nextDue", () => {
   });
   it("picks the earliest dated item and skips completed projects", () => {
     const p = project({ billingType: "milestone", milestones: [
-      { id: "1", title: "A", description: "", amount: 1, dueDate: "2026-09-01", status: "approved" },
-      { id: "2", title: "B", description: "", amount: 1, dueDate: "2026-10-30", status: "upcoming" },
+      milestoneFixture({ id: "1", title: "A", amount: 1, dueDate: "2026-09-01", status: "approved" }),
+      milestoneFixture({ id: "2", title: "B", amount: 1, dueDate: "2026-10-30", status: "pending" }),
     ] });
     expect(nextDue(p, [view("unpaid", 1)], TODAY)).toEqual({ date: "2026-10-20", label: "INV-1" });
     expect(nextDue(p, [], TODAY)?.label).toBe("“B”");
@@ -118,9 +116,9 @@ describe("billedOf and nextDue", () => {
 });
 
 describe("sorting and filtering", () => {
-  const a = row(project({ id: "a", name: "A", startDate: "2026-01-01" }), [entry(60, { projectId: "a" })], [view("unpaid", 1, 1, { projectId: "a", dueDate: "2026-10-30" })]);
-  const b = row(project({ id: "b", name: "B", startDate: "2026-03-01", fixedAmount: 100000 }), [entry(600, { projectId: "b" })], [view("unpaid", 1, 1, { projectId: "b", dueDate: "2026-10-10" })]);
-  const c = row(project({ id: "c", name: "C", startDate: "2026-02-01", status: "completed" }), []);
+  const a = row(project({ id: "a", name: "A", createdAt: "2026-01-01" }), [entry(60, { projectId: "a" })], [view("unpaid", 1, 1, { projectId: "a", dueDate: "2026-10-30" })]);
+  const b = row(project({ id: "b", name: "B", createdAt: "2026-03-01", budget: 100000 }), [entry(600, { projectId: "b" })], [view("unpaid", 1, 1, { projectId: "b", dueDate: "2026-10-10" })]);
+  const c = row(project({ id: "c", name: "C", createdAt: "2026-02-01", status: "completed" }), []);
   it("worst rate first puts rows without a rate last", () => {
     expect(sortRateRows([a, b, c], "worst").map((r) => r.project.id)).toEqual(["b", "a", "c"]);
   });
@@ -138,10 +136,10 @@ describe("sorting and filtering", () => {
 });
 
 describe("aggregation per currency", () => {
-  const usd = row(project({ id: "u", fixedAmount: 360000 }), [entry(120 * 60, { projectId: "u" })], [view("unpaid", 100000, 100000, { projectId: "u" })]);
-  const usd2 = row(project({ id: "u2", fixedAmount: 120000 }), [entry(20 * 60, { projectId: "u2" })], [view("paid", 50000, 0, { projectId: "u2" })]);
-  const pkr = row(project({ id: "k", currency: "PKR", fixedAmount: 1000000 }), [entry(10 * 60, { projectId: "k" })], [view("unpaid", 700000, 700000, { projectId: "k", currency: "PKR" })]);
-  const done = row(project({ id: "d", status: "completed", fixedAmount: 999999 }), [entry(60, { projectId: "d" })], [view("paid", 999999, 0, { projectId: "d" })]);
+  const usd = row(project({ id: "u", budget: 360000 }), [entry(120 * 60, { projectId: "u" })], [view("unpaid", 100000, 100000, { projectId: "u" })]);
+  const usd2 = row(project({ id: "u2", budget: 120000 }), [entry(20 * 60, { projectId: "u2" })], [view("paid", 50000, 0, { projectId: "u2" })]);
+  const pkr = row(project({ id: "k", currency: "PKR", budget: 1000000 }), [entry(10 * 60, { projectId: "k" })], [view("unpaid", 700000, 700000, { projectId: "k", currency: "PKR" })]);
+  const done = row(project({ id: "d", status: "completed", budget: 999999 }), [entry(60, { projectId: "d" })], [view("paid", 999999, 0, { projectId: "d" })]);
   const rows: RateRow[] = [usd, usd2, pkr, done];
   it("blends fee over hours per currency, open work only", () => {
     expect(blendedByCurrency(rows)).toEqual({ USD: Math.round((480000 * 60) / (140 * 60)), PKR: 100000 });

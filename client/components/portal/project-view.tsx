@@ -15,7 +15,7 @@ import { seedBusiness } from "@/lib/seed"; // portal stays on mock data until st
 
 export function ProjectPortalView({ token }: { token: string }) {
   const hydrated = useHydrated();
-  const project = useAppStore((s) => s.projects.find((p) => p.shareToken === token));
+  const project = useAppStore((s) => s.portalProjects.find((p) => p.shareToken === token));
   const invoices = useAppStore((s) => s.invoices);
   const { clients } = useClientOptions();
   const ownerName = seedBusiness.ownerName;

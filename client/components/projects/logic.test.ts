@@ -78,10 +78,10 @@ describe("unbilled work", () => {
 
 describe("rateLabel", () => {
   it("describes each billing type", () => {
-    expect(rateLabel(project({ billingType: "hourly", hourlyRate: 4500 }))).toBe("$45.00 / h");
+    expect(rateLabel(project({ billingType: "hourly", hourlyRate: 4500 }))).toBe("USD 45.00 / h");
     expect(rateLabel(project({ billingType: "hourly", hourlyRate: undefined }))).toBe("Profile rate");
-    expect(rateLabel(project({ billingType: "retainer", retainerAmount: 130000, retainerInterval: "quarterly" }))).toBe("$1,300.00 / quarter");
-    expect(rateLabel(project({ billingType: "fixed", budget: 360000 }))).toBe("$3,600.00");
+    expect(rateLabel(project({ billingType: "retainer", retainerAmount: 130000, retainerInterval: "quarterly" }))).toBe("USD 1,300.00 / quarter");
+    expect(rateLabel(project({ billingType: "fixed", budget: 360000 }))).toBe("USD 3,600.00");
     expect(rateLabel(project({ billingType: "milestone", budget: undefined }))).toBe("Per milestone");
   });
 });

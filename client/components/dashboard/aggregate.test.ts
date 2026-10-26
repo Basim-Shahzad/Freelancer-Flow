@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { InvoiceView } from "@/lib/selectors";
+import { projectFixture } from "@/lib/test/projects";
 import type { Payment, Project, TimeEntry } from "@/lib/types";
 import { attentionInvoices, cashIn, currencyEntries, estimateTarget, monthRange, outstandingBy, overdueBy, recentPayments, unbilledSummary } from "./aggregate";
 
@@ -68,17 +69,16 @@ describe("attentionInvoices", () => {
 });
 
 describe("unbilledSummary", () => {
-  it("adds hourly time and ready retainer periods per currency, skipping completed projects", () => {
-    const base = { clientId: "c", status: "active" as const, startDate: "2026-01-01", milestones: [], shareToken: "t", notes: "", currency: "USD" as const };
+  it("adds unbilled hourly time per currency, skipping finished projects and projects with nothing unbilled", () => {
     const projects: Project[] = [
-      { ...base, id: "h", name: "H", billingType: "hourly", hourlyRate: 4500, retainerPeriods: [] },
-      { ...base, id: "r", name: "R", billingType: "retainer", retainerAmount: 1000, retainerPeriods: [{ id: "x", label: "Oct", start: "2026-10-01", end: "2026-10-31", amount: 1000 }] },
-      { ...base, id: "d", name: "D", status: "completed", billingType: "hourly", hourlyRate: 100, retainerPeriods: [] },
+      projectFixture({ id: "h", name: "H", billingType: "hourly", hourlyRate: 4500 }),
+      projectFixture({ id: "r", name: "R", billingType: "retainer", retainerAmount: 1000 }),
+      projectFixture({ id: "d", name: "D", status: "completed", billingType: "hourly", hourlyRate: 100 }),
     ];
     const time: TimeEntry[] = [{ id: "t", projectId: "h", description: "", date: "2026-10-01", minutes: 120, billable: true, updatedAt: "" }];
     const s = unbilledSummary(projects, time, TODAY);
-    expect(s.by).toEqual({ USD: 10000 });
-    expect(s).toMatchObject({ minutes: 120, items: 1, projects: 2 });
+    expect(s.by).toEqual({ USD: 9000 });
+    expect(s).toMatchObject({ minutes: 120, items: 0, projects: 1 });
   });
 });
 

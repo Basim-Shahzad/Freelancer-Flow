@@ -2,7 +2,7 @@ import { addDays, fmtDate, isoDate, parse } from "@/lib/dates";
 import { calcTotals, lineAmount } from "@/lib/invoice";
 import { formatHours, formatMoney, parseAmount } from "@/lib/money";
 import { uid, type NewInvoiceInput } from "@/lib/store";
-import type { Client, Invoice, InvoiceLine, PaymentMethod, Project, TimeEntry } from "@/lib/types";
+import type { Client, Invoice, InvoiceLine, PaymentMethod, Project, ProjectWithSchedule, TimeEntry } from "@/lib/types";
 
 /** Pure logic for the 5-step invoice builder: items per billing type, manual lines, validation, totals. */
 
@@ -29,16 +29,25 @@ export function invoicedAmount(project: Project, invoices: Invoice[]): number {
 }
 
 export const fixedRemaining = (project: Project, invoices: Invoice[]): number =>
-  Math.max((project.fixedAmount ?? 0) - invoicedAmount(project, invoices), 0);
+  Math.max((project.budget ?? 0) - invoicedAmount(project, invoices), 0);
 
 const MILESTONE_NOTE: Record<string, string> = {
-  awaiting_approval: "Waiting on client approval · can’t be invoiced yet",
-  upcoming: "Not started · can’t be invoiced yet",
-  changes_requested: "Client asked for changes · can’t be invoiced yet",
+  submitted: "Waiting on client approval · can’t be invoiced yet",
+  pending: "Not started · can’t be invoiced yet",
+  in_progress: "In progress · can’t be invoiced yet",
+  rejected: "Client asked for changes · can’t be invoiced yet",
 };
 
-/** Everything that could go on an invoice for this project, by billing type. */
-export function itemsForProject(project: Project, time: TimeEntry[], invoices: Invoice[]): ReadyItem[] {
+/** Ids of milestones / retainer periods that a live invoice line already points at. */
+const invoicedRefs = (invoices: Invoice[]): Set<string> =>
+  new Set(invoices.filter((i) => i.status !== "void").flatMap((i) => i.lines.map((l) => l.source?.refId).filter((x): x is string => !!x)));
+
+/**
+ * Everything that could go on an invoice for this project, by billing type. The milestone API has no `invoiceId`,
+ * so a milestone counts as invoiced when a live invoice line references it (retainer periods also carry `invoiceId`).
+ */
+export function itemsForProject(project: ProjectWithSchedule, time: TimeEntry[], invoices: Invoice[]): ReadyItem[] {
+  const refs = invoicedRefs(invoices);
   switch (project.billingType) {
     case "hourly": {
       const rate = project.hourlyRate ?? 0;
@@ -56,21 +65,25 @@ export function itemsForProject(project: Project, time: TimeEntry[], invoices: I
         });
     }
     case "retainer":
-      return project.retainerPeriods.filter((r) => !r.invoiceId).map((r) => ({
+      return project.retainerPeriods.filter((r) => !r.invoiceId && !refs.has(r.id)).map((r) => ({
         id: r.id, kind: "retainer" as const,
         title: `Retainer · ${r.label}`,
-        sub: `${fmtDate(r.start)} – ${fmtDate(r.end)}${project.retainerHours ? ` · ${project.retainerHours} h included` : ""}`,
+        sub: `${fmtDate(r.start)} – ${fmtDate(r.end)}`,
         amount: r.amount,
         line: { description: `Retainer · ${r.label}`, qty: 1, rate: r.amount, source: { type: "retainer" as const, refId: r.id } },
       }));
     case "milestone":
-      return project.milestones.filter((m) => !m.invoiceId).map((m) => ({
-        id: m.id, kind: "milestone" as const,
-        title: m.title,
-        sub: m.status === "approved" ? `Approved${m.approvedAt ? ` ${fmtDate(m.approvedAt)}` : ""}` : (MILESTONE_NOTE[m.status] ?? "Not ready"),
-        amount: m.amount, disabled: m.status !== "approved",
-        line: { description: `${m.title} milestone`, qty: 1, rate: m.amount, source: { type: "milestone" as const, refId: m.id } },
-      }));
+      return project.milestones.filter((m) => !refs.has(m.id)).map((m) => {
+        const amount = m.amount ?? 0;
+        const noAmount = m.status === "approved" && amount <= 0;
+        return {
+          id: m.id, kind: "milestone" as const,
+          title: m.title,
+          sub: noAmount ? "Approved · no amount set, so there is nothing to invoice" : m.status === "approved" ? `Approved${m.approvedAt ? ` ${fmtDate(m.approvedAt.slice(0, 10))}` : ""}` : (MILESTONE_NOTE[m.status] ?? "Not ready"),
+          amount, disabled: m.status !== "approved" || noAmount,
+          line: { description: `${m.title} milestone`, qty: 1, rate: amount, source: { type: "milestone" as const, refId: m.id } },
+        };
+      });
     case "fixed": {
       const remaining = fixedRemaining(project, invoices);
       if (remaining <= 0) return [];
@@ -78,7 +91,7 @@ export function itemsForProject(project: Project, time: TimeEntry[], invoices: I
       return [{
         id: FIXED_BALANCE_ID, kind: "fixed" as const,
         title: already > 0 ? "Remaining balance" : "Full price",
-        sub: `Fixed price ${formatMoney(project.fixedAmount ?? 0, project.currency)}${already > 0 ? ` · ${formatMoney(already, project.currency)} already invoiced` : ""}`,
+        sub: `Fixed price ${formatMoney(project.budget ?? 0, project.currency)}${already > 0 ? ` · ${formatMoney(already, project.currency)} already invoiced` : ""}`,
         amount: remaining,
         line: { description: `${project.name} · ${already > 0 ? "remaining balance" : "fixed price"}`, qty: 1, rate: remaining, source: { type: "manual" as const } },
       }];
@@ -103,7 +116,7 @@ export function projectNote(project: Project, items: ReadyItem[]): string {
 }
 
 /** Which selection to start with: everything ready, or only the item named by ?period=. */
-export function initialSelection(items: ReadyItem[], period?: string, project?: Project): string[] {
+export function initialSelection(items: ReadyItem[], period?: string, project?: ProjectWithSchedule): string[] {
   if (period) {
     const byId = items.find((i) => !i.disabled && i.id === period);
     const byLabel = project?.retainerPeriods.find((r) => r.id === period || r.label.toLowerCase() === period.toLowerCase());
@@ -222,8 +235,6 @@ export function buildInput(state: FlowState, project: Project, client: Client, i
     taxPercent: parsePercent(state.tax) ?? 0, discount: parseDiscount(state.discount) ?? 0,
     paymentMethodIds: state.methodIds,
     timeEntryIds: chosen.filter((i) => i.kind === "time").map((i) => i.id),
-    milestoneIds: chosen.filter((i) => i.kind === "milestone").map((i) => i.id),
-    retainerPeriodIds: chosen.filter((i) => i.kind === "retainer").map((i) => i.id),
     asDraft,
   };
 }

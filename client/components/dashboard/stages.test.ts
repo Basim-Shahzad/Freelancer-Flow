@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { InvoiceView } from "@/lib/selectors";
+import { projectFixture } from "@/lib/test/projects";
 import type { Payment, Project, TimeEntry } from "@/lib/types";
 import { activeCurrencies, sentToPaidDays, stagesByCurrency } from "./stages";
 import { bucketDayStrip, entrySegments, liveSegment, SLOT_COUNT } from "./day-strip";
@@ -10,7 +11,7 @@ const bal = (n: number) => ({ balance: n, total: n, paid: 0, subtotal: n, discou
 const inv = (over: Partial<InvoiceView> & { display: InvoiceView["display"] }, n = 100): InvoiceView =>
   ({ id: "i", number: "INV-1", currency: "USD", issueDate: "2026-09-01", dueDate: "2026-10-20", payments: [], totals: bal(n), ...over } as unknown as InvoiceView);
 const hourly = (id: string, currency: "USD" | "PKR", rate: number): Project =>
-  ({ id, clientId: "c", name: id, billingType: "hourly", currency, status: "active", hourlyRate: rate, milestones: [], retainerPeriods: [] } as unknown as Project);
+  projectFixture({ id, name: id, billingType: "hourly", currency, hourlyRate: rate });
 const te = (projectId: string, minutes: number, extra: Partial<TimeEntry> = {}): TimeEntry =>
   ({ id: projectId + minutes, projectId, description: "", date: TODAY, minutes, billable: true, updatedAt: "", ...extra });
 

@@ -10,7 +10,7 @@ import { Notice } from "@/components/ui/notice";
 import { Tag } from "@/components/ui/tag";
 import { formatMoney } from "@/lib/money";
 import { useAppStore } from "@/lib/store";
-import type { Milestone, Project } from "@/lib/types";
+import type { PortalMilestone as Milestone, PortalProject as Project } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { MILESTONE_STATE_LABEL, milestoneSub } from "./portal-logic";
 

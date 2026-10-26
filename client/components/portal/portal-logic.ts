@@ -2,7 +2,9 @@ import type { Stage } from "@/components/domain/stage-thread";
 import { daysBetween, fmtDate, todayISO } from "@/lib/dates";
 import { daysOverdue, deriveStatus, isLive, calcTotals } from "@/lib/invoice";
 import { formatMoney } from "@/lib/money";
-import type { Invoice, InvoiceStatus, Milestone, MilestoneStatus, PaymentMethod, PaymentMethodKind, Project } from "@/lib/types";
+import type {
+  Invoice, InvoiceStatus, PaymentMethod, PaymentMethodKind, PortalMilestone as Milestone, PortalMilestoneStatus as MilestoneStatus, PortalProject as Project,
+} from "@/lib/types";
 
 export const firstName = (full: string | undefined, fallback = "the freelancer") => full?.trim().split(/\s+/)[0] || fallback;
 

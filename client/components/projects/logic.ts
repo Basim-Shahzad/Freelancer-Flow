@@ -23,6 +23,9 @@ export const INTERVAL_LABEL: Record<RetainerInterval, string> = { monthly: "mont
 
 const STAGE_ORDER: Stage[] = ["work", "approval", "invoice", "instructions", "paid"];
 
+/** Draft, active and paused projects are open; completed, archived and cancelled ones are finished. */
+export const isOpenProject = (p: Pick<Project, "status">) => p.status === "draft" || p.status === "active" || p.status === "paused";
+
 /** A project that has no milestones or periods loaded (list screens, screens not yet migrated). */
 export const withoutSchedule = (p: Project): ProjectWithSchedule => ({ ...p, milestones: [], retainerPeriods: [] });
 

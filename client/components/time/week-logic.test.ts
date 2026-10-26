@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { projectFixture } from "@/lib/test/projects";
 import type { Invoice, Project, TimeEntry } from "@/lib/types";
 import {
   amountFor, axisTicks, blockGeometry, bucketWeek, classifyAll, classifyEntry, heatBackground, heatLevel, heatWeeks, hourRange, isWeekend,
@@ -6,9 +7,7 @@ import {
 } from "./week-logic";
 
 const entry = (o: Partial<TimeEntry> & { id: string }): TimeEntry => ({ description: "x", date: "2026-10-05", minutes: 60, billable: true, projectId: "h", updatedAt: "2026-10-05T10:00:00.000Z", ...o });
-const project = (o: Partial<Project> & { id: string }): Project => ({
-  clientId: "c", name: o.id, billingType: "hourly", currency: "USD", status: "active", startDate: "2026-01-01", hourlyRate: 6000, milestones: [], retainerPeriods: [], shareToken: "t", notes: "", ...o,
-});
+const project = (o: Partial<Project> & { id: string }): Project => projectFixture({ name: o.id, billingType: "hourly", hourlyRate: 6000, budget: undefined, ...o });
 const invoice = (o: Partial<Invoice>): Invoice => ({
   id: "i", number: "INV-1", clientId: "c", currency: "USD", status: "unpaid", issueDate: "2026-09-01", dueDate: "2026-12-31",
   lines: [{ id: "l", description: "d", qty: 1, rate: 10000 }], taxPercent: 0, discount: 0, paymentMethodIds: [], note: "", shareToken: "t", payments: [], events: [], ...o,

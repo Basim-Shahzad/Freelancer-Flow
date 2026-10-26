@@ -8,6 +8,7 @@ import { SelectField } from "@/components/ui/select";
 import { formatClock, useElapsed } from "@/lib/hooks/use-elapsed";
 import { formatDuration } from "@/lib/money";
 import { useClientOptions } from "@/lib/hooks/clients";
+import { useProjectOptions } from "@/lib/hooks/projects";
 import { useAppStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
 import { Label } from "@/components/ui/label";
@@ -15,14 +16,14 @@ import { Label } from "@/components/ui/label";
 /** Global timer in the top bar. Persists across reloads; Stop saves a billable time entry. */
 export function GlobalTimer({ className, compact }: { className?: string; compact?: boolean }) {
   const timer = useAppStore((s) => s.timer);
-  const projects = useAppStore((s) => s.projects);
+  const { projects } = useProjectOptions();
   const { clients } = useClientOptions();
   const start = useAppStore((s) => s.startTimer);
   const stop = useAppStore((s) => s.stopTimer);
   const update = useAppStore((s) => s.updateTimer);
   const elapsed = useElapsed(timer.startedAt, timer.running);
 
-  const active = projects.filter((p) => p.status !== "completed");
+  const active = projects.filter((p) => p.status === "active" || p.status === "draft" || p.status === "paused");
   const label = (id: string) => { const p = projects.find((x) => x.id === id); return p ? `${clients.find((c) => c.id === p.clientId)?.name ?? ""} · ${p.name}` : ""; };
 
   const toggle = () => {

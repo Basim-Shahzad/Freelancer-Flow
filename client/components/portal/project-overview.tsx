@@ -6,13 +6,13 @@ import { Tag } from "@/components/ui/tag";
 import { fmtDate } from "@/lib/dates";
 import { calcTotals, deriveStatus } from "@/lib/invoice";
 import { formatMoney } from "@/lib/money";
-import type { Invoice, Project } from "@/lib/types";
+import type { Invoice, PortalProject } from "@/lib/types";
 import type { MilestoneStats } from "./portal-logic";
 
 const BILLING_LABEL = { fixed: "Fixed price", hourly: "Hourly", retainer: "Monthly retainer", milestone: "Milestones" } as const;
 const STATUS_LABEL = { active: "In progress", paused: "Paused", completed: "Completed" } as const;
 
-export function MilestoneProgress({ stats, currency }: { stats: MilestoneStats; currency: Project["currency"] }) {
+export function MilestoneProgress({ stats, currency }: { stats: MilestoneStats; currency: PortalProject["currency"] }) {
   return (
     <Section title="Progress" id="pp-prog" action={<span className="num text-sm text-muted-foreground">{stats.doneCount} of {stats.count} approved</span>}>
       <div className="flex flex-col gap-2">
@@ -24,7 +24,7 @@ export function MilestoneProgress({ stats, currency }: { stats: MilestoneStats; 
 }
 
 /** Overview for fixed / hourly / retainer projects (no milestones). */
-export function SimpleOverview({ project, invoices }: { project: Project; invoices: Invoice[] }) {
+export function SimpleOverview({ project, invoices }: { project: PortalProject; invoices: Invoice[] }) {
   const billing =
     project.billingType === "fixed" && project.fixedAmount != null ? `Fixed price · ${formatMoney(project.fixedAmount, project.currency)}`
     : project.billingType === "hourly" && project.hourlyRate != null ? `Hourly · ${formatMoney(project.hourlyRate, project.currency)} per hour`

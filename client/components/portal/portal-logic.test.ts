@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { seedInvoices, seedProjects } from "@/lib/seed";
-import type { Invoice, Project } from "@/lib/types";
+import { seedInvoices, seedPortalProjects } from "@/lib/seed";
+import type { Invoice, PortalProject } from "@/lib/types";
 import { deriveProjectStage, dueLine, firstName, invoiceCaption, invoiceHero, methodsForInvoice, milestoneStats, projectCaption, projectInvoices, safeHttpUrl } from "./portal-logic";
 import { methodFixtures } from "@/lib/test/payment-methods";
 
 const proj = (id: string) => {
-  const p = seedProjects.find((x) => x.id === id);
+  const p = seedPortalProjects.find((x) => x.id === id);
   if (!p) throw new Error(id);
   return p;
 };
@@ -14,7 +14,7 @@ const inv = (number: string) => {
   if (!i) throw new Error(number);
   return i;
 };
-const withMs = (p: Project, statuses: Project["milestones"][number]["status"][]): Project => ({ ...p, milestones: p.milestones.map((m, i) => ({ ...m, status: statuses[i] ?? m.status })) });
+const withMs = (p: PortalProject, statuses: PortalProject["milestones"][number]["status"][]): PortalProject => ({ ...p, milestones: p.milestones.map((m, i) => ({ ...m, status: statuses[i] ?? m.status })) });
 
 describe("milestoneStats", () => {
   it("computes the approved share of total value", () => {

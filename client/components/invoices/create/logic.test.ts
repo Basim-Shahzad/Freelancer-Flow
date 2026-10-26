@@ -1,19 +1,21 @@
 import { describe, expect, it } from "vitest";
 import { calcTotals } from "@/lib/invoice";
-import { seedInvoices, seedProjects, seedTime } from "@/lib/seed";
+import { seedInvoices, seedTime } from "@/lib/seed";
 import { methodFixtures } from "@/lib/test/payment-methods";
 import { testClients } from "@/lib/test/clients";
-import type { Project } from "@/lib/types";
+import { milestoneFixture, testProjects } from "@/lib/test/projects";
+import type { ProjectWithSchedule, RetainerPeriod } from "@/lib/types";
 import {
   buildInput, buildTransientInvoice, defaultMethodIds, dueDateFor, fixedRemaining, initialSelection, itemsForProject, manualLines, manualRowError,
   parseDiscount, parsePercent, readyIds, termsOptions, validateStep, type FlowState,
 } from "./logic";
 
-const proj = (id: string): Project => {
-  const p = seedProjects.find((x) => x.id === id);
+const proj = (id: string, schedule: Partial<Pick<ProjectWithSchedule, "milestones" | "retainerPeriods">> = {}): ProjectWithSchedule => {
+  const p = testProjects.find((x) => x.id === id);
   if (!p) throw new Error(id);
-  return p;
+  return { ...p, milestones: [], retainerPeriods: [], ...schedule };
 };
+const period = (month: string, over: Partial<RetainerPeriod> = {}): RetainerPeriod => ({ id: `${month}-01`, label: month, start: `${month}-01`, end: `${month}-28`, amount: 130000, ...over });
 const baseState = (over: Partial<FlowState> = {}): FlowState => ({ projectId: "p-harbor", selected: [], manual: [], tax: "0", discount: "0", termsDays: 14, methodIds: ["pm-payoneer"], ...over });
 
 describe("itemsForProject", () => {
@@ -26,18 +28,31 @@ describe("itemsForProject", () => {
     expect(t7?.line.rate).toBe(4500);
     expect(t7?.amount).toBe(33750);
   });
-  it("retainer: only unbilled periods", () => {
-    const p: Project = { ...proj("p-alnoor"), retainerPeriods: [...proj("p-alnoor").retainerPeriods, { id: "rp-nov", label: "Nov 2026", start: "2026-11-01", end: "2026-11-30", amount: 130000 }] };
-    expect(itemsForProject(p, [], seedInvoices).map((i) => i.id)).toEqual(["rp-nov"]);
+  it("retainer: only unbilled periods (by the API's invoiceId or a live invoice line)", () => {
+    const p = proj("p-alnoor", { retainerPeriods: [
+      period("2026-08", { id: "rp-aug" }), period("2026-09", { id: "rp-sep" }), // referenced by invoice lines
+      period("2026-10", { invoiceId: "inv-api" }), // invoiced according to the API
+      period("2026-11"),
+    ] });
+    expect(itemsForProject(p, [], seedInvoices).map((i) => i.id)).toEqual(["2026-11-01"]);
     expect(itemsForProject(proj("p-alnoor"), [], seedInvoices)).toEqual([]);
   });
-  it("milestone: only approved and un-invoiced are selectable", () => {
-    const items = itemsForProject(proj("p-gulberg"), [], seedInvoices);
+  it("milestone: only approved, un-invoiced milestones with an amount are selectable", () => {
+    const ms = [
+      milestoneFixture({ id: "m-1", title: "Discovery", status: "approved", amount: 18500000 }), // referenced by an invoice line
+      milestoneFixture({ id: "m-2", title: "Design", status: "submitted", amount: 8500000 }),
+      milestoneFixture({ id: "m-3", title: "Build", status: "pending", amount: 10000000 }),
+    ];
+    const items = itemsForProject(proj("p-gulberg", { milestones: ms }), [], seedInvoices);
     expect(items.map((i) => i.id)).toEqual(["m-2", "m-3"]); // m-1 already invoiced
     expect(items.every((i) => i.disabled)).toBe(true);
     expect(readyIds(items)).toEqual([]);
-    const approved: Project = { ...proj("p-gulberg"), milestones: proj("p-gulberg").milestones.map((m) => (m.id === "m-2" ? { ...m, status: "approved" as const } : m)) };
-    expect(readyIds(itemsForProject(approved, [], seedInvoices))).toEqual(["m-2"]);
+    const approved = ms.map((m) => (m.id === "m-2" ? { ...m, status: "approved" as const } : m));
+    expect(readyIds(itemsForProject(proj("p-gulberg", { milestones: approved }), [], seedInvoices))).toEqual(["m-2"]);
+  });
+  it("milestone: an approved milestone without an amount is not selectable", () => {
+    const [item] = itemsForProject(proj("p-gulberg", { milestones: [milestoneFixture({ id: "m-9", status: "approved" })] }), [], []);
+    expect(item).toMatchObject({ id: "m-9", amount: 0, disabled: true });
   });
   it("fixed: remaining balance = fixed amount - already invoiced", () => {
     expect(fixedRemaining(proj("p-dua"), seedInvoices)).toBe(18000000 - 9000000 - 6000000);
@@ -49,12 +64,12 @@ describe("itemsForProject", () => {
 
 describe("initialSelection", () => {
   it("selects everything ready, or only the requested period", () => {
-    const p: Project = { ...proj("p-alnoor"), retainerPeriods: [{ id: "rp-nov", label: "Nov 2026", start: "2026-11-01", end: "2026-11-30", amount: 1 }, { id: "rp-dec", label: "Dec 2026", start: "2026-12-01", end: "2026-12-31", amount: 1 }] };
+    const p = proj("p-alnoor", { retainerPeriods: [period("2026-11", { label: "Nov 2026" }), period("2026-12", { label: "Dec 2026" })] });
     const items = itemsForProject(p, [], []);
-    expect(initialSelection(items)).toEqual(["rp-nov", "rp-dec"]);
-    expect(initialSelection(items, "rp-dec", p)).toEqual(["rp-dec"]);
-    expect(initialSelection(items, "nov 2026", p)).toEqual(["rp-nov"]);
-    expect(initialSelection(items, "bogus", p)).toEqual(["rp-nov", "rp-dec"]);
+    expect(initialSelection(items)).toEqual(["2026-11-01", "2026-12-01"]);
+    expect(initialSelection(items, "2026-12-01", p)).toEqual(["2026-12-01"]);
+    expect(initialSelection(items, "nov 2026", p)).toEqual(["2026-11-01"]);
+    expect(initialSelection(items, "bogus", p)).toEqual(["2026-11-01", "2026-12-01"]);
   });
 });
 

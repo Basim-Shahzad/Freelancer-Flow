@@ -5,13 +5,14 @@ import { useMemo } from "react";
 import { Plus } from "lucide-react";
 import { format } from "date-fns";
 import { StateBlock } from "@/components/domain/state-block";
-import { deriveStage, projectProgress } from "@/components/projects/logic";
+import { deriveStage, projectProgress, withoutSchedule } from "@/components/projects/logic";
 import { Button } from "@/components/ui/button";
 import { Page, PageHeader } from "@/components/ui/section";
 import { PageSkeleton } from "@/components/ui/skeleton";
 import { todayISO } from "@/lib/dates";
 import { useHydrated } from "@/lib/hooks/use-hydrated";
 import { useClientOptions } from "@/lib/hooks/clients";
+import { useProjectOptions } from "@/lib/hooks/projects";
 import { useAppStore } from "@/lib/store";
 import { useAuthStore } from "@/lib/store/auth";
 import { byDateDesc, toInvoiceView } from "@/lib/selectors";
@@ -30,7 +31,7 @@ export const greeting = (hour: number) => (hour < 12 ? "Good morning" : hour < 1
 export function DashboardView() {
   const hydrated = useHydrated();
   const { clients } = useClientOptions();
-  const projects = useAppStore((s) => s.projects);
+  const { projects } = useProjectOptions();
   const invoices = useAppStore((s) => s.invoices);
   const time = useAppStore((s) => s.time);
   const base = useBusiness().defaultCurrency;
@@ -44,9 +45,10 @@ export function DashboardView() {
       .filter((p) => p.status === "active")
       .map((p) => ({
         project: p,
-        clientName: clients.find((c) => c.id === p.clientId)?.name ?? "—",
-        stage: deriveStage(p, views.filter((v) => v.projectId === p.id), time, today),
-        progress: projectProgress(p, today),
+        clientName: p.client.name,
+        // Milestones and retainer periods are not loaded for every project here (the dashboard update does that).
+        stage: deriveStage(withoutSchedule(p), views.filter((v) => v.projectId === p.id), time, today),
+        progress: projectProgress(p),
       }));
     return {
       today,
