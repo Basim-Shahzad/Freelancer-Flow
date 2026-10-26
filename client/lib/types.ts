@@ -56,22 +56,100 @@ export interface Client {
   projects?: ClientProjectRef[];
 }
 
-export type MilestoneStatus = "upcoming" | "awaiting_approval" | "approved" | "changes_requested";
+export type ProjectStatus = "draft" | "active" | "paused" | "completed" | "archived" | "cancelled";
 
+/** The server only accepts monthly and quarterly retainers. */
+export type RetainerInterval = "monthly" | "quarterly";
+
+export type MilestoneStatus = "pending" | "in_progress" | "submitted" | "approved" | "rejected";
+
+/** Milestone view model, mapped from the API in `lib/api/mappers/milestones.ts`. */
 export interface Milestone {
+  id: string;
+  projectId: string;
+  title: string;
+  description: string;
+  /** Minor units in the project's currency; absent when the milestone carries no money. */
+  amount?: number;
+  /** ISO date (YYYY-MM-DD). */
+  dueDate?: string;
+  status: MilestoneStatus;
+  approvalRequired: boolean;
+  sortOrder: number;
+  submittedAt?: string;
+  approvedAt?: string;
+}
+
+/** One billing period of a retainer project (`GET /projects/{id}/retainer-periods`). */
+export interface RetainerPeriod {
+  /** The period start date; unique within a project. */
+  id: string;
+  label: string;
+  start: string;
+  end: string;
+  /** The retainer amount in minor units. */
+  amount: number;
+  /** The live invoice billing this period; absent when unbilled. */
+  invoiceId?: string;
+}
+
+/**
+ * Project view model, mapped from the API in `lib/api/mappers/projects.ts`. The API has no share token, start date,
+ * notes, included hours, deposit % or estimated hours, so the UI does not either. A FIXED project's price is `budget`.
+ */
+export interface Project {
+  id: string;
+  clientId: string;
+  /** Nested client from the API. */
+  client: { id: string; name: string };
+  name: string;
+  description: string;
+  billingType: BillingType;
+  currency: Currency;
+  status: ProjectStatus;
+  /** Minor units: the fixed price (FIXED) or the total budget (other types). */
+  budget?: number;
+  /** HOURLY: minor units per hour (falls back to the profile rate on the server when unset). */
+  hourlyRate?: number;
+  /** RETAINER: minor units billed every `retainerInterval`. */
+  retainerAmount?: number;
+  retainerInterval?: RetainerInterval;
+  retainerStartDate?: string;
+  retainerEndDate?: string;
+  /** ISO date (YYYY-MM-DD). */
+  dueDate?: string;
+  /** Always true for MILESTONE projects; the milestone UI is hidden when false. */
+  milestonesEnabled: boolean;
+  totalTimeSpentMinutes: number;
+  /** 0-100, computed by the server; null when it has nothing to base it on (render "—"). */
+  progressPercent: number | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** A project with its milestones and (retainer) periods, for the logic that needs them. */
+export type ProjectWithSchedule = Project & { milestones: Milestone[]; retainerPeriods: RetainerPeriod[] };
+
+/**
+ * The client-portal project (`/p/[token]`). The portal has no account, so it stays on this mock shape until
+ * step 13 gives it a token-based API. Not related to the authenticated `Project`.
+ */
+export type PortalMilestoneStatus = "upcoming" | "awaiting_approval" | "approved" | "changes_requested";
+
+export interface PortalMilestone {
   id: string;
   title: string;
   description: string;
   amount: number;
   dueDate: string;
-  status: MilestoneStatus;
+  status: PortalMilestoneStatus;
   approvedAt?: string;
   /** Client comment left when requesting changes. */
   comment?: string;
   invoiceId?: string;
 }
 
-export interface RetainerPeriod {
+export interface PortalRetainerPeriod {
   id: string;
   label: string;
   start: string;
@@ -80,7 +158,7 @@ export interface RetainerPeriod {
   invoiceId?: string;
 }
 
-export interface Project {
+export interface PortalProject {
   id: string;
   clientId: string;
   name: string;
@@ -88,18 +166,13 @@ export interface Project {
   currency: Currency;
   status: "active" | "paused" | "completed";
   startDate: string;
-  /** hourly: minor units per hour */
   hourlyRate?: number;
-  /** fixed: total price */
   fixedAmount?: number;
-  /** retainer */
   retainerAmount?: number;
   retainerHours?: number;
-  /** Optional progress percent for fixed / hourly projects (0-100). */
   progress?: number;
-  milestones: Milestone[];
-  retainerPeriods: RetainerPeriod[];
-  /** Public share token for the client portal (/p/[token]). */
+  milestones: PortalMilestone[];
+  retainerPeriods: PortalRetainerPeriod[];
   shareToken: string;
   notes: string;
 }
