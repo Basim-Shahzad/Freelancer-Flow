@@ -3,7 +3,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { InvoiceCreateView } from "@/components/invoices/create/create-view";
 import { InvoiceDetailView } from "@/components/invoices/detail/invoice-detail-view";
 import { InvoicesView } from "@/components/invoices/invoices-view";
-import { TimeView } from "@/components/time/time-view";
 import { useAppStore } from "@/lib/store";
 import { clientKeys } from "@/lib/hooks/clients";
 import { createTestQueryClient, mockApi, profileFixture, renderWithProviders } from "@/lib/test";
@@ -43,34 +42,6 @@ describe("screens render with seed data", () => {
     expect(screen.getByText(/Amounts are shown in each invoice’s own currency/)).toBeTruthy();
   });
 
-  it("time shows the running timer, day groups and week total", () => {
-    renderWithProviders(<TimeView />);
-    fireEvent.click(screen.getByRole("button", { name: "List" }));
-    expect(screen.getByText("Running")).toBeTruthy();
-    expect(screen.getByText(/^This week ·/)).toBeTruthy();
-    expect(screen.getAllByText(/Push notification spike/).length).toBeGreaterThan(0);
-    // invoiced entry is locked, links to its invoice
-    expect(screen.getAllByLabelText("Invoiced on INV-0041").length).toBeGreaterThan(0);
-  });
-
-  it("time: add an entry via the panel", async () => {
-    renderWithProviders(<TimeView />);
-    fireEvent.click(screen.getByRole("button", { name: /Add time/ }));
-    fireEvent.change(screen.getByLabelText("Description"), { target: { value: "Smoke entry" } });
-    fireEvent.change(screen.getByLabelText("Duration"), { target: { value: "1:30" } });
-    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Save entry" })); });
-    expect(useAppStore.getState().time.some((t) => t.description === "Smoke entry" && t.minutes === 90)).toBe(true);
-  });
-
-  it("time: shows a conflict panel for a stale unsynced entry and resolves it", async () => {
-    useAppStore.setState((s) => ({ time: s.time.map((t) => (t.id === "t-3" ? { ...t, unsynced: true, updatedAt: new Date(Date.now() - 3 * 86_400_000).toISOString() } : t)) }));
-    renderWithProviders(<TimeView />);
-    expect(screen.getByText("One entry changed in two places")).toBeTruthy();
-    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Keep this device" })); });
-    expect(screen.queryByText("One entry changed in two places")).toBeNull();
-    expect(useAppStore.getState().time.find((t) => t.id === "t-3")?.unsynced).toBe(false);
-  });
-
   it("create: needs a line before continuing, then reaches review with the real document", async () => {
     renderWithProviders(<InvoiceCreateView projectId="p-gulberg" />);
     // milestone project with nothing approved (the flow waits for the payment methods first)
@@ -91,7 +62,7 @@ describe("screens render with seed data", () => {
     await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Create invoice" })); });
     expect(useAppStore.getState().invoices.length).toBe(before + 1);
     expect(push).toHaveBeenCalledWith(expect.stringMatching(/^\/invoices\/inv-/));
-    expect(useAppStore.getState().time.filter((t) => t.invoiceId && t.projectId === "p-harbor").length).toBeGreaterThan(1);
+    expect(useAppStore.getState().time.filter((t) => t.isInvoiced && t.projectId === "p-harbor").length).toBeGreaterThan(1);
   });
 
   it("detail: overdue invoice header, actions and record payment", async () => {

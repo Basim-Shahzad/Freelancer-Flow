@@ -2,7 +2,7 @@
 
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
-import { daysFromToday, isoDate, localHHMM, nowISO, todayISO } from "../dates";
+import { daysFromToday, nowISO, todayISO } from "../dates";
 import { calcTotals, deriveStatus, formatInvoiceNumber } from "../invoice";
 import { formatMoney } from "../money";
 import {
@@ -10,7 +10,7 @@ import {
 } from "../seed";
 import type {
   ActivityEntry, ActivityType, BusinessLocal, DataExport, Invoice, InvoiceEvent, InvoiceEventType,
-  InvoiceLine, Payment, PortalProject, TimeEntry, TimerState,
+  InvoiceLine, Payment, PortalProject, TimeEntry,
 } from "../types";
 
 export const uid = (prefix: string) =>
@@ -41,32 +41,25 @@ interface State {
   businessLocal: BusinessLocal;
   /** Mock projects for the account-less client portal only (`/p/[token]`), until step 13. */
   portalProjects: PortalProject[];
+  /**
+   * Read-only mock time entries. Time tracking runs on the API (`lib/hooks/time-entries`); this array only feeds
+   * screens not migrated yet (invoice creation: step 9, dashboard: step 11, export: step 12), which delete it.
+   */
   time: TimeEntry[];
   invoices: Invoice[];
   activity: ActivityEntry[];
   exports: DataExport[];
-  timer: TimerState;
 }
 
 interface Actions {
   setHydrated(v: boolean): void;
   setOnline(v: boolean): void;
-  markSynced(): void;
 
   updateBusinessLocal(patch: Partial<BusinessLocal>): void;
 
   /** Client portal actions (called from the no-login share link). */
   approveMilestone(projectId: string, milestoneId: string): void;
   requestMilestoneChanges(projectId: string, milestoneId: string, comment: string): void;
-
-  addTime(t: Omit<TimeEntry, "id" | "updatedAt" | "unsynced">): TimeEntry;
-  updateTime(id: string, patch: Partial<TimeEntry>): void;
-  deleteTime(ids: string[]): void;
-  bulkUpdateTime(ids: string[], patch: Partial<Pick<TimeEntry, "projectId" | "billable">>): void;
-  resolveConflict(id: string, keep: "device" | "server" | "both"): void;
-  startTimer(input?: { projectId?: string; description?: string }): void;
-  updateTimer(patch: Partial<Pick<TimerState, "projectId" | "description">>): void;
-  stopTimer(): TimeEntry | null;
 
   createInvoice(input: NewInvoiceInput): Invoice;
   updateInvoice(id: string, patch: Partial<Invoice>): void;
@@ -97,7 +90,6 @@ const initial = (): State => ({
   invoices: seedInvoices,
   activity: seedActivity,
   exports: seedExports,
-  timer: { running: true, projectId: "p-harbor", description: "Checkout flow QA", startedAt: new Date(Date.now() - 84 * 60_000).toISOString() },
 });
 
 const ev = (type: InvoiceEventType, label: string): InvoiceEvent => ({ id: uid("ev"), type, at: nowISO(), label });
@@ -116,7 +108,6 @@ export const useAppStore = create<AppStore>()(
 
         setHydrated: (hydrated) => set({ hydrated }),
         setOnline: (online) => set({ online }),
-        markSynced: () => set((s) => ({ time: s.time.map((t) => (t.unsynced ? { ...t, unsynced: false } : t)) })),
 
         updateBusinessLocal: (patch) => set((s) => ({ businessLocal: { ...s.businessLocal, ...patch } })),
 
@@ -129,31 +120,6 @@ export const useAppStore = create<AppStore>()(
           set((s) => ({ portalProjects: s.portalProjects.map((p) => p.id !== projectId ? p : { ...p, milestones: p.milestones.map((m) => m.id === milestoneId ? { ...m, status: "changes_requested", comment } : m) }) }));
           const p = get().portalProjects.find((x) => x.id === projectId);
           log("project", "Changes requested by client", p?.name ?? projectId, comment.slice(0, 80));
-        },
-
-        addTime: (t) => {
-          const entry: TimeEntry = { ...t, id: uid("t"), updatedAt: nowISO(), unsynced: !get().online };
-          set((s) => ({ time: [entry, ...s.time] }));
-          return entry;
-        },
-        updateTime: (id, patch) => set((s) => ({ time: s.time.map((t) => (t.id === id && !t.invoiceId ? { ...t, ...patch, updatedAt: nowISO(), unsynced: !s.online } : t)) })),
-        deleteTime: (ids) => set((s) => ({ time: s.time.filter((t) => !ids.includes(t.id) || t.invoiceId) })),
-        bulkUpdateTime: (ids, patch) => set((s) => ({ time: s.time.map((t) => (ids.includes(t.id) && !t.invoiceId ? { ...t, ...patch, updatedAt: nowISO(), unsynced: !s.online } : t)) })),
-        resolveConflict: (id, keep) => set((s) => ({
-          time: keep === "both"
-            ? s.time.flatMap((t) => (t.id === id ? [{ ...t, unsynced: false }, { ...t, id: uid("t"), unsynced: false, description: `${t.description} (server copy)` }] : [t]))
-            : s.time.map((t) => (t.id === id ? { ...t, unsynced: false } : t)),
-        })),
-
-        startTimer: (input) => set((s) => ({ timer: { running: true, projectId: input?.projectId ?? s.timer.projectId, description: input?.description ?? s.timer.description, startedAt: nowISO() } })),
-        updateTimer: (patch) => set((s) => ({ timer: { ...s.timer, ...patch } })),
-        stopTimer: () => {
-          const { timer, online } = get();
-          if (!timer.running || !timer.startedAt) return null;
-          const minutes = Math.max(1, Math.round((Date.now() - new Date(timer.startedAt).getTime()) / 60000));
-          const entry: TimeEntry = { id: uid("t"), projectId: timer.projectId, description: timer.description || "Untitled", date: todayISO(), startTime: isoDate(new Date(timer.startedAt)) === todayISO() ? localHHMM(new Date(timer.startedAt)) : "00:00", minutes, billable: true, updatedAt: nowISO(), unsynced: !online };
-          set((s) => ({ time: [entry, ...s.time], timer: { running: false, description: "", projectId: s.timer.projectId } }));
-          return entry;
         },
 
         createInvoice: (input) => {
@@ -232,18 +198,21 @@ export const useAppStore = create<AppStore>()(
     },
     {
       name: "paylancr-v1",
-      version: 6,
+      version: 7,
       // v1 -> v2 added optional TimeEntry.startTime; old entries simply lack it.
       // v2 -> v3 moved `business` to the API (`useBusiness`) and dropped `session`; the fields the API lacks are kept in `businessLocal`.
       // v3 -> v4 moved `clients` to the API (`useClients`); the stale mock clients (and their ids) are dropped.
       // v4 -> v5 moved `methods` to the API (`usePaymentMethods`); the stale mock methods (and their ids) are dropped.
       // v5 -> v6 moved `projects` to the API (`useProjects`); only the client-portal mock projects stay, as `portalProjects`.
+      // v6 -> v7 moved the timer and time actions to the API (`useRunningTimer`, ...): `timer` is dropped, and mock entries
+      //          that carried an `invoiceId` now carry `isInvoiced`.
       migrate: (persisted) => {
-        const { business, session: _session, clients: _clients, methods: _methods, projects: _projects, ...rest } = (persisted ?? {}) as Record<string, unknown> & { business?: Partial<BusinessLocal> };
+        const { business, session: _session, clients: _clients, methods: _methods, projects: _projects, timer: _timer, time, ...rest } = (persisted ?? {}) as Record<string, unknown> & { business?: Partial<BusinessLocal>; time?: (TimeEntry & { invoiceId?: string })[] };
         void _session;
         void _clients;
         void _methods;
         void _projects;
+        void _timer;
         const businessLocal: BusinessLocal = {
           phone: business?.phone ?? seedBusinessLocal.phone,
           footerNote: business?.footerNote ?? seedBusinessLocal.footerNote,
@@ -251,11 +220,12 @@ export const useAppStore = create<AppStore>()(
           nextInvoiceNumber: business?.nextInvoiceNumber ?? seedBusinessLocal.nextInvoiceNumber,
           logoName: business?.logoName,
         };
-        return { ...rest, businessLocal } as never;
+        const migratedTime = time?.map(({ invoiceId, ...t }) => ({ ...t, isInvoiced: t.isInvoiced ?? Boolean(invoiceId) }));
+        return { ...rest, businessLocal, ...(migratedTime ? { time: migratedTime } : {}) } as never;
       },
       storage: createJSONStorage(() => localStorage),
       skipHydration: true,
-      partialize: ({ businessLocal, portalProjects, time, invoices, activity, exports, timer }) => ({ businessLocal, portalProjects, time, invoices, activity, exports, timer }),
+      partialize: ({ businessLocal, portalProjects, time, invoices, activity, exports }) => ({ businessLocal, portalProjects, time, invoices, activity, exports }),
     },
   ),
 );

@@ -318,13 +318,6 @@ export interface BusinessProfile {
  */
 export type BusinessLocal = Pick<BusinessProfile, "phone" | "footerNote" | "invoicePrefix" | "nextInvoiceNumber" | "logoName">;
 
-export interface TimerState {
-  running: boolean;
-  projectId?: string;
-  description: string;
-  startedAt?: string;
-}
-
 export interface DataExport {
   id: string;
   requestedAt: string;
