@@ -10,7 +10,9 @@ import { Button } from "@/components/ui/button";
 import { Notice } from "@/components/ui/notice";
 import { Section } from "@/components/ui/section";
 import { fmtDate } from "@/lib/dates";
+import { counterpartOf } from "@/lib/fx";
 import { deriveStatus, isLive } from "@/lib/invoice";
+import { FxRatesProvider, usePortalExchangeRates } from "@/lib/hooks/exchange-rates";
 import { useHydrated } from "@/lib/hooks/use-hydrated";
 import { useClientOptions } from "@/lib/hooks/clients";
 import { usePaymentMethods } from "@/lib/hooks/payment-methods";
@@ -35,6 +37,9 @@ export function InvoicePortalView({ token }: { token: string }) {
   const business = seedBusiness;
   const online = useAppStore((s) => s.online);
   const markViewed = useAppStore((s) => s.markViewed);
+  // Visitors have no account, so rates must come from the invoice response's `exchangeRates` block (never the
+  // authenticated endpoint). The mock invoice has no such block yet; step 13 passes the real one here.
+  const fxRates = usePortalExchangeRates(undefined);
 
   const active = hydrated && invoice && isPortalVisible(invoice) ? invoice : undefined;
   const activeId = active?.id;
@@ -55,10 +60,10 @@ export function InvoicePortalView({ token }: { token: string }) {
   const hero = invoiceHero(inv, display);
   const paid = display === "paid";
   const methods = methodsForInvoice(inv, allMethods);
-  const estimateIn = inv.currency === "PKR" ? "USD" : "PKR";
+  const estimateIn = counterpartOf(inv.currency);
 
   return (
-    <>
+    <FxRatesProvider rates={fxRates}>
       {!online && <Notice tone="warn"><b>You’re offline.</b> Details you’ve already loaded stay here and can be copied.</Notice>}
 
       <header className="flex flex-col gap-3 print:hidden">
@@ -93,6 +98,6 @@ export function InvoicePortalView({ token }: { token: string }) {
       <Section title="Invoice" id="pi-doc" className="print:[&>div]:hidden">
         <InvoiceDocument part="lines" reveal invoice={inv} client={client} business={business} methods={[]} projectName={project?.name} status={display} className="print:border-0 print:p-0" />
       </Section>
-    </>
+    </FxRatesProvider>
   );
 }

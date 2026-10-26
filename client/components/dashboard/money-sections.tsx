@@ -34,7 +34,7 @@ export function CashSection({ thisMonth, lastMonth, today, base }: { thisMonth: 
         </div>
       )}
       </CardBody>
-      <CardFoot><span>{FX_DISCLAIMER}. Tax is not deducted from these figures.</span></CardFoot>
+      <CardFoot><span>{FX_DISCLAIMER} Tax is not deducted from these figures.</span></CardFoot>
     </Card>
   );
 }

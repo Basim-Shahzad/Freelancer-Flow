@@ -19,7 +19,7 @@ const PER_USD: Record<Currency, number> = {
 };
 
 export const ESTIMATE_LABEL = "≈ estimate";
-export const FX_DISCLAIMER = "Reference rate only; the actual rate is set by your bank or provider";
+export const FX_DISCLAIMER = "Reference rate only; the actual rate is set by your bank or provider.";
 export const NO_PROCESSING = "Paylancr does not process payments. Pay the freelancer directly using the details below.";
 
 export interface DisplayConversion {

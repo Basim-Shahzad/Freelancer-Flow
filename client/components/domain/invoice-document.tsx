@@ -2,7 +2,7 @@ import { Money } from "@/components/domain/money";
 import { statusLabel } from "@/components/domain/status-chip";
 import { InvoiceStamp } from "@/components/domain/invoice-stamp";
 import { Tag } from "@/components/ui/tag";
-import { NO_PROCESSING } from "@/lib/fx";
+import { counterpartOf, NO_PROCESSING } from "@/lib/fx";
 import { calcTotals, deriveStatus, lineAmount } from "@/lib/invoice";
 import { formatAmount } from "@/lib/money";
 import { fmtDate } from "@/lib/dates";
@@ -40,7 +40,7 @@ export function InvoiceDocument({ invoice, client, business, methods, projectNam
   const st = status ?? deriveStatus(invoice);
   const showTop = part !== "payments";
   const showPay = part !== "lines";
-  const estimateIn: Currency = estimateInProp ?? (invoice.currency === "PKR" ? "USD" : "PKR");
+  const estimateIn: Currency | undefined =estimateInProp ?? counterpartOf(invoice.currency);
   const paidOrPartial = t.paid > 0 && st !== "written_off";
 
   return (

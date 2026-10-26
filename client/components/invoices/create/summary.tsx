@@ -1,6 +1,7 @@
 "use client";
 
 import { Money } from "@/components/domain/money";
+import { counterpartOf } from "@/lib/fx";
 import { calcTotals } from "@/lib/invoice";
 import { formatAmount } from "@/lib/money";
 import type { Client, Invoice, Project } from "@/lib/types";
@@ -33,7 +34,7 @@ export function Summary({ invoice, client, project }: { invoice: Invoice; client
         </div>
         <div className="flex flex-col gap-1">
           <span className="t-eyebrow">Total</span>
-          <Money size="lg" currency={cur} amount={t.total} estimateIn={cur === "PKR" ? "USD" : "PKR"} note />
+          <Money size="lg" currency={cur} amount={t.total} estimateIn={counterpartOf(cur)} note />
         </div>
       </div>
     </aside>

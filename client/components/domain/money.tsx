@@ -1,5 +1,9 @@
+"use client";
+
 import type { Currency } from "@/lib/types";
-import { convertMinor, ESTIMATE_LABEL, FX_DISCLAIMER, FX_REF_DATE } from "@/lib/fx";
+import type { FxRates } from "@/lib/api/mappers/exchange-rates";
+import { convertForDisplay, ESTIMATE_LABEL, FX_DISCLAIMER } from "@/lib/fx";
+import { useFxRates } from "@/lib/hooks/exchange-rates/fx-context";
 import { amountParts, formatMoney } from "@/lib/money";
 import { fmtDate } from "@/lib/dates";
 import { cn } from "@/lib/utils";
@@ -16,6 +20,8 @@ interface MoneyProps {
   estimateIn?: Currency;
   /** Show the "Reference rate only…" note under the estimate. */
   note?: boolean;
+  /** Overrides the rates from context (marketing specimens). */
+  rates?: FxRates | null;
   tag?: string;
   negative?: boolean;
   className?: string;
@@ -32,9 +38,11 @@ const amtCls: Record<Size, string> = {
  * Money, per the Money Rule: converted figures are ALWAYS labelled
  * "≈ estimate · ref. rate <date>", with the disclaimer when `note` is set.
  */
-export function Money({ amount, currency, size = "md", align = "start", estimateIn, note, tag, negative, className }: MoneyProps) {
+export function Money({ amount, currency, size = "md", align = "start", estimateIn, note, rates, tag, negative, className }: MoneyProps) {
   const { int, dec } = amountParts(amount, currency);
-  const est = estimateIn && estimateIn !== currency && amount !== 0 ? formatMoney(convertMinor(amount, currency, estimateIn), estimateIn) : null;
+  const ctxRates = useFxRates();
+  const conv = estimateIn && amount !== 0 ? convertForDisplay(amount, currency, estimateIn, rates ?? ctxRates) : null;
+  const est = conv && estimateIn ? formatMoney(conv.amount, estimateIn) : null;
   return (
     <div className={cn("flex flex-col gap-0.5", align === "end" && "items-end text-end", className)}>
       <div className={cn("flex items-baseline gap-2", align === "end" && "justify-end")}>
@@ -47,7 +55,8 @@ export function Money({ amount, currency, size = "md", align = "start", estimate
       </div>
       {est && (
         <div className="num text-xs text-muted-foreground">
-          <b className="font-semibold text-foreground">{est}</b> · {ESTIMATE_LABEL} · ref. rate {fmtDate(FX_REF_DATE)}
+          <b className="font-semibold text-foreground">{est}</b> · {ESTIMATE_LABEL} · ref. rate {conv?.asOf ? fmtDate(conv.asOf) : "date unavailable"}
+          {conv?.source && <> · {conv.source}</>}
         </div>
       )}
       {est && note && <div className="max-w-[44ch] text-xs text-muted-foreground">{FX_DISCLAIMER}</div>}
