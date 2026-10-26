@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { amountParts, formatAmount, formatMoney, parseAmount, parseDuration } from "./money";
-import { convertMinor } from "./fx";
 
 describe("money", () => {
   it("formats USD with 2 decimals and PKR with none", () => {
@@ -22,9 +21,5 @@ describe("money", () => {
     expect(parseDuration("90m")).toBe(90);
     expect(parseDuration("1h 30m")).toBe(90);
     expect(parseDuration("nope")).toBeNull();
-  });
-  it("converts at the reference rate", () => {
-    expect(convertMinor(125000, "USD", "PKR")).toBe(34825000);
-    expect(convertMinor(100, "USD", "USD")).toBe(100);
   });
 });

@@ -43,7 +43,11 @@ lib/                   types, money, fx, dates, invoice (calcTotals/deriveStatus
   Payment, PaymentMethod, ActivityEntry, BusinessProfile, Session. **All amounts are integer minor units** (cents/paisa).
 - `lib/money.ts` — `formatAmount(minor,cur)` "1,250.00", `formatMoney` "USD 1,250.00", `parseAmount("1,250.5")→minor|null`, `formatDuration(min)` "1h 30m",
   `formatHours`, `parseDuration("1.5"|"1:30"|"90m")→min|null`. PKR shows no decimals.
-- `lib/fx.ts` — `convertMinor`, `FX_REF_DATE`, `ESTIMATE_LABEL`, `FX_DISCLAIMER`, `NO_PROCESSING`.
+- `lib/fx.ts` — `convertForDisplay`, `counterpartOf`, `ESTIMATE_LABEL`, `FX_DISCLAIMER`, `NO_PROCESSING`.
+
+### Reference rates (PKR/USD, display only)
+
+`GET /reference/exchange-rates` is read by `useExchangeRates()` (`lib/hooks/exchange-rates`, fresh for 6 h) and handed to `<Money>` through a context: `AuthedFxRatesProvider` in the `(app)` layout, `FxRatesProvider rates={…}` elsewhere. So call sites only write `<Money estimateIn={counterpartOf(cur)} note />`; no rates plumbing. Only USD ↔ PKR is ever estimated; any other pair, or a missing/unusable rate, shows nothing. The line shows the API's real `asOf` and `source` ("date unavailable" if absent, never today). Portal visitors have no account: they use `usePortalExchangeRates(invoice.exchangeRates)` and never call the authenticated endpoint (step 13 supplies the real block; the mock portal invoice has none, so it shows no estimate yet). Marketing uses the labelled `SPECIMEN_RATES`. Converted figures are never summed, stored or sent to the API.
 - `lib/dates.ts` — `fmtDate` "05 Oct 2026", `fmtDay` "Mon 05 Oct", `fmtDateTime`, `todayISO`, `daysFromToday(n)`, `daysBetween(a,b)`, `addDays`, `isoDate`.
 - `lib/invoice.ts` — `calcTotals(inv)`, `deriveStatus(inv)` (use for DISPLAY status; stored `status` is only draft/unpaid/written_off/void), `daysOverdue`, `isLive`, `lineAmount`.
 - `lib/payment-methods.ts` — `METHOD_KINDS`, `BANK_SCHEMES`, `fieldsFor(kind,scheme)`, `methodTitle`, `methodSummary`, `maskValue`.

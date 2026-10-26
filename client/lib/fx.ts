@@ -7,17 +7,6 @@ import type { Currency } from "./types";
  * actual rate is set by the client's bank or provider. Every converted figure in the
  * UI must carry ESTIMATE_LABEL and the reference date.
  */
-export const FX_REF_DATE = "2026-10-03";
-
-/** Units of currency per 1 USD. */
-const PER_USD: Record<Currency, number> = {
-  USD: 1,
-  PKR: 278.6,
-  EUR: 0.92,
-  GBP: 0.78,
-  AED: 3.6725,
-};
-
 export const ESTIMATE_LABEL = "≈ estimate";
 export const FX_DISCLAIMER = "Reference rate only; the actual rate is set by your bank or provider.";
 export const NO_PROCESSING = "Paylancr does not process payments. Pay the freelancer directly using the details below.";
@@ -69,10 +58,4 @@ export function convertForDisplay(amountMinor: number, from: Currency, to: Curre
   const q = (abs * BigInt(2) + den) / (den * BigInt(2));
   const out = Number(neg ? -q : q);
   return Number.isSafeInteger(out) ? { amount: out, asOf: rates.asOf, source: rates.source } : null;
-}
-
-/** Convert minor units from one currency to another at the reference rate. */
-export function convertMinor(minor: number, from: Currency, to: Currency): number {
-  if (from === to) return minor;
-  return Math.round((minor / PER_USD[from]) * PER_USD[to]);
 }
