@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { fxRatesFixture } from "@/lib/test/exchange-rates";
 import { MethodCreateError, buildCompletion, newProgress, runCompletion, buildSummary, estimateCurrency, initialData, methodsToCreate, previewAmount, validateMethods, type MethodsValues } from "./onboarding-logic";
 
 const payoneer = { kind: "payoneer" as const, label: "Payoneer", fields: { accountEmail: "a@b.co" } };
@@ -39,9 +40,13 @@ describe("estimateCurrency", () => {
     expect(estimateCurrency("PKR", "pkr")).toBeUndefined();
     expect(estimateCurrency("PKR", "usd")).toBe("USD");
   });
-  it("previews 1,000 USD or the PKR equivalent", () => {
+  it("previews 1,000 USD or the PKR equivalent at the reference rate", () => {
     expect(previewAmount("USD")).toBe(100000);
-    expect(previewAmount("PKR")).toBe(27860000);
+    expect(previewAmount("PKR", fxRatesFixture())).toBe(278600);
+  });
+  it("previews the raw amount in PKR when no rates are available", () => {
+    expect(previewAmount("PKR")).toBe(100000);
+    expect(previewAmount("PKR", null)).toBe(100000);
   });
 });
 

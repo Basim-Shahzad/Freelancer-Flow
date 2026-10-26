@@ -1,5 +1,6 @@
 import { daysBetween, fmtDate } from "@/lib/dates";
-import { convertMinor, ESTIMATE_LABEL, FX_REF_DATE } from "@/lib/fx";
+import type { FxRates } from "@/lib/api/mappers/exchange-rates";
+import { convertForDisplay, ESTIMATE_LABEL } from "@/lib/fx";
 import { formatMoney } from "@/lib/money";
 import type { InvoiceView } from "@/lib/selectors";
 import { CURRENCIES, type Currency, type ProjectWithSchedule, type TimeEntry } from "@/lib/types";
@@ -19,7 +20,14 @@ export type Verdict = "below" | "above" | "at";
 export type RateSort = "worst" | "due" | "newest";
 export type RateFilter = "open" | "finished" | "all";
 
-export interface Floor { /** Minor units per hour in the PROJECT's currency. */ amount: number; /** True when converted from another currency at the reference rate. */ estimated: boolean }
+export interface Floor {
+  /** Minor units per hour in the PROJECT's currency. */
+  amount: number;
+  /** True when converted from another currency at the reference rate. */
+  estimated: boolean;
+  /** Date of the reference rate used (estimated floors only; null otherwise or when the API gave none). */
+  asOf: string | null;
+}
 export interface OwnRate { hourlyRate?: number; defaultCurrency: Currency }
 
 export const billableMinutes = (projectId: string, time: TimeEntry[]) =>
@@ -31,11 +39,15 @@ export function effectiveRate(fee: number, minutes: number): number | null {
   return Math.round((fee * 60) / minutes);
 }
 
-/** The user's own rate expressed in the project's currency (converted at the reference rate when needed). */
-export function floorFor(currency: Currency, own: OwnRate): Floor | null {
+/**
+ * The user's own rate expressed in the project's currency (converted at the reference rate when needed).
+ * null when there is no rate, or it cannot be converted (no rates loaded, or not a USD/PKR pair): the verdict is hidden, not guessed.
+ */
+export function floorFor(currency: Currency, own: OwnRate, rates?: FxRates | null): Floor | null {
   if (!own.hourlyRate || own.hourlyRate <= 0) return null;
-  if (currency === own.defaultCurrency) return { amount: own.hourlyRate, estimated: false };
-  return { amount: convertMinor(own.hourlyRate, own.defaultCurrency, currency), estimated: true };
+  if (currency === own.defaultCurrency) return { amount: own.hourlyRate, estimated: false, asOf: null };
+  const conv = convertForDisplay(own.hourlyRate, own.defaultCurrency, currency, rates);
+  return conv ? { amount: conv.amount, estimated: true, asOf: conv.asOf } : null;
 }
 
 /** Minutes of work the fee buys at the floor rate. */
@@ -103,10 +115,15 @@ export interface RateRow {
   open: boolean;
 }
 
-export function rateRow(p: ProjectWithSchedule, ctx: { time: TimeEntry[]; views: InvoiceView[]; today: string; own: OwnRate; unbilledHourly: number }): RateRow {
+/** Rate in the default currency, for ordering only; null (sorts last) when it cannot be converted. */
+function sortRateOf(rate: number, from: Currency, to: Currency, rates?: FxRates | null): number | null {
+  return from === to ? rate : (convertForDisplay(rate, from, to, rates)?.amount ?? null);
+}
+
+export function rateRow(p: ProjectWithSchedule, ctx: { time: TimeEntry[]; views: InvoiceView[]; today: string; own: OwnRate; unbilledHourly: number; rates?: FxRates | null }): RateRow {
   const views = ctx.views.filter((v) => v.projectId === p.id);
   const minutes = billableMinutes(p.id, ctx.time);
-  const floor = floorFor(p.currency, ctx.own);
+  const floor = floorFor(p.currency, ctx.own, ctx.rates);
   const billed = billedOf(views);
   const fee = projectFee(p, ctx.today);
   const hourly = p.billingType === "hourly";
@@ -118,7 +135,7 @@ export function rateRow(p: ProjectWithSchedule, ctx: { time: TimeEntry[]; views:
     buysMinutes: buys, overMinutes: buys === null ? null : minutes - buys,
     billed, notInvoiced: hourly ? ctx.unbilledHourly : Math.max((fee ?? 0) - billed, 0),
     due: nextDue(p, views, ctx.today),
-    sortRate: rate === null ? null : convertMinor(rate, p.currency, ctx.own.defaultCurrency),
+    sortRate: rate === null ? null : sortRateOf(rate, p.currency, ctx.own.defaultCurrency, ctx.rates),
     open: isOpen(p),
   };
 }
@@ -211,7 +228,7 @@ export function rateSentence(r: RateRow): string | null {
   const parts = [`Paying ${cur(r.rate)} an hour at ${hoursText(r.minutes)}`];
   if (r.floor && r.verdict) {
     const diff = Math.abs(r.rate - r.floor.amount);
-    parts[0] += r.verdict === "at" ? ", right at your rate" : ` — ${cur(diff)} ${r.verdict === "below" ? "below" : "above"} your ${cur(r.floor.amount)} rate${r.floor.estimated ? ` (${ESTIMATE_LABEL} · ref. rate ${fmtDate(FX_REF_DATE)})` : ""}`;
+    parts[0] += r.verdict === "at" ? ", right at your rate" : ` — ${cur(diff)} ${r.verdict === "below" ? "below" : "above"} your ${cur(r.floor.amount)} rate${r.floor.estimated ? ` (${ESTIMATE_LABEL} · ref. rate ${r.floor.asOf ? fmtDate(r.floor.asOf) : "date unavailable"})` : ""}`;
   }
   const tail = r.notInvoiced > 0 && r.fee ? ` ${cur(r.notInvoiced)} of the ${cur(r.fee)} fee isn’t invoiced yet.` : "";
   return `${parts[0]}.${tail}`;

@@ -1,6 +1,7 @@
 import type { MethodDraft } from "@/lib/api/mappers/payment-methods";
 import { METHOD_KINDS } from "@/lib/payment-methods";
-import { convertMinor } from "@/lib/fx";
+import type { FxRates } from "@/lib/api/mappers/exchange-rates";
+import { convertForDisplay } from "@/lib/fx";
 import type { ClientInput } from "@/lib/api/mappers/clients";
 import type { BusinessProfile, Currency, PaymentMethodKind } from "@/lib/types";
 import {
@@ -58,8 +59,9 @@ export function estimateCurrency(invoice: Currency, display: DisplayChoice): Cur
   return target === invoice ? undefined : target;
 }
 
-export function previewAmount(invoice: Currency): number {
-  return invoice === "PKR" ? convertMinor(100000, "USD", "PKR") : 100000;
+/** 1,000 USD, or its reference-rate PKR equivalent; without rates the same figure is shown in the chosen currency. */
+export function previewAmount(invoice: Currency, rates?: FxRates | null): number {
+  return invoice === "PKR" ? (convertForDisplay(100000, "USD", "PKR", rates)?.amount ?? 100000) : 100000;
 }
 
 const DISPLAY_TEXT: Record<DisplayChoice, string> = { both: "PKR and USD together", usd: "USD only", pkr: "PKR only" };

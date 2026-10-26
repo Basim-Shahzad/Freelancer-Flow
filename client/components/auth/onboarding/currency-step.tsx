@@ -3,6 +3,7 @@
 import { Money } from "@/components/domain/money";
 import { ChoiceRow } from "@/components/ui/checkbox";
 import { RadioGroup, RadioItem } from "@/components/ui/radio-group";
+import { useExchangeRates } from "@/lib/hooks/exchange-rates";
 import type { Currency } from "@/lib/types";
 import { estimateCurrency, previewAmount } from "../onboarding-logic";
 import { DISPLAY_CHOICES, type CurrencyValues, type DisplayChoice } from "../schemas";
@@ -26,6 +27,7 @@ export function CurrencyStep({ value, onChange, onBack, onNext }: {
   value: CurrencyValues; onChange: (v: CurrencyValues) => void; onBack: () => void; onNext: () => void;
 }) {
   const est = estimateCurrency(value.invoiceCurrency, value.display);
+  const rates = useExchangeRates().data ?? null;
   return (
     <form onSubmit={(e) => { e.preventDefault(); onNext(); }} aria-label="Currency" className="flex flex-col gap-6">
       <div className="grid grid-cols-[repeat(auto-fit,minmax(min(20rem,100%),1fr))] gap-10">
@@ -57,7 +59,7 @@ export function CurrencyStep({ value, onChange, onBack, onNext }: {
         <div className="flex flex-col gap-3 self-start">
           <span className="t-eyebrow">Preview</span>
           <hr className="m-0 border-0 border-t border-rule" />
-          <Money size="hero" currency={value.invoiceCurrency} amount={previewAmount(value.invoiceCurrency)} estimateIn={est} note={!!est} />
+          <Money size="hero" currency={value.invoiceCurrency} amount={previewAmount(value.invoiceCurrency, rates)} estimateIn={est} rates={rates} note={!!est} />
         </div>
       </div>
       <StepActions onBack={onBack} primary="Continue" />

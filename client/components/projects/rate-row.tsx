@@ -1,6 +1,6 @@
 import { Money } from "@/components/domain/money";
 import { LCell, LedgerRow, LMain } from "@/components/ui/ledger";
-import { ESTIMATE_LABEL, FX_REF_DATE } from "@/lib/fx";
+import { ESTIMATE_LABEL } from "@/lib/fx";
 import { fmtDate } from "@/lib/dates";
 import { formatMoney } from "@/lib/money";
 import { ClientDot } from "./client-dot";
@@ -67,7 +67,7 @@ export function RateLedgerRow({ r, clientName, clientIds }: { r: RateRow; client
       <LCell end className="flex flex-col items-end gap-1"><BigFigure r={r} /></LCell>
       <LCell className="col-span-full"><Detail r={r} /></LCell>
       {r.floor?.estimated && r.verdict && (
-        <LCell className="col-span-full"><p className="m-0 text-xs text-muted-foreground">Your rate is compared as {formatMoney(r.floor.amount, p.currency)} an hour · {ESTIMATE_LABEL} · ref. rate {fmtDate(FX_REF_DATE)}.</p></LCell>
+        <LCell className="col-span-full"><p className="m-0 text-xs text-muted-foreground">Your rate is compared as {formatMoney(r.floor.amount, p.currency)} an hour · {ESTIMATE_LABEL} · ref. rate {r.floor.asOf ? fmtDate(r.floor.asOf) : "date unavailable"}.</p></LCell>
       )}
     </LedgerRow>
   );

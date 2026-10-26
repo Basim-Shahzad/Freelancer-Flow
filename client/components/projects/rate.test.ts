@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
+import type { FxRates } from "@/lib/api/mappers/exchange-rates";
 import type { InvoiceView } from "@/lib/selectors";
+import { fxRatesFixture } from "@/lib/test/exchange-rates";
 import { milestoneFixture, scheduledProjectFixture } from "@/lib/test/projects";
 import type { ProjectWithSchedule, TimeEntry } from "@/lib/types";
 import {
@@ -13,7 +15,8 @@ const project = (over: Partial<ProjectWithSchedule>): ProjectWithSchedule => sch
 const entry = (minutes: number, over: Partial<TimeEntry> = {}): TimeEntry => ({ id: `t${minutes}`, projectId: "p", description: "x", date: "2026-10-01", minutes, billable: true, isInvoiced: false, updatedAt: "", ...over });
 const view = (display: InvoiceView["display"], total: number, balance = total, over: Partial<InvoiceView> = {}): InvoiceView =>
   ({ projectId: "p", number: "INV-1", currency: "USD", dueDate: "2026-10-20", display, totals: { total, balance, paid: total - balance }, ...over } as unknown as InvoiceView);
-const row = (p: ProjectWithSchedule, time: TimeEntry[] = [], views: InvoiceView[] = [], o: OwnRate = own, unbilledHourly = 0) => rateRow(p, { time, views, today: TODAY, own: o, unbilledHourly });
+const rates = fxRatesFixture();
+const row = (p: ProjectWithSchedule, time: TimeEntry[] = [], views: InvoiceView[] = [], o: OwnRate = own, unbilledHourly = 0, r: FxRates | null = rates) => rateRow(p, { time, views, today: TODAY, own: o, unbilledHourly, rates: r });
 
 describe("effectiveRate", () => {
   it("is fee divided by hours", () => {
@@ -28,10 +31,16 @@ describe("effectiveRate", () => {
 
 describe("floor and verdict", () => {
   it("uses the own rate in the default currency and converts (estimated) for others", () => {
-    expect(floorFor("USD", own)).toEqual({ amount: 4000, estimated: false });
-    const pkr = floorFor("PKR", own);
+    expect(floorFor("USD", own)).toEqual({ amount: 4000, estimated: false, asOf: null });
+    const pkr = floorFor("PKR", own, rates);
     expect(pkr?.estimated).toBe(true);
-    expect(pkr?.amount).toBe(1114400);
+    expect(pkr?.amount).toBe(11144); // 40 USD x 278.6, PKR has no decimals
+    expect(pkr?.asOf).toBe("2026-10-20");
+  });
+  it("has no floor when the rate cannot be converted (no rates, or an unsupported pair)", () => {
+    expect(floorFor("PKR", own)).toBeNull();
+    expect(floorFor("PKR", own, null)).toBeNull();
+    expect(floorFor("EUR", own, rates)).toBeNull();
   });
   it("has no floor when no rate is set", () => {
     expect(floorFor("USD", { defaultCurrency: "USD" })).toBeNull();
@@ -95,7 +104,13 @@ describe("rateRow", () => {
     const r = row(project({ currency: "PKR", budget: 18000000 }), [entry(10 * 60)]);
     expect(r.rate).toBe(1800000);
     expect(r.floor?.estimated).toBe(true);
-    expect(r.sortRate).toBe(6461);
+    expect(r.sortRate).toBe(646088); // 18,000 PKR/h at 278.6, in USD cents
+  });
+  it("hides the verdict and sorts last when no rates are available", () => {
+    const r = row(project({ currency: "PKR", budget: 18000000 }), [entry(10 * 60)], [], own, 0, null);
+    expect(r.floor).toBeNull();
+    expect(r.verdict).toBeNull();
+    expect(r.sortRate).toBeNull();
   });
 });
 
