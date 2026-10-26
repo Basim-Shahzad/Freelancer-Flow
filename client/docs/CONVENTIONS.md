@@ -96,3 +96,5 @@ Testing (`lib/test`): mock `next/navigation` per test file with `vi.mock("next/n
 Sensitive data: payment-method `details` hold IBANs and wallet numbers. They live in react-query memory only: never persist them (no zustand `persist`, no query persister, no localStorage), never log them, never put them in a URL or query key.
 
 Per-step gate: `pnpm typecheck && pnpm lint && pnpm test && pnpm build`.
+
+Derived values: when the server computes a number that can be missing (`progressPercent`), keep it `number | null` in the view model and render "—" for `null`; never default it to 0 or recompute it on the client.

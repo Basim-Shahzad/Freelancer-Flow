@@ -31,7 +31,7 @@ No "Pay now" anywhere. Converted figures always read "≈ estimate · ref. rate 
 - Export is client-side JSON + invoices CSV (no ZIP). Logo upload is name-only. 
 - No "Edit draft" flow for invoices; creating an invoice never sends it (send is a separate action).
 - Time-sync conflicts use a demo rule with a simulated server copy; seed has no unsynced entries, so those states appear after going offline/editing.
-- Clients with projects or invoices cannot be deleted; project form omits due date, deposit %, estimated hours.
+- Clients with projects or invoices cannot be deleted; the project form has no deposit % or estimated hours (the API has neither; see "Projects").
 - Unsaved-changes guard does not cover sidebar navigation.
 - Print stylesheet needs `:has()` support.
 - Portal copy uses "they" for the freelancer's changes prompt.
@@ -69,3 +69,19 @@ The API has no home for `phone`, `footerNote`, `logoName`, `invoicePrefix` and `
 - 422s come back as one message listing every problem (`"iban: …; swift_bic is required for scheme …"`). `mapMethodErrors` (`components/domain/payment-method-errors.ts`) splits it onto the form's fields; the form is not react-hook-form, so it takes an `errors` prop instead of `applyApiFieldErrors`.
 - Delete refetches rather than dropping the row: the server soft-deletes a method that invoice snapshots reference.
 - Interim behaviour until their own steps: mock invoices still reference `pm-…` ids that no longer exist, so their "How to pay" blocks list no methods. The client portal has no auth until step 13, so it only shows methods while the owner is signed in on that browser; everyone else sees "contact the freelancer". Invoice create waits for the methods query before it seeds its state. Persist version is now 5 and drops the stale mock methods.
+
+## Projects and milestones (API-backed since step 6)
+
+`/projects` and `/milestones` are the source of truth. Hooks: `useProjects({ search, clientId, status })` (infinite, server-side filters, "Load more"), `useProject(id)`, `useCreateProject` / `useUpdateProject(id)` / `useDeleteProject`, `useRetainerPeriods(project)`, and `useProjectOptions()` (every project, cached, for dropdowns and for screens that are not migrated yet) in `lib/hooks/projects`; `useMilestones(projectId, currency, enabled)`, `useCreateMilestone` / `useUpdateMilestone` / `useDeleteMilestone` / `useSubmitMilestone` and the optimistic-with-rollback `useReorderMilestones` in `lib/hooks/milestones`. Mappers: `lib/api/mappers/{projects,milestones}.ts` (lowercase billing types and statuses in the UI, uppercase on the wire; money via `lib/api/money.ts`).
+
+- Billing types are `fixed | hourly | retainer | milestone`. A FIXED project's price is `budget`. `milestonesEnabled` is optional for every type and always true for MILESTONE; the milestone panel (add, edit, delete, reorder, move through statuses, submit for approval) is hidden when it is false, and milestones are never fetched then (creating one is a 422).
+- Retainers need `retainerAmount` and `retainerInterval`; the server only accepts `MONTHLY` and `QUARTERLY` (the schema also lists `YEARLY`, which is rejected), so the form offers those two. HOURLY falls back to the profile rate when the project has none, so the form's rate is optional.
+- `progressPercent` is computed by the server and can be `null`: the UI shows "—" (never 0%). The old manual "percent complete" field is gone.
+- Milestone statuses are `PENDING | IN_PROGRESS | SUBMITTED | APPROVED | REJECTED`. `milestoneActions` (`components/projects/logic.ts`) mirrors the server's transition matrix; "Submit for approval" is `POST /milestones/{id}/submit` (the GET form is deprecated and never used) and emails the client a portal link, so it asks for confirmation. The wire field for a milestone's title is `name`.
+- Project statuses are `DRAFT | ACTIVE | PAUSED | COMPLETED | ARCHIVED | CANCELLED`. A project with invoices cannot be deleted (409); the dialog says to archive it.
+- The retainer periods list shows invoiced vs not-yet-invoiced from `invoiceId`. The "invoice this period" action arrives with step 9.
+- The mock-only parts of the project screens are hidden until their steps: the "what each project pays you" ledger (`rate.ts` / `rate-row.tsx` / `kpi-money.tsx` are kept, adapted and tested, but not rendered), the stage thread, linked time and linked invoices (steps 7-9), the client share link and "Open client view" (the API has no project share token).
+- Unmigrated screens (time, invoices, dashboard, global timer, export) read projects through `useProjectOptions()`. Mock invoices, time and the running timer still carry mock `projectId`s (`p-harbor`, …) that no longer resolve, so they show no project until their own step. The dashboard and the "Create invoice" project list do not load every project's milestones or retainer periods, so milestone / retainer items only appear once the project is chosen in the invoice flow. Milestones and retainer periods count as invoiced there when a live invoice line references them, because the milestone API has no `invoiceId`.
+- The account-less client portal (`/p/[token]`) keeps its own mock `portalProjects` (types `PortalProject` / `PortalMilestone`) with approve / request-changes actions until step 13. Persist version is now 6 and drops the stale mock `projects`.
+
+Backend gaps to raise: deposit %, estimated hours, a project share token (needed by step 13 and by "Copy client link"), `YEARLY` retainers (if still wanted), `invoiceId` on milestones, and a `startDate` / `notes` split (the form's "Scope and notes" is the API's `description`).
