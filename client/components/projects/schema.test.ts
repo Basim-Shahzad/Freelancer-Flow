@@ -1,61 +1,79 @@
 import { describe, expect, it } from "vitest";
-import type { Project } from "@/lib/types";
-import { emptyRow, formToProject, milestoneSum, projectSchema, projectToForm, type ProjectFormValues } from "./schema";
+import { responseToProject } from "@/lib/api/mappers/projects";
+import { projectResponseFixture } from "@/lib/test/projects";
+import { emptyProjectForm, formToProject, projectSchema, projectToForm, type ProjectFormValues } from "./schema";
 
 const form = (over: Partial<ProjectFormValues> = {}): ProjectFormValues => ({
-  name: "Brand site", clientId: "c1", currency: "PKR", status: "active", startDate: "2026-10-01", billingType: "fixed",
-  fixedAmount: "120,000", hourlyRate: "", retainerAmount: "", retainerHours: "", progress: "", notes: "", milestones: [], ...over,
+  name: "Brand site", clientId: "c1", description: "", currency: "USD", status: "active", billingType: "fixed", budget: "120,000",
+  hourlyRate: "", retainerAmount: "", retainerInterval: "monthly", retainerStartDate: "", retainerEndDate: "", dueDate: "", milestonesEnabled: false, ...over,
 });
 const issues = (v: ProjectFormValues) => { const r = projectSchema.safeParse(v); return r.success ? [] : r.error.issues.map((i) => i.path.join(".")); };
 
 describe("projectSchema (discriminated union)", () => {
   it("accepts a valid fixed project", () => expect(issues(form())).toEqual([]));
-  it("requires only the fields for the chosen type", () => {
-    expect(issues(form({ billingType: "hourly", fixedAmount: "" }))).toEqual(["hourlyRate"]);
-    expect(issues(form({ billingType: "hourly", hourlyRate: "45.00", fixedAmount: "" }))).toEqual([]);
-    expect(issues(form({ billingType: "retainer", fixedAmount: "" }))).toEqual(["retainerAmount"]);
-    expect(issues(form({ billingType: "fixed", fixedAmount: "0" }))).toEqual(["fixedAmount"]);
+
+  it("requires a price for FIXED only", () => {
+    expect(issues(form({ budget: "" }))).toEqual(["budget"]);
+    expect(issues(form({ budget: "0" }))).toEqual(["budget"]);
+    expect(issues(form({ billingType: "milestone", budget: "" }))).toEqual([]);
   });
-  it("milestone projects need at least one valid milestone", () => {
-    expect(issues(form({ billingType: "milestone", fixedAmount: "" }))).toEqual(["milestones"]);
-    expect(issues(form({ billingType: "milestone", milestones: [emptyRow()] })).sort()).toEqual(["milestones.0.amount", "milestones.0.dueDate", "milestones.0.title"]);
-    expect(issues(form({ billingType: "milestone", milestones: [{ mid: "a", title: "Design", amount: "5,000", dueDate: "2026-11-01" }] }))).toEqual([]);
+
+  it("HOURLY rate is optional, but must be positive when given", () => {
+    expect(issues(form({ billingType: "hourly", budget: "", hourlyRate: "" }))).toEqual([]);
+    expect(issues(form({ billingType: "hourly", budget: "", hourlyRate: "45.00" }))).toEqual([]);
+    expect(issues(form({ billingType: "hourly", budget: "", hourlyRate: "0" }))).toEqual(["hourlyRate"]);
   });
-  it("validates common fields", () => {
-    expect(issues(form({ name: " ", clientId: "", progress: "150" })).sort()).toEqual(["clientId", "name", "progress"]);
+
+  it("RETAINER requires an amount and an interval", () => {
+    expect(issues(form({ billingType: "retainer", budget: "" }))).toEqual(["retainerAmount"]);
+    expect(issues(form({ billingType: "retainer", retainerAmount: "1,300", retainerInterval: "" }))).toEqual(["retainerInterval"]);
+    expect(issues(form({ billingType: "retainer", retainerAmount: "1,300", retainerInterval: "quarterly" }))).toEqual([]);
   });
-  it("validates retainer hours", () => {
-    expect(issues(form({ billingType: "retainer", retainerAmount: "1,300", retainerHours: "abc" }))).toEqual(["retainerHours"]);
+
+  it("rejects a YEARLY retainer interval, which the server does not accept", () => {
+    expect(issues(form({ billingType: "retainer", retainerAmount: "1,300", retainerInterval: "yearly" as never }))).toEqual(["retainerInterval"]);
+  });
+
+  it("the retainer end date must be after the start date", () => {
+    const ok = { billingType: "retainer" as const, retainerAmount: "1,300", retainerStartDate: "2026-09-01" };
+    expect(issues(form({ ...ok, retainerEndDate: "2026-09-01" }))).toEqual(["retainerEndDate"]);
+    expect(issues(form({ ...ok, retainerEndDate: "2027-09-01" }))).toEqual([]);
+    expect(issues(form({ ...ok, retainerEndDate: "" }))).toEqual([]);
+  });
+
+  it("validates the common fields", () => {
+    expect(issues(form({ name: " ", clientId: "" })).sort()).toEqual(["clientId", "name"]);
   });
 });
 
 describe("formToProject", () => {
-  it("parses amounts into minor units and drops unrelated fields", () => {
-    const p = formToProject(form({ fixedAmount: "120,000", hourlyRate: "45" }));
-    expect(p).toMatchObject({ billingType: "fixed", fixedAmount: 12000000, hourlyRate: undefined, retainerAmount: undefined });
-    expect(formToProject(form({ billingType: "hourly", hourlyRate: "45.50", currency: "USD" })).hourlyRate).toBe(4550);
+  it("parses amounts into minor units and drops fields of other billing types", () => {
+    expect(formToProject(form({ budget: "1,200.50", hourlyRate: "45", retainerAmount: "9" }))).toMatchObject({
+      billingType: "fixed", budget: 120050, hourlyRate: undefined, retainerAmount: undefined, retainerInterval: undefined,
+    });
+    expect(formToProject(form({ billingType: "hourly", hourlyRate: "45.50" }))).toMatchObject({ hourlyRate: 4550, budget: undefined });
+    expect(formToProject(form({ billingType: "hourly", hourlyRate: "" })).hourlyRate).toBeUndefined();
   });
-  it("builds milestones, keeping state of existing ones", () => {
-    const existing = { id: "p", shareToken: "t", milestones: [{ id: "keep", title: "Old", description: "d", amount: 1, dueDate: "2026-09-01", status: "approved", invoiceId: "inv" }], retainerPeriods: [] } as unknown as Project;
-    const p = formToProject(form({ billingType: "milestone", milestones: [{ mid: "keep", title: "Renamed", amount: "900.50", dueDate: "2026-09-02" }, { mid: "new", title: "Build", amount: "1,000", dueDate: "2026-10-30" }] }), existing);
-    expect(p.milestones[0]).toMatchObject({ id: "keep", title: "Renamed", amount: 90050, status: "approved", invoiceId: "inv", description: "d" });
-    expect(p.milestones[1]).toMatchObject({ id: "new", amount: 100000, status: "upcoming" });
+
+  it("keeps the retainer fields and forces milestones on for MILESTONE projects", () => {
+    expect(formToProject(form({ billingType: "retainer", retainerAmount: "1,300", retainerInterval: "quarterly", retainerStartDate: "2026-09-01", retainerEndDate: "2027-09-01" }))).toMatchObject({
+      retainerAmount: 130000, retainerInterval: "quarterly", retainerStartDate: "2026-09-01", retainerEndDate: "2027-09-01",
+    });
+    expect(formToProject(form({ billingType: "milestone", milestonesEnabled: false })).milestonesEnabled).toBe(true);
   });
-  it("generates retainer periods on create and only reprices uninvoiced ones on edit", () => {
-    const created = formToProject(form({ billingType: "retainer", retainerAmount: "1,300", retainerHours: "12", currency: "USD", startDate: "2026-09-10" }), undefined, "2026-10-05");
-    expect(created.retainerPeriods.map((r) => r.label)).toEqual(["Sep 2026", "Oct 2026"]);
-    expect(created).toMatchObject({ retainerAmount: 130000, retainerHours: 12 });
-    const existing = { ...created, id: "p", shareToken: "t", retainerPeriods: [{ ...created.retainerPeriods[0]!, invoiceId: "i" }, created.retainerPeriods[1]!] } as Project;
-    const edited = formToProject(form({ billingType: "retainer", retainerAmount: "1,500", currency: "USD" }), existing);
-    expect(edited.retainerPeriods.map((r) => r.amount)).toEqual([130000, 150000]);
-  });
-  it("round-trips through the form", () => {
-    const p = { id: "p", shareToken: "t", ...formToProject(form({ billingType: "milestone", currency: "USD", milestones: [{ mid: "a", title: "X", amount: "1,250.5", dueDate: "2026-11-01" }] })) } as Project;
+
+  it("round-trips an API project through the form", () => {
+    const p = responseToProject(projectResponseFixture({
+      billingType: "RETAINER", hourlyRate: null, retainerAmount: "1300.00", retainerInterval: "MONTHLY", retainerStartDate: "2026-09-01", dueDate: "2026-11-01T00:00:00Z",
+    }));
     const back = projectToForm(p);
-    expect(back.milestones[0]?.amount).toBe("1250.50");
-    expect(formToProject(back, p).milestones[0]?.amount).toBe(125050);
+    expect(back).toMatchObject({ retainerAmount: "1300.00", retainerInterval: "monthly", retainerStartDate: "2026-09-01", dueDate: "2026-11-01", hourlyRate: "" });
+    expect(formToProject(back)).toMatchObject({ retainerAmount: 130000, dueDate: "2026-11-01" });
   });
-  it("sums milestone rows", () => {
-    expect(milestoneSum([{ mid: "a", title: "", amount: "1,000", dueDate: "" }, { mid: "b", title: "", amount: "x", dueDate: "" }])).toBe(100000);
+
+  it("starts empty with the client's currency", () => {
+    const clients = [{ id: "c1", currency: "PKR" }] as never;
+    expect(emptyProjectForm(clients, "USD", "c1")).toMatchObject({ clientId: "c1", currency: "PKR", billingType: "fixed" });
+    expect(emptyProjectForm(clients, "USD")).toMatchObject({ clientId: "", currency: "USD" });
   });
 });

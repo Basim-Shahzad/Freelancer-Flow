@@ -3,41 +3,45 @@
 import { useState } from "react";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
 import { DiscardDialog, describedBy, useUnsavedChanges } from "@/components/clients/form-parts";
 import { Button } from "@/components/ui/button";
 import { ChoiceRow } from "@/components/ui/checkbox";
-import { Input, InputAffix } from "@/components/ui/input";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { FormSelect } from "@/components/ui/select";
 import { Field } from "@/components/ui/label";
 import { Notice } from "@/components/ui/notice";
 import { RadioGroup, RadioItem } from "@/components/ui/radio-group";
 import { Section } from "@/components/ui/section";
+import { applyApiFieldErrors } from "@/lib/api/field-errors";
+import { projectToCreate, projectToInput, projectToUpdate } from "@/lib/api/mappers/projects";
 import { useClientOptions } from "@/lib/hooks/clients";
+import { useCreateProject, useUpdateProject } from "@/lib/hooks/projects";
+import { useApiToast } from "@/lib/hooks/use-api-toast";
+import { useBusiness } from "@/lib/hooks/profile";
+import { getApiErrorStatus } from "@/lib/services/api.service";
 import { useAppStore } from "@/lib/store";
 import { CURRENCIES, type BillingType, type Project } from "@/lib/types";
 import { BillingFields } from "./billing-fields";
 import { STATUS_LABEL } from "./logic";
-import { MilestonesEditor } from "./milestones-editor";
-import { emptyProjectForm, emptyRow, formToProject, projectResolver, projectToForm, type ProjectFormValues } from "./schema";
-import { useBusiness } from "@/lib/hooks/profile";
+import { emptyProjectForm, formToProject, PROJECT_FIELD_ALIASES, PROJECT_STATUSES, projectResolver, projectToForm, type ProjectFormValues } from "./schema";
 
 const TYPES: { value: BillingType; title: string; desc: string }[] = [
   { value: "fixed", title: "Fixed price", desc: "One agreed price, invoiced in full or in stages." },
   { value: "hourly", title: "Hourly", desc: "Tracked time multiplied by your rate." },
-  { value: "retainer", title: "Retainer", desc: "A recurring amount for each month." },
-  { value: "milestone", title: "Milestones", desc: "Staged delivery. Each approved milestone gets its own invoice." },
+  { value: "retainer", title: "Retainer", desc: "A recurring amount for each month or quarter." },
+  { value: "milestone", title: "Milestones", desc: "Staged delivery. Each milestone has its own amount and approval." },
 ];
 const grid = "grid gap-5 @2xl:grid-cols-2";
 
 export function ProjectForm({ project, clientId }: { project?: Project; clientId?: string }) {
   const router = useRouter();
+  const toast = useApiToast();
   const { clients } = useClientOptions();
   const base = useBusiness().defaultCurrency;
   const online = useAppStore((s) => s.online);
-  const addProject = useAppStore((s) => s.addProject);
-  const updateProject = useAppStore((s) => s.updateProject);
+  const create = useCreateProject();
+  const update = useUpdateProject(project?.id ?? "");
   const [discard, setDiscard] = useState(false);
   const [saved, setSaved] = useState(false);
 
@@ -46,34 +50,44 @@ export function ProjectForm({ project, clientId }: { project?: Project; clientId
     defaultValues: project ? projectToForm(project) : emptyProjectForm(clients, base, clientId),
     mode: "onTouched",
   });
-  const { register, control, handleSubmit, getValues, setValue, formState: { errors, isDirty, isSubmitting, submitCount } } = form;
+  const { register, control, handleSubmit, setValue, formState: { errors, isDirty, isSubmitting, submitCount } } = form;
   const type = useWatch({ control, name: "billingType" });
   const currency = useWatch({ control, name: "currency" });
-  const msCount = useWatch({ control, name: "milestones" }).length;
   useUnsavedChanges(isDirty && !saved);
 
-  const lockedIds = new Set((project?.milestones ?? []).filter((m) => m.status !== "upcoming" || m.invoiceId).map((m) => m.id));
   const back = project ? `/projects/${project.id}` : "/projects";
   const errorCount = Object.keys(errors).length;
+  const rootError = errors.root?.message;
 
-  const onSubmit = (values: ProjectFormValues) => {
-    const data = formToProject(values, project);
-    setSaved(true);
-    if (project) {
-      updateProject(project.id, data);
-      toast.success(`${data.name} saved`);
-      router.push(back);
-    } else {
-      const created = addProject(data);
-      toast.success(`${created.name} created`);
-      router.push(`/projects/${created.id}`);
+  const onSubmit = async (values: ProjectFormValues) => {
+    if (!online) return toast.error(null, "You’re offline. Reconnect to save this project.");
+    const input = formToProject(values);
+    try {
+      if (project) {
+        const changes = projectToUpdate(input, projectToInput(project));
+        if (Object.keys(changes).length > 0) await update.mutateAsync(changes);
+        setSaved(true);
+        toast.success(`${input.name} saved`);
+        router.push(back);
+      } else {
+        const created = await create.mutateAsync(projectToCreate(input));
+        setSaved(true);
+        toast.success(`${input.name} created`);
+        router.push(`/projects/${created.id}`);
+      }
+    } catch (e) {
+      const status = getApiErrorStatus(e);
+      if (status === 404) toast.error(e, "This project or its client no longer exists.");
+      else if (!applyApiFieldErrors(form, e, PROJECT_FIELD_ALIASES)) toast.error(e, "Couldn’t save this project.");
     }
   };
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-11">
-      {submitCount > 0 && errorCount > 0 && <Notice tone="error" role="alert">{errorCount === 1 ? "One field needs attention before you can save." : `${errorCount} fields need attention before you can save.`}</Notice>}
-      {!online && <Notice tone="warn">You’re offline. This project is saved on this device and syncs when you reconnect.</Notice>}
+      {submitCount > 0 && (errorCount > 0 || rootError) && (
+        <Notice tone="error" role="alert">{rootError ?? (errorCount === 1 ? "One field needs attention before you can save." : `${errorCount} fields need attention before you can save.`)}</Notice>
+      )}
+      {!online && <Notice tone="warn">You’re offline. Reconnect to save this project.</Notice>}
 
       <Section title="Basics" level={3} id="pf-basics">
         <div className={grid}>
@@ -91,14 +105,14 @@ export function ProjectForm({ project, clientId }: { project?: Project; clientId
           <Field label="Currency" htmlFor="pf-cur">
             <FormSelect id="pf-cur" control={control} name="currency" options={CURRENCIES.map((c) => ({ value: c, label: c }))} />
           </Field>
-          <Field label="Start date" htmlFor="pf-start" error={errors.startDate?.message}>
-            <Input id="pf-start" type="date" className="num" aria-invalid={!!errors.startDate} aria-describedby={describedBy("pf-start", errors.startDate?.message, false)} {...register("startDate")} />
-          </Field>
           <Field label="Status" htmlFor="pf-status">
-            <FormSelect id="pf-status" control={control} name="status" options={(Object.keys(STATUS_LABEL) as Project["status"][]).map((s) => ({ value: s, label: STATUS_LABEL[s] }))} />
+            <FormSelect id="pf-status" control={control} name="status" options={PROJECT_STATUSES.map((s) => ({ value: s, label: STATUS_LABEL[s] }))} />
           </Field>
-          <Field className="@2xl:col-span-2" label="Scope and notes" htmlFor="pf-notes" optional>
-            <Textarea id="pf-notes" placeholder="What’s included, and what isn’t." {...register("notes")} />
+          <Field label="Due date" htmlFor="pf-due" optional error={errors.dueDate?.message}>
+            <Input id="pf-due" type="date" className="num" {...register("dueDate")} />
+          </Field>
+          <Field className="@2xl:col-span-2" label="Scope and notes" htmlFor="pf-notes" optional error={errors.description?.message}>
+            <Textarea id="pf-notes" placeholder="What’s included, and what isn’t." {...register("description")} />
           </Field>
         </div>
       </Section>
@@ -108,10 +122,7 @@ export function ProjectForm({ project, clientId }: { project?: Project; clientId
           control={control}
           name="billingType"
           render={({ field }) => (
-            <RadioGroup
-              aria-label="Billing type" value={field.value} className="border-t border-border"
-              onValueChange={(v) => { field.onChange(v); if (v === "milestone" && getValues("milestones").length === 0) setValue("milestones", [emptyRow(), emptyRow()], { shouldDirty: true }); }}
-            >
+            <RadioGroup aria-label="Billing type" value={field.value} className="border-t border-border" onValueChange={field.onChange}>
               {TYPES.map((t) => (
                 <ChoiceRow key={t.value}>
                   <RadioItem value={t.value} />
@@ -121,19 +132,8 @@ export function ProjectForm({ project, clientId }: { project?: Project; clientId
             </RadioGroup>
           )}
         />
-        <BillingFields type={type} currency={currency} register={register} errors={errors} />
+        <BillingFields type={type} currency={currency} control={control} register={register} errors={errors} />
       </Section>
-
-      <MilestonesEditor control={control} register={register} errors={errors} lockedIds={lockedIds} />
-
-      {(type === "fixed" || type === "hourly") && (
-        <Section title="Progress" level={3} id="pf-progress">
-          <Field className="max-w-48" label="Percent complete" htmlFor="pf-pct" optional error={errors.progress?.message}
-            hint={msCount > 0 ? "With milestones, progress follows approved milestones instead." : "Shown on the project and your dashboard."}>
-            <InputAffix suffix="%"><Input id="pf-pct" inputMode="numeric" className="num" placeholder="0" aria-invalid={!!errors.progress} aria-describedby={describedBy("pf-pct", errors.progress?.message, true)} {...register("progress")} /></InputAffix>
-          </Field>
-        </Section>
-      )}
 
       <div className="flex flex-wrap items-center gap-3">
         <Button type="submit" loading={isSubmitting}>{project ? "Save changes" : "Create project"}</Button>

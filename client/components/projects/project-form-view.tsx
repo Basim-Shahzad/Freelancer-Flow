@@ -3,26 +3,42 @@
 import { StateBlock } from "@/components/domain/state-block";
 import { Page, PageHeader } from "@/components/ui/section";
 import { PageSkeleton } from "@/components/ui/skeleton";
-import { useHydrated } from "@/lib/hooks/use-hydrated";
 import { useClientOptions } from "@/lib/hooks/clients";
+import { useProject } from "@/lib/hooks/projects";
+import { getApiErrorMessage, getApiErrorStatus } from "@/lib/services/api.service";
 import { useAppStore } from "@/lib/store";
 import { ProjectForm } from "./project-form";
 
 /** New project (optionally pre-filled with ?clientId=) or edit project (id). */
 export function ProjectFormView({ id, clientId }: { id?: string; clientId?: string }) {
-  const hydrated = useHydrated();
-  const project = useAppStore((s) => s.projects.find((p) => p.id === id));
-  const { clients, isLoading: clientsLoading } = useClientOptions();
-  const clientCount = clients.length;
-  if (!hydrated || clientsLoading) return <PageSkeleton rows={3} />;
-  if (id && !project) {
-    return (
-      <Page width="narrow">
-        <StateBlock kind="empty" title="Project not found" body="This project may have been deleted, or the link is wrong." cta={{ label: "Back to projects", href: "/projects" }} />
-      </Page>
-    );
+  const online = useAppStore((s) => s.online);
+  const query = useProject(id);
+  const { clients, isLoading: clientsLoading, isError: clientsError } = useClientOptions();
+
+  if (id) {
+    if (query.isPending) {
+      if (!online) return <Page width="narrow"><StateBlock kind="offline" cta={{ label: "Try again", onClick: () => void query.refetch() }} /></Page>;
+      return <PageSkeleton rows={3} />;
+    }
+    if (query.isError) {
+      if (getApiErrorStatus(query.error) === 404) {
+        return (
+          <Page width="narrow">
+            <StateBlock kind="empty" title="Project not found" body="This project may have been deleted, or the link is wrong." cta={{ label: "Back to projects", href: "/projects" }} />
+          </Page>
+        );
+      }
+      const retry = { label: query.isFetching ? "Retrying…" : "Try again", onClick: () => void query.refetch() };
+      return <Page width="narrow">{online ? <StateBlock kind="error" body={getApiErrorMessage(query.error)} cta={retry} /> : <StateBlock kind="offline" cta={retry} />}</Page>;
+    }
   }
-  if (!project && clientCount === 0) {
+  if (clientsLoading) return <PageSkeleton rows={3} />;
+
+  const project = id ? query.data : undefined;
+  if (!project && clientsError) {
+    return <Page width="narrow"><StateBlock kind={online ? "error" : "offline"} body="Couldn’t load your clients, which a project needs." /></Page>;
+  }
+  if (!project && clients.length === 0) {
     return (
       <Page width="narrow">
         <PageHeader back={{ href: "/projects", label: "Projects" }} eyebrow="New project" title="Create a project" />
