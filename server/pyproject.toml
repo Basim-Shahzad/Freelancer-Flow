@@ -36,6 +36,8 @@ dev = [
     "aiosqlite>=0.22.1",
     "bandit>=1.9.4",
     "pypdf>=6.19.0",
+    "python-dotenv>=1.2.2",
+    "ruff>=0.17.2",
 ]
 
 [tool.pytest.ini_options]

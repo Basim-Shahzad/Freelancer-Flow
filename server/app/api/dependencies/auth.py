@@ -10,16 +10,16 @@ Usage:
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import Depends, HTTPException, Request, status
-from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jwt.exceptions import PyJWTError
-from app.db.database import get_db
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.core.security import decode_token
+from app.db.crud.auth import get_user_by_id
+from app.db.database import get_db
 from app.models.FreelancerProfile import FreelancerProfile
 from app.models.User import User, UserRole
-
-from app.db.crud.auth import get_user_by_id
 
 # Re-usable bearer extractor (auto_error=False so we can give nicer messages)
 _bearer = HTTPBearer(auto_error=False)

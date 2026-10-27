@@ -1,22 +1,30 @@
 from __future__ import annotations
-import uuid
-from typing import TYPE_CHECKING
-from datetime import datetime, timezone
+
 import enum
-
+import uuid
+from datetime import UTC, datetime
 from decimal import Decimal
-from typing import Optional
+from typing import TYPE_CHECKING
 
-from sqlalchemy import DateTime, ForeignKey, Integer, Numeric, String, Text, Enum, Boolean
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    Enum,
+    ForeignKey,
+    Integer,
+    Numeric,
+    String,
+    Text,
+)
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.database import Base
 
 if TYPE_CHECKING:
+    from app.models.MilestoneApproval import MilestoneApproval
     from app.models.Project import Project
     from app.models.TimeEntry import TimeEntry
-    from app.models.MilestoneApproval import MilestoneApproval
 
 
 class MilestoneStatus(enum.Enum):
@@ -39,13 +47,13 @@ class Milestone(Base):
         ForeignKey("projects.id", ondelete="CASCADE"), nullable=False
     )
 
-    project: Mapped["Project"] = relationship(back_populates="milestones")
+    project: Mapped[Project] = relationship(back_populates="milestones")
     # No delete cascade: deleting a milestone must never delete tracked
     # (possibly invoiced) time; the FK is SET NULL instead.
-    time_entries: Mapped[list["TimeEntry"]] = relationship(
+    time_entries: Mapped[list[TimeEntry]] = relationship(
         back_populates="milestone", passive_deletes=True
     )
-    approvals: Mapped[list["MilestoneApproval"]] = relationship(
+    approvals: Mapped[list[MilestoneApproval]] = relationship(
         back_populates="milestone", cascade="all, delete-orphan"
     )
 
@@ -54,11 +62,11 @@ class Milestone(Base):
     )
     due_date: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=True)
     # Price billed when this milestone is invoiced; NULL for unpriced stages.
-    amount: Mapped[Optional[Decimal]] = mapped_column(
+    amount: Mapped[Decimal | None] = mapped_column(
         Numeric(precision=18, scale=4), nullable=True
     )
     sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    submitted_at: Mapped[Optional[datetime]] = mapped_column(
+    submitted_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
     approval_required: Mapped[bool] = mapped_column(
@@ -75,10 +83,10 @@ class Milestone(Base):
     )
 
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc)
+        DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC)
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
-        onupdate=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
     )

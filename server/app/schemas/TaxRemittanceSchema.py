@@ -1,7 +1,6 @@
 import uuid
 from datetime import date
 from decimal import Decimal
-from typing import Optional
 
 from pydantic import Field, model_validator
 
@@ -15,17 +14,17 @@ class TaxRemittanceCreate(Base):
     period_start: date
     period_end: date
     amount: PositiveMoney
-    currency: Optional[CurrencyCode] = Field(
+    currency: CurrencyCode | None = Field(
         default=None, description="Defaults to the freelancer's currency."
     )
-    paid_at: Optional[UTCDateTime] = Field(default=None, description="Defaults to now.")
-    tax_name: Optional[str] = Field(
+    paid_at: UTCDateTime | None = Field(default=None, description="Defaults to now.")
+    tax_name: str | None = Field(
         default=None, max_length=100,
         description="Which tax this settles; omit to settle all collected tax.",
     )
-    period_label: Optional[str] = Field(default=None, max_length=50)
-    reference: Optional[str] = Field(default=None, max_length=255)
-    notes: Optional[str] = Field(default=None, max_length=5000)
+    period_label: str | None = Field(default=None, max_length=50)
+    reference: str | None = Field(default=None, max_length=255)
+    notes: str | None = Field(default=None, max_length=5000)
 
     @model_validator(mode="after")
     def _period(self) -> "TaxRemittanceCreate":
@@ -40,11 +39,11 @@ class TaxRemittanceResponse(Base):
     period_end: date
     amount: PositiveMoney
     currency: str
-    tax_name: Optional[str] = None
-    period_label: Optional[str] = None
+    tax_name: str | None = None
+    period_label: str | None = None
     paid_at: UTCDateTime
-    reference: Optional[str] = None
-    notes: Optional[str] = None
+    reference: str | None = None
+    notes: str | None = None
     created_at: UTCDateTime
 
 
@@ -67,7 +66,7 @@ class TaxSummaryResponse(Base):
     period_end: date
     currency: str
     basis: str
-    tax_name: Optional[str] = None
+    tax_name: str | None = None
     tax_collected: Decimal
     tax_remitted: Decimal
     tax_outstanding: Decimal

@@ -5,10 +5,9 @@ from datetime import timedelta
 
 from sqlalchemy import select
 
-from app.models.Milestone import Milestone, MilestoneStatus
+from app.models.Milestone import MilestoneStatus
 from app.models.MilestoneApproval import MilestoneApproval, MilestoneApprovalDecision
 from app.models.PortalAccessToken import ScopeType
-from app.models.User import User
 
 PORTAL_URL = "/api/v1/portal"
 

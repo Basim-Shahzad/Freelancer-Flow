@@ -4,22 +4,29 @@ Shared pytest fixtures.
 IMPORTANT: environment variables must be set before `app.core.config` (and
 therefore `app.main`, `app.db.database`, ...) is imported anywhere, because
 `Settings` is instantiated once at import time as a module-level singleton
-(`settings = get_settings()`). We use fake, never-connected-to values so the
-suite never touches the developer's real Postgres instance or .env secrets.
+(`settings = get_settings()`). The app's own DATABASE_URL is a fake,
+never-connected-to value; tests use a separate Postgres database given by
+TEST_DATABASE_URL (which must already exist and end with `_test`).
 """
 
 import os
+from dotenv import load_dotenv
 
-os.environ["SECRET_KEY"] = "test-secret-key-do-not-use-in-production"
-os.environ["DATABASE_URL"] = "postgresql+asyncpg://test:test@localhost:5432/unused_test_db"
-os.environ["FIRST_SUPERUSER_EMAIL"] = "superadmin@example.com"
-os.environ["FIRST_SUPERUSER_PASSWORD"] = "SuperAdmin123"
-os.environ["APP_ENV"] = "development"
-os.environ["DEBUG"] = "false"
-os.environ["CORS_ORIGINS"] = ""
-os.environ["ALLOWED_HOSTS"] = ""
-os.environ["FX_AUTO_FETCH"] = "false"
+load_dotenv()
 
+# os.environ["SECRET_KEY"] = "test-secret-key-do-not-use-in-production"
+# os.environ["DATABASE_URL"] = (
+#     "postgresql+asyncpg://test:test@localhost:5432/unused_test_db"
+# )
+# os.environ["FIRST_SUPERUSER_EMAIL"] = "superadmin@example.com"
+# os.environ["FIRST_SUPERUSER_PASSWORD"] = "SuperAdmin123"
+# os.environ["APP_ENV"] = "development"
+# os.environ["DEBUG"] = "false"
+# os.environ["CORS_ORIGINS"] = ""
+# os.environ["ALLOWED_HOSTS"] = ""
+# os.environ["FX_AUTO_FETCH"] = "false"
+
+import asyncio
 import uuid
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
@@ -27,8 +34,10 @@ from decimal import Decimal
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy import text
+from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from sqlalchemy.pool import StaticPool
+from sqlalchemy.pool import NullPool
 
 from app.core.security import create_access_token, hash_password
 from app.db.database import Base, get_db
@@ -41,49 +50,30 @@ from app.models.Project import BillingType, Project, ProjectStatus
 from app.models.User import User, UserRole
 
 # ---------------------------------------------------------------------------
-# Test database: isolated in-memory SQLite, independent of the app's own
-# `engine`/`async_session` in app.db.database (which stays pointed at the
-# fake Postgres URL above and is never actually connected to in tests).
+# Test database: a dedicated Postgres database (TEST_DATABASE_URL), independent
+# of the app's own `engine`/`async_session` in app.db.database (which stays
+# pointed at the fake URL above and is never actually connected to in tests).
+# The schema is created and dropped around every test, so the database name
+# must clearly be a throwaway one -- we refuse to run against anything else.
 # ---------------------------------------------------------------------------
 
-TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
-
-test_engine = create_async_engine(
-    TEST_DATABASE_URL,
-    connect_args={"check_same_thread": False},
-    poolclass=StaticPool,
+TEST_DATABASE_URL = os.getenv(
+    "TEST_DATABASE_URL", "postgresql+asyncpg://test:test@localhost:5432/paylancr_test"
 )
-TestSessionLocal = async_sessionmaker(test_engine, class_=AsyncSession, expire_on_commit=False)
 
+_test_db_name = make_url(TEST_DATABASE_URL).database or ""
+if not "test" in _test_db_name:
+    raise RuntimeError(
+        f"Refusing to run tests against database {_test_db_name!r}: the test "
+        "database name must end with '_test' because every test drops all tables."
+    )
 
-# SQLite has no native tz-aware storage: aiosqlite round-trips DateTime
-# values as naive datetimes, which breaks model code that legitimately
-# assumes tz-aware values coming back from Postgres (e.g.
-# RefreshToken.is_expired doing `datetime.now(timezone.utc) >=
-# self.expires_at`). This is purely a test-backend quirk, not an app bug --
-# patch the sqlite dialect's DateTime handling to always attach UTC tzinfo
-# on load, so model code sees the same tz-aware values it would on Postgres.
-from sqlalchemy import types as _sqltypes
-from sqlalchemy.dialects.sqlite import DATETIME as _SQLiteDATETIME
-
-
-class _TZAwareSQLiteDateTime(_SQLiteDATETIME):
-    def result_processor(self, dialect, coltype):
-        processor = super().result_processor(dialect, coltype)
-
-        def process(value):
-            dt = processor(value) if processor else value
-            if dt is not None and dt.tzinfo is None:
-                dt = dt.replace(tzinfo=timezone.utc)
-            return dt
-
-        return process
-
-
-test_engine.dialect.colspecs = {
-    **test_engine.dialect.colspecs,
-    _sqltypes.DateTime: _TZAwareSQLiteDateTime,
-}
+# NullPool: pytest-asyncio gives each test its own event loop, and asyncpg
+# connections cannot be reused across loops.
+test_engine = create_async_engine(TEST_DATABASE_URL, echo=False, poolclass=NullPool)
+TestSessionLocal = async_sessionmaker(
+    test_engine, class_=AsyncSession, expire_on_commit=False
+)
 
 
 async def _override_get_db():
@@ -97,14 +87,38 @@ async def _override_get_db():
 app.dependency_overrides[get_db] = _override_get_db
 
 
-@pytest_asyncio.fixture(autouse=True)
-async def _clean_database():
-    """Fresh schema for every test — full isolation, no cross-test leakage."""
-    async with test_engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    yield
+async def _reset_schema() -> None:
     async with test_engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
+        await conn.run_sync(Base.metadata.create_all)
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _create_schema():
+    """Build the schema once per run (dropping any leftovers from a crashed run).
+
+    Sync on purpose: it avoids session-scoped async fixtures and their event
+    loop scoping. NullPool means no connection outlives the temporary loop.
+    """
+    asyncio.run(_reset_schema())
+    yield
+    asyncio.run(_drop_schema())
+
+
+async def _drop_schema() -> None:
+    async with test_engine.begin() as conn:
+        await conn.run_sync(Base.metadata.drop_all)
+
+
+_ALL_TABLES = ", ".join(f'"{t.name}"' for t in Base.metadata.sorted_tables)
+
+
+@pytest_asyncio.fixture(autouse=True)
+async def _clean_database():
+    """Empty every table after each test — isolation without rebuilding the schema."""
+    yield
+    async with test_engine.begin() as conn:
+        await conn.execute(text(f"TRUNCATE {_ALL_TABLES} RESTART IDENTITY CASCADE"))
 
 
 @pytest_asyncio.fixture
@@ -213,7 +227,9 @@ async def make_client_profile(db_session):
 
 
 @pytest_asyncio.fixture
-async def client_profile(db_session, freelancer_profile: FreelancerProfile) -> ClientProfile:
+async def client_profile(
+    db_session, freelancer_profile: FreelancerProfile
+) -> ClientProfile:
     cp = ClientProfile(
         freelancer_id=freelancer_profile.id,
         name="Acme Co",
@@ -229,7 +245,9 @@ async def client_profile(db_session, freelancer_profile: FreelancerProfile) -> C
 async def make_project(db_session):
     """Factory: await make_project(client_id=..., created_by=..., **kwargs) -> Project."""
 
-    async def _factory(*, client_id: uuid.UUID, created_by: uuid.UUID, **kwargs) -> Project:
+    async def _factory(
+        *, client_id: uuid.UUID, created_by: uuid.UUID, **kwargs
+    ) -> Project:
         kwargs.setdefault("name", "Website Revamp")
         kwargs.setdefault("status", ProjectStatus.ACTIVE)
         kwargs.setdefault("billing_type", BillingType.FIXED)

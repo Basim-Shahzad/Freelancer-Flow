@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from typing import Iterator
+from collections.abc import Iterator
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Request
 from fastapi.concurrency import run_in_threadpool
@@ -80,7 +80,7 @@ async def export_data(
     )
     await db.commit()
 
-    stamp = datetime.now(timezone.utc).strftime("%Y%m%d")
+    stamp = datetime.now(UTC).strftime("%Y%m%d")
     return StreamingResponse(
         _stream(spool),
         media_type="application/zip",

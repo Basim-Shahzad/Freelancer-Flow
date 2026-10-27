@@ -1,18 +1,18 @@
 """Reference-data store and automatic exchange-rate refresh. No real network."""
 
 import asyncio
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import httpx
 import pytest
 from sqlalchemy import select
 
 from app.core.config import settings
+from app.core.security import create_access_token
 from app.db.crud import reference as crud
 from app.models.ActivityEvent import ActivityEvent
 from app.models.User import UserRole
 from app.services import fx_fetch
-from app.core.security import create_access_token
 
 PROVIDER_UNIX = 1759622401  # 2025-10-05 00:00:01 UTC
 PROVIDER_OK = {
@@ -55,7 +55,7 @@ async def seeded(db_session):
 
 
 async def _make_stale(db, hours=48):
-    old = datetime.now(timezone.utc) - timedelta(hours=hours)
+    old = datetime.now(UTC) - timedelta(hours=hours)
     value = {
         "base": "USD",
         "rates": {"PKR": "270.0"},

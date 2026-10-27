@@ -5,7 +5,7 @@ request bodies, and portal-token scope.
 """
 
 import uuid
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 
 import pytest
 
@@ -27,7 +27,7 @@ def _auth(token: str) -> dict:
 
 
 def _times():
-    end = datetime.now(timezone.utc) - timedelta(minutes=5)
+    end = datetime.now(UTC) - timedelta(minutes=5)
     return (end - timedelta(hours=1)).isoformat(), end.isoformat()
 
 

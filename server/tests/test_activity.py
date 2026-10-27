@@ -1,7 +1,7 @@
 """Audit-log completeness (Step 15): redaction, coarse time logging, feed paging, full flow."""
 
 import json
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import select
 
@@ -22,7 +22,7 @@ async def _rows(db_session):
 
 
 def _entry(project_id, hours_ago=3, minutes=60):
-    start = datetime.now(timezone.utc) - timedelta(hours=hours_ago)
+    start = datetime.now(UTC) - timedelta(hours=hours_ago)
     return {
         "description": "Work",
         "startTime": start.isoformat(),
@@ -109,7 +109,7 @@ async def test_feed_filters_and_cursor_paging(client, auth_headers, project):
     missing = {"entity_id": "00000000-0000-0000-0000-000000000001"}
     assert (await client.get(ACTIVITY_URL, params=missing, headers=auth_headers)).json()["total"] == 0
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     window = {"from": (now - timedelta(minutes=5)).isoformat(), "to": (now + timedelta(minutes=5)).isoformat()}
     assert (await client.get(ACTIVITY_URL, params=window, headers=auth_headers)).json()["total"] == 5
     before = {"to": (now - timedelta(days=1)).isoformat()}

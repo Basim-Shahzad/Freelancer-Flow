@@ -7,10 +7,11 @@ and pass them in.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal, InvalidOperation
-from typing import Any, Mapping, Optional
+from typing import Any
 
 from app.services.invoicing import quantize_money
 
@@ -25,16 +26,16 @@ class DisplayAmount:
     currency: str
     amount: Decimal
     rate: Decimal  # units of ``currency`` per 1 unit of the source currency
-    as_of: Optional[date]
-    source: Optional[str]
+    as_of: date | None
+    source: str | None
     is_estimate: bool = True
 
 
-def display_currency_for(currency: Optional[str]) -> Optional[str]:
+def display_currency_for(currency: str | None) -> str | None:
     return _COUNTERPART.get((currency or "").upper())
 
 
-def _units_per_base(code: str, base: str, rates: Mapping[str, Any]) -> Optional[Decimal]:
+def _units_per_base(code: str, base: str, rates: Mapping[str, Any]) -> Decimal | None:
     if code == base:
         return Decimal(1)
     raw = rates.get(code)
@@ -47,7 +48,7 @@ def _units_per_base(code: str, base: str, rates: Mapping[str, Any]) -> Optional[
     return rate if rate.is_finite() and rate > 0 else None
 
 
-def _parse_date(raw: Any) -> Optional[date]:
+def _parse_date(raw: Any) -> date | None:
     if isinstance(raw, date):
         return raw
     try:
@@ -61,7 +62,7 @@ def convert_for_display(
     from_ccy: str,
     to_ccy: str,
     rates: Mapping[str, Any],
-) -> Optional[DisplayAmount]:
+) -> DisplayAmount | None:
     """Estimate ``amount`` in ``to_ccy``; ``None`` when there is no rate.
 
     ``rates`` is the ``exchange_rates`` value: ``base`` plus ``rates`` as

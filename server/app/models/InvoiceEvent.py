@@ -1,8 +1,8 @@
 from __future__ import annotations
+
 import enum
 import uuid
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import UTC, datetime
 
 from sqlalchemy import DateTime, Enum, ForeignKey, Index, String
 from sqlalchemy.dialects.postgresql import UUID
@@ -41,8 +41,8 @@ class InvoiceEvent(Base):
     occurred_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
     )
     # Short human-readable context, e.g. "Reminder #2" or a payment reference.
-    detail: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
-    ip_address: Mapped[Optional[str]] = mapped_column(String(45), nullable=True)
+    detail: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    ip_address: Mapped[str | None] = mapped_column(String(45), nullable=True)

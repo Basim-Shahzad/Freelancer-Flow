@@ -6,7 +6,7 @@ import enum
 import uuid
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Any, Optional
+from typing import Any
 
 from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -56,7 +56,7 @@ REDACTED_FIELDS = frozenset(
 REDACTED = "[redacted]"
 
 
-def redact_changes(changes: Optional[dict[str, Any]]) -> Optional[dict[str, Any]]:
+def redact_changes(changes: dict[str, Any] | None) -> dict[str, Any] | None:
     """Copy of ``changes`` with the values of secret fields masked (nested too)."""
     if not changes:
         return changes
@@ -102,7 +102,7 @@ def log_activity(
     entity_id: uuid.UUID,
     action: str,
     summary: str,
-    changes: Optional[dict[str, Any]] = None,
+    changes: dict[str, Any] | None = None,
 ) -> None:
     """Stage an audit row in the caller's transaction (no commit).
 
@@ -139,13 +139,13 @@ async def list_activity(
     db: AsyncSession,
     user_id: uuid.UUID,
     *,
-    date_from: Optional[datetime] = None,
-    date_to: Optional[datetime] = None,
-    entity_type: Optional[str] = None,
-    entity_id: Optional[uuid.UUID] = None,
-    cursor: Optional[str] = None,
+    date_from: datetime | None = None,
+    date_to: datetime | None = None,
+    entity_type: str | None = None,
+    entity_id: uuid.UUID | None = None,
+    cursor: str | None = None,
     limit: int = 50,
-) -> tuple[list[ActivityEvent], int, Optional[str]]:
+) -> tuple[list[ActivityEvent], int, str | None]:
     """Newest first, ordered by ``(created_at, id)``; returns (page, total, next cursor)."""
     filters = [ActivityEvent.user_id == user_id]
     if date_from is not None:

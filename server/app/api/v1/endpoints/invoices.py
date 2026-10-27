@@ -1,14 +1,13 @@
 from __future__ import annotations
 
 import uuid
-from typing import Optional
 
 from fastapi import APIRouter, Depends, Query, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.config import settings
 from app.api.dependencies.auth import CurrentFreelancer
 from app.api.v1.openapi import errors
+from app.core.config import settings
 from app.db.crud.invoices import (
     cancel_invoice,
     create_invoice,
@@ -25,8 +24,6 @@ from app.db.crud.invoices import (
 )
 from app.db.crud.payments import reverse_write_off
 from app.db.database import get_db
-from app.services import fx_fetch
-from app.services.pdf import pdf_response
 from app.schemas.InvoiceSchema import (
     InvoiceCreate,
     InvoiceDisplayStatus,
@@ -39,6 +36,8 @@ from app.schemas.InvoiceSchema import (
     InvoiceUpdate,
     InvoiceWriteOff,
 )
+from app.services import fx_fetch
+from app.services.pdf import pdf_response
 
 router = APIRouter(prefix="/invoices", tags=["Invoices"])
 
@@ -55,10 +54,10 @@ async def list_invoices(
     freelancer: CurrentFreelancer,
     skip: int = Query(0, ge=0),
     limit: int = Query(20, ge=1, le=settings.MAX_PAGE_SIZE),
-    status_filter: Optional[InvoiceDisplayStatus] = Query(None, alias="status"),
-    client_id: Optional[uuid.UUID] = Query(None),
-    project_id: Optional[uuid.UUID] = Query(None),
-    search: Optional[str] = Query(None, max_length=50, description="Invoice number"),
+    status_filter: InvoiceDisplayStatus | None = Query(None, alias="status"),
+    client_id: uuid.UUID | None = Query(None),
+    project_id: uuid.UUID | None = Query(None),
+    search: str | None = Query(None, max_length=50, description="Invoice number"),
     db: AsyncSession = Depends(get_db),
 ):
     invoices, total = await get_invoices(

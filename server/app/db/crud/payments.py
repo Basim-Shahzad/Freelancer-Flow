@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -20,7 +20,7 @@ _FUTURE_TOLERANCE = timedelta(minutes=5)
 
 
 def _aware(value: datetime) -> datetime:
-    return value if value.tzinfo else value.replace(tzinfo=timezone.utc)
+    return value if value.tzinfo else value.replace(tzinfo=UTC)
 
 
 def sync_payment_status(invoice: Invoice) -> None:
@@ -41,7 +41,7 @@ def sync_payment_status(invoice: Invoice) -> None:
         invoice.payment_at = max(_aware(p.paid_at) for p in invoice.payments)
     else:
         invoice.status = (
-            InvoiceStatus.PARTIALLY_PAID if paid > Decimal("0") else InvoiceStatus.SENT
+            InvoiceStatus.PARTIALLY_PAID if paid > Decimal(0) else InvoiceStatus.SENT
         )
         invoice.payment_at = None
 
@@ -65,8 +65,8 @@ async def record_payment(
         raise Unprocessable(f"Payment rounds to zero in {invoice.currency}")
     if amount > invoice.balance_due:
         raise Unprocessable(f"Payment exceeds the balance due ({invoice.balance_due})")
-    paid_at = data.paid_at or datetime.now(timezone.utc)
-    if paid_at > datetime.now(timezone.utc) + _FUTURE_TOLERANCE:
+    paid_at = data.paid_at or datetime.now(UTC)
+    if paid_at > datetime.now(UTC) + _FUTURE_TOLERANCE:
         raise Unprocessable("paid_at cannot be in the future")
 
     payment = Payment(

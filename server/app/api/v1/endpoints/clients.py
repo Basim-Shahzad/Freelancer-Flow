@@ -1,28 +1,27 @@
 from __future__ import annotations
 
 import uuid
-from typing import Optional
 
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.dependencies.auth import get_current_user
 from app.core.config import settings
-from app.db.database import get_db
 from app.db.crud.clients import (
+    create_client,
+    delete_client,
     get_client_by_id,
     get_clients,
-    create_client,
     update_client,
-    delete_client,
 )
+from app.db.database import get_db
+from app.models.User import User
 from app.schemas.ClientsSchema import (
     ClientCreate,
-    ClientUpdate,
-    ClientResponse,
     ClientListResponse,
+    ClientResponse,
+    ClientUpdate,
 )
-from app.api.dependencies.auth import get_current_user
-from app.models.User import User
 
 router = APIRouter(prefix="/clients", tags=["Clients"])
 
@@ -31,7 +30,7 @@ router = APIRouter(prefix="/clients", tags=["Clients"])
 async def list_clients(
     skip: int = Query(0, ge=0),
     limit: int = Query(20, ge=1, le=settings.MAX_PAGE_SIZE),
-    search: Optional[str] = Query(None),
+    search: str | None = Query(None),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):

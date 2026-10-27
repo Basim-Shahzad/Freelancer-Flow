@@ -24,7 +24,6 @@ from decimal import Decimal
 from email.message import EmailMessage
 from email.utils import formataddr, parseaddr
 from pathlib import Path
-from typing import Optional
 
 import aiosmtplib
 from jinja2 import Environment, FileSystemLoader, select_autoescape
@@ -64,9 +63,9 @@ def _build_message(
     subject: str,
     template: str,
     context: dict,
-    from_name: Optional[str] = None,
-    reply_to: Optional[str] = None,
-    attachments: Optional[list[Attachment]] = None,
+    from_name: str | None = None,
+    reply_to: str | None = None,
+    attachments: list[Attachment] | None = None,
 ) -> EmailMessage:
     sender_address = parseaddr(settings.SMTP_FROM)[1] or settings.SMTP_FROM or "noreply@paylancr.local"
     msg = EmailMessage()
@@ -148,13 +147,13 @@ async def send_portal_approval_email(
     milestone_id: uuid.UUID,
     portal_token: str,
     *,
-    to_email: Optional[str] = None,
+    to_email: str | None = None,
     client_name: str = "there",
     issuer_name: str = "Your freelancer",
     project_name: str = "your project",
     milestone_name: str = "a milestone",
-    portal_url: Optional[str] = None,
-    reply_to: Optional[str] = None,
+    portal_url: str | None = None,
+    reply_to: str | None = None,
 ) -> None:
     """Ask the client to review a submitted milestone."""
     if not to_email:
@@ -189,8 +188,8 @@ async def send_invoice_email(
     portal_url: str,
     *,
     issuer_name: str = "Your freelancer",
-    reply_to: Optional[str] = None,
-    attachments: Optional[list[Attachment]] = None,
+    reply_to: str | None = None,
+    attachments: list[Attachment] | None = None,
 ) -> None:
     """Email the client a link to their invoice (PDF attached when given)."""
     msg = _build_message(
@@ -224,7 +223,7 @@ async def send_invoice_reminder_email(
     portal_url: str,
     *,
     issuer_name: str = "Your freelancer",
-    reply_to: Optional[str] = None,
+    reply_to: str | None = None,
 ) -> None:
     """Remind the client about an unpaid invoice."""
     prefix = "Overdue" if overdue else "Reminder"

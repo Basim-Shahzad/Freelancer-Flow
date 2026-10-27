@@ -1,11 +1,21 @@
 from __future__ import annotations
+
 import enum
 import uuid
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from decimal import Decimal
-from typing import Optional
 
-from sqlalchemy import Boolean, Date, DateTime, Enum, ForeignKey, Index, Numeric, String, Text
+from sqlalchemy import (
+    Boolean,
+    Date,
+    DateTime,
+    Enum,
+    ForeignKey,
+    Index,
+    Numeric,
+    String,
+    Text,
+)
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -33,13 +43,13 @@ class Expense(Base):
         ForeignKey("freelancers.id", ondelete="CASCADE"), nullable=False
     )
     # Optional link for project-level profitability.
-    project_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+    project_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("projects.id", ondelete="SET NULL"), nullable=True
     )
 
     description: Mapped[str] = mapped_column(String(255), nullable=False)
-    category: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
-    vendor: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    category: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    vendor: Mapped[str | None] = mapped_column(String(255), nullable=True)
     amount: Mapped[Decimal] = mapped_column(
         Numeric(precision=18, scale=4), nullable=False
     )
@@ -49,19 +59,19 @@ class Expense(Base):
     # A recurring expense repeats every `recurrence` from `incurred_on` until
     # `recurrence_ends_on` (NULL = open-ended).
     is_recurring: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-    recurrence: Mapped[Optional[RecurrenceInterval]] = mapped_column(
+    recurrence: Mapped[RecurrenceInterval | None] = mapped_column(
         Enum(RecurrenceInterval), nullable=True
     )
-    recurrence_ends_on: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
-    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    recurrence_ends_on: Mapped[date | None] = mapped_column(Date, nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
-        onupdate=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
     )

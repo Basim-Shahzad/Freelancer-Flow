@@ -1,8 +1,8 @@
 from __future__ import annotations
+
 import enum
 import uuid
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import UTC, datetime
 
 from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Index, Integer, String
 from sqlalchemy.dialects.postgresql import UUID
@@ -46,7 +46,7 @@ class PaymentMethodConfig(Base):
         Enum(PaymentMethodType), nullable=False
     )
     label: Mapped[str] = mapped_column(String(100), nullable=False)
-    currency: Mapped[Optional[str]] = mapped_column(String(3), nullable=True)
+    currency: Mapped[str | None] = mapped_column(String(3), nullable=True)
     # Serialized JSON (IBANs, wallet numbers...), encrypted at rest.
     details: Mapped[str] = mapped_column(EncryptedText, nullable=False)
     is_default: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
@@ -56,10 +56,10 @@ class PaymentMethodConfig(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
-        onupdate=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
     )

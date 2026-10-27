@@ -1,6 +1,6 @@
 """Project billing types: retainer/hourly/milestone rules and progress_percent."""
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 from sqlalchemy import select
@@ -112,7 +112,7 @@ async def test_milestone_type_rejects_disabling_milestones(client, auth_headers,
 async def test_hourly_defaults_to_freelancer_rate(
     client, auth_headers, client_profile, freelancer_profile, db_session
 ):
-    freelancer_profile.hourly_rate = Decimal("75")
+    freelancer_profile.hourly_rate = Decimal(75)
     await db_session.commit()
     resp = await _create(client, auth_headers, client_profile, billingType="HOURLY")
     assert Decimal(resp.json()["hourlyRate"]) == 75
@@ -193,12 +193,12 @@ async def test_progress_by_hours_for_hourly_budget(
 ):
     p = await make_project(
         client_id=client_profile.id, created_by=user.id, billing_type=BillingType.HOURLY,
-        milestones_enabled=False, budget=Decimal("1000"), hourly_rate=Decimal("100"),
+        milestones_enabled=False, budget=Decimal(1000), hourly_rate=Decimal(100),
     )
-    start = datetime.now(timezone.utc) - timedelta(hours=3)
+    start = datetime.now(UTC) - timedelta(hours=3)
     db_session.add(TimeEntry(
         description="x", start_time=start, end_time=start + timedelta(hours=2),
-        duration_minutes=120, project_id=p.id, user_id=user.id, hourly_rate=Decimal("100"),
+        duration_minutes=120, project_id=p.id, user_id=user.id, hourly_rate=Decimal(100),
     ))
     await db_session.commit()
     body = (await client.get(f"{PROJECTS_URL}/{p.id}", headers=auth_headers)).json()

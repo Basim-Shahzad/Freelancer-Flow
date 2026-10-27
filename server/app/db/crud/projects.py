@@ -2,13 +2,13 @@ from __future__ import annotations
 
 import uuid
 from datetime import date, datetime
-from typing import Any, Optional
+from typing import Any
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import select, func
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.core.errors import Conflict, Forbidden, NotFound, Unprocessable
 from app.db.crud.activity import diff_changes, log_activity
@@ -44,9 +44,9 @@ async def get_projects(
     user_id: uuid.UUID,
     skip: int = 0,
     limit: int = 20,
-    client_id: Optional[uuid.UUID] = None,
-    status: Optional[ProjectStatus] = None,
-    search: Optional[str] = None,
+    client_id: uuid.UUID | None = None,
+    status: ProjectStatus | None = None,
+    search: str | None = None,
 ) -> tuple[list[Project], int]:
     query = (
         select(Project)

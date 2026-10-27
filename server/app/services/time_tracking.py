@@ -2,8 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
-from typing import Optional
+from datetime import UTC, datetime, timedelta
 
 # Tolerated client clock skew when validating "not in the future".
 FUTURE_TOLERANCE = timedelta(minutes=5)
@@ -12,12 +11,12 @@ MAX_DURATION = timedelta(hours=24)
 
 def aware(value: datetime) -> datetime:
     """SQLite (tests) returns naive datetimes; Postgres returns aware ones."""
-    return value if value.tzinfo else value.replace(tzinfo=timezone.utc)
+    return value if value.tzinfo else value.replace(tzinfo=UTC)
 
 
 def validate_window(
-    start: datetime, end: Optional[datetime], now: datetime
-) -> Optional[str]:
+    start: datetime, end: datetime | None, now: datetime
+) -> str | None:
     """Reason the time window is invalid, or ``None``. ``end=None`` is a running timer."""
     start = aware(start)
     if start > now + FUTURE_TOLERANCE:
@@ -36,9 +35,9 @@ def validate_window(
 
 def overlaps(
     start: datetime,
-    end: Optional[datetime],
+    end: datetime | None,
     other_start: datetime,
-    other_end: Optional[datetime],
+    other_end: datetime | None,
     now: datetime,
 ) -> bool:
     """Half-open interval overlap; a running entry extends to ``now``.

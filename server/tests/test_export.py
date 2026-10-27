@@ -4,7 +4,7 @@ import csv
 import io
 import json
 import zipfile
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 
 from pypdf import PdfReader
 from sqlalchemy import select
@@ -39,7 +39,7 @@ async def _populate(client, headers, project):
         "/api/v1/payment-methods", json=body("PAYONEER", VALID["PAYONEER"]), headers=headers
     )
     assert pm.status_code == 201, pm.text
-    start = datetime(2026, 1, 1, 9, 0, tzinfo=timezone.utc)
+    start = datetime(2026, 1, 1, 9, 0, tzinfo=UTC)
     te = await client.post(
         "/api/v1/time-entries",
         json={
@@ -130,7 +130,7 @@ async def test_export_decrypts_payment_details(client, auth_headers, project):
 async def test_export_has_no_secrets(client, auth_headers, project, user, db_session):
     await _populate(client, auth_headers, project)
     db_session.add(RefreshToken(user_id=user.id, token="refresh-secret-token-value",
-                                expires_at=datetime.now(timezone.utc) + timedelta(days=1)))
+                                expires_at=datetime.now(UTC) + timedelta(days=1)))
     await db_session.commit()
     sent = await client.post(
         f"{INVOICES_URL}/{(await client.get(INVOICES_URL, headers=auth_headers)).json()['invoices'][0]['id']}/send",

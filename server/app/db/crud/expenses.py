@@ -1,15 +1,16 @@
 from __future__ import annotations
 
 import uuid
-from datetime import date, datetime, timezone
+from datetime import date, datetime
 from decimal import Decimal
-from typing import Optional
+from zoneinfo import ZoneInfo
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import NotFound, Unprocessable
 from app.db.crud.activity import diff_changes, log_activity
+from app.db.crud.currency import resolve_currency
 from app.db.crud.projects import get_project_by_id
 from app.models.Expense import Expense, RecurrenceInterval
 from app.models.FreelancerProfile import FreelancerProfile
@@ -18,9 +19,7 @@ from app.schemas.ExpenseSchema import (
     ExpenseCreate,
     ExpenseUpdate,
 )
-from app.db.crud.currency import resolve_currency
 from app.services.invoicing import quantize_money
-from zoneinfo import ZoneInfo
 
 _MONTHS_PER_INTERVAL = {
     RecurrenceInterval.MONTHLY: Decimal(1),
@@ -31,7 +30,7 @@ RUNWAY_LOOKBACK_MONTHS = 3
 
 
 async def _check_project(
-    db: AsyncSession, project_id: Optional[uuid.UUID], freelancer: FreelancerProfile
+    db: AsyncSession, project_id: uuid.UUID | None, freelancer: FreelancerProfile
 ) -> None:
     if project_id is not None:
         # 404 unless the project belongs to the caller.
@@ -59,11 +58,11 @@ async def get_expenses(
     *,
     skip: int = 0,
     limit: int = 20,
-    project_id: Optional[uuid.UUID] = None,
-    category: Optional[str] = None,
-    is_recurring: Optional[bool] = None,
-    date_from: Optional[date] = None,
-    date_to: Optional[date] = None,
+    project_id: uuid.UUID | None = None,
+    category: str | None = None,
+    is_recurring: bool | None = None,
+    date_from: date | None = None,
+    date_to: date | None = None,
 ) -> tuple[list[Expense], int]:
     filters = [Expense.freelancer_id == freelancer_id]
     if project_id:
@@ -217,7 +216,7 @@ async def cash_runway(
     ).scalars().all()
     monthly_recurring = sum(
         (e.amount / _MONTHS_PER_INTERVAL[e.recurrence] for e in recurring if e.recurrence),
-        Decimal("0"),
+        Decimal(0),
     )
 
     since = _months_back(today, RUNWAY_LOOKBACK_MONTHS)
@@ -235,9 +234,9 @@ async def cash_runway(
 
     burn = monthly_recurring + monthly_one_off
     balance = freelancer.bank_balance
-    runway: Optional[Decimal] = None
+    runway: Decimal | None = None
     if balance is not None and burn > 0:
-        runway = max(balance, Decimal("0")) / burn
+        runway = max(balance, Decimal(0)) / burn
         runway = runway.quantize(Decimal("0.1"))
 
     return CashRunwayResponse(

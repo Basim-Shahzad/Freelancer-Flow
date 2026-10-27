@@ -1,7 +1,7 @@
 """PATCH /time-entries/bulk"""
 
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 from sqlalchemy import select
@@ -13,7 +13,7 @@ URL = "/api/v1/time-entries"
 
 
 async def _log(client, headers, project_id, hours_ago=3, **extra):
-    start = datetime.now(timezone.utc) - timedelta(hours=hours_ago)
+    start = datetime.now(UTC) - timedelta(hours=hours_ago)
     resp = await client.post(
         URL,
         json={
@@ -84,7 +84,7 @@ async def test_bulk_project_change_resolves_rate(
     await client.patch("/api/v1/profile", json={"hourlyRate": "100"}, headers=auth_headers)
     entry = await _log(client, auth_headers, project.id)
     other = await make_project(
-        client_id=client_profile.id, created_by=user.id, name="Second", hourly_rate=Decimal("250")
+        client_id=client_profile.id, created_by=user.id, name="Second", hourly_rate=Decimal(250)
     )
     resp = await _bulk(client, auth_headers, [entry["id"]], projectId=str(other.id))
     assert resp.status_code == 200, resp.text

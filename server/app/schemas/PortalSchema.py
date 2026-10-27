@@ -1,5 +1,4 @@
 import uuid
-from typing import Optional
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -17,10 +16,10 @@ class PortalProjectResponse(Base):
 
     id: uuid.UUID
     name: str
-    description: Optional[str] = None
+    description: str | None = None
     status: ProjectStatus
-    due_date: Optional[UTCDateTime] = None
-    currency: Optional[str] = None
+    due_date: UTCDateTime | None = None
+    currency: str | None = None
 
 
 class PortalConvertRequest(BaseModel):
@@ -41,4 +40,4 @@ class PortalInvoiceResponse(InvoiceResponse):
     """Portal visitors have no account, so the rates ride along with the invoice
     for the client's display-only estimate (Money Rule)."""
 
-    exchange_rates: Optional[PublicExchangeRates] = None
+    exchange_rates: PublicExchangeRates | None = None

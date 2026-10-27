@@ -1,8 +1,8 @@
 from __future__ import annotations
+
 import uuid
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from decimal import Decimal
-from typing import Optional
 
 from sqlalchemy import Date, DateTime, ForeignKey, Index, Numeric, String, Text
 from sqlalchemy.dialects.postgresql import UUID
@@ -27,9 +27,9 @@ class TaxRemittance(Base):
     )
     # Which tax this settles (matches an invoice tax name, e.g. "VAT", "GST");
     # NULL settles all collected tax.
-    tax_name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    tax_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
     # Free label for the filing period ("2026-Q1", "FY26"...).
-    period_label: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    period_label: Mapped[str | None] = mapped_column(String(50), nullable=True)
     period_start: Mapped[date] = mapped_column(Date, nullable=False)
     period_end: Mapped[date] = mapped_column(Date, nullable=False)
     amount: Mapped[Decimal] = mapped_column(
@@ -39,13 +39,13 @@ class TaxRemittance(Base):
     paid_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
     )
-    reference: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
-    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    reference: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
     )

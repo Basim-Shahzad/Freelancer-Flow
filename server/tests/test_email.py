@@ -3,7 +3,7 @@
 import logging
 import socket
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from email import message_from_bytes
 from email.policy import default as default_policy
 
@@ -205,7 +205,7 @@ async def test_reminder_email_has_no_pdf_and_is_rate_limited(client, auth_header
 
 
 async def test_overdue_reminder_wording(client, auth_headers, project, outbox):
-    past = datetime.now(timezone.utc) - timedelta(days=10)
+    past = datetime.now(UTC) - timedelta(days=10)
     inv = await _invoice(
         client,
         auth_headers,

@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import logging
 from datetime import date
-from typing import Any, Optional
+from typing import Any
 
 from pydantic import ValidationError
 from sqlalchemy import select
@@ -65,7 +65,7 @@ async def list_settings(db: AsyncSession) -> list[ReferenceSetting]:
     return list(rows.scalars().all())
 
 
-async def find_setting(db: AsyncSession, key: str) -> Optional[ReferenceSetting]:
+async def find_setting(db: AsyncSession, key: str) -> ReferenceSetting | None:
     return (
         await db.execute(select(ReferenceSetting).where(ReferenceSetting.key == key))
     ).scalar_one_or_none()
@@ -82,9 +82,9 @@ async def set_setting(
     db: AsyncSession,
     key: str,
     value: dict[str, Any],
-    reference_date: Optional[date] = None,
-    user: Optional[User] = None,
-    notes: Optional[str] = None,
+    reference_date: date | None = None,
+    user: User | None = None,
+    notes: str | None = None,
 ) -> ReferenceSetting:
     """Update an existing setting and commit.
 

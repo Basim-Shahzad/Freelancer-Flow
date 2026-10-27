@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from typing import Optional
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -13,7 +12,6 @@ from app.db.crud.activity import list_activity
 from app.db.database import get_db
 from app.models.User import User
 from app.schemas.ActivitySchema import ActivityListResponse
-from app.schemas.types import UTCDateTime
 
 router = APIRouter(prefix="/activity", tags=["Activity"])
 
@@ -27,19 +25,19 @@ router = APIRouter(prefix="/activity", tags=["Activity"])
     responses=errors(401),
 )
 async def get_activity_feed(
-    date_from: Optional[datetime] = Query(
+    date_from: datetime | None = Query(
         None, alias="from", description="Only events at or after this time."
     ),
-    date_to: Optional[datetime] = Query(
+    date_to: datetime | None = Query(
         None, alias="to", description="Only events at or before this time."
     ),
-    entity_type: Optional[str] = Query(
+    entity_type: str | None = Query(
         None,
         max_length=50,
         description="e.g. project, milestone, invoice, time_entry, expense, client",
     ),
-    entity_id: Optional[uuid.UUID] = Query(None),
-    cursor: Optional[str] = Query(
+    entity_id: uuid.UUID | None = Query(None),
+    cursor: str | None = Query(
         None, description="`next_cursor` from the previous page."
     ),
     limit: int = Query(50, ge=1, le=200),

@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import uuid
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
-from typing import Any, Optional
+from typing import Any
 from zoneinfo import ZoneInfo
 
 from sqlalchemy import case, exists, func, select
@@ -35,7 +35,7 @@ def _first_of_month(day: date, offset: int = 0) -> date:
     return date(year, month + 1, 1)
 
 
-def _currency(project: Project, freelancer: FreelancerProfile) -> Optional[str]:
+def _currency(project: Project, freelancer: FreelancerProfile) -> str | None:
     """Same fallback chain as invoice creation; None when nothing is set."""
     return (
         project.currency
@@ -207,7 +207,7 @@ async def _unbilled_time_and_milestones(
         minutes[project_id] = minutes.get(project_id, 0) + duration * count
         if rate is not None:
             currency = _currency(projects[project_id], freelancer)
-            amounts[project_id] = amounts.get(project_id, Decimal("0")) + count * (
+            amounts[project_id] = amounts.get(project_id, Decimal(0)) + count * (
                 time_entry_amount(duration, _dec(rate), currency)
             )
     time_out = []
@@ -220,7 +220,7 @@ async def _unbilled_time_and_milestones(
                 "project_name": project.name,
                 "currency": currency,
                 "hours": hours_from_minutes(total_minutes),
-                "amount": quantize_money(amounts.get(project_id, Decimal("0")), currency),
+                "amount": quantize_money(amounts.get(project_id, Decimal(0)), currency),
             }
         )
     time_out.sort(key=lambda r: (r["project_name"], str(r["project_id"])))
@@ -307,7 +307,7 @@ async def _unbilled_retainer_periods(
 
 async def _running_timer(
     db: AsyncSession, freelancer: FreelancerProfile, now: datetime
-) -> Optional[dict[str, Any]]:
+) -> dict[str, Any] | None:
     row = (
         await db.execute(
             select(TimeEntry, Project.name)
@@ -320,7 +320,7 @@ async def _running_timer(
     entry, project_name = row
     started = entry.start_time
     if started.tzinfo is None:
-        started = started.replace(tzinfo=timezone.utc)
+        started = started.replace(tzinfo=UTC)
     return {
         "id": entry.id,
         "project_id": entry.project_id,
@@ -334,7 +334,7 @@ async def _running_timer(
 async def dashboard_summary(
     db: AsyncSession, freelancer: FreelancerProfile
 ) -> DashboardSummary:
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     today = now.astimezone(ZoneInfo(freelancer.timezone)).date()
 
     time_out, milestones_out = await _unbilled_time_and_milestones(db, freelancer)

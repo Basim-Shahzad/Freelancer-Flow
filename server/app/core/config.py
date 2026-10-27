@@ -2,7 +2,7 @@ from functools import lru_cache
 from typing import Literal
 
 from cryptography.fernet import Fernet
-from pydantic import AnyHttpUrl, EmailStr, field_validator, model_validator
+from pydantic import EmailStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 MIN_SECRET_KEY_LENGTH = 32

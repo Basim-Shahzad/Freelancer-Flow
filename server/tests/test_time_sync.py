@@ -1,7 +1,7 @@
 """POST /time-entries/sync"""
 
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import select
 
@@ -11,7 +11,7 @@ URL = "/api/v1/time-entries/sync"
 
 
 def _item(project_id, *, hours_ago=3, length=1, running=False, **extra):
-    start = datetime.now(timezone.utc) - timedelta(hours=hours_ago)
+    start = datetime.now(UTC) - timedelta(hours=hours_ago)
     return {
         "id": str(uuid.uuid4()),
         "startTime": start.isoformat(),
@@ -116,7 +116,7 @@ async def test_offline_delete(client, auth_headers, project, db_session):
 
 
 async def test_per_entry_validation(client, auth_headers, project):
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     bad_order = _item(project.id)
     bad_order["endTime"] = (datetime.fromisoformat(bad_order["startTime"]) - timedelta(hours=1)).isoformat()
     future = _item(project.id, hours_ago=-2)

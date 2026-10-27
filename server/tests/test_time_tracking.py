@@ -1,7 +1,7 @@
 """Running timers, rate snapshots, entry edits and derived project time."""
 
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 TIME_URL = "/api/v1/time-entries"
@@ -20,7 +20,7 @@ async def _start(client, headers, project_id, **extra):
 
 
 async def test_start_and_stop_timer(client, auth_headers, project):
-    started_at = datetime.now(timezone.utc) - timedelta(minutes=90)
+    started_at = datetime.now(UTC) - timedelta(minutes=90)
     resp = await _start(client, auth_headers, project.id, startTime=_iso(started_at))
     assert resp.status_code == 201, resp.text
     entry = resp.json()
@@ -57,7 +57,7 @@ async def test_only_one_running_timer_per_user(
 
 async def test_timer_requires_owned_project_and_valid_start(client, auth_headers, other_auth_headers, project):
     assert (await _start(client, other_auth_headers, project.id)).status_code == 404
-    future = _iso(datetime.now(timezone.utc) + timedelta(hours=2))
+    future = _iso(datetime.now(UTC) + timedelta(hours=2))
     assert (await _start(client, auth_headers, project.id, startTime=future)).status_code == 422
 
 
@@ -79,7 +79,7 @@ async def test_rate_snapshot_prefers_request_then_project_then_profile(
     assert Decimal(profile_rate["hourlyRate"]) == 100
     await client.post(f"{TIME_URL}/entry/{profile_rate['id']}/stop", headers=auth_headers)
 
-    project.hourly_rate = Decimal("150")
+    project.hourly_rate = Decimal(150)
     await db_session.commit()
     project_rate = (await _start(client, auth_headers, project.id)).json()
     assert Decimal(project_rate["hourlyRate"]) == 150
@@ -90,7 +90,7 @@ async def test_rate_snapshot_prefers_request_then_project_then_profile(
 
 
 async def test_project_total_time_is_derived_from_entries(client, auth_headers, project):
-    end = datetime.now(timezone.utc) - timedelta(minutes=1)
+    end = datetime.now(UTC) - timedelta(minutes=1)
     for minutes in (60, 30):
         await client.post(
             TIME_URL,
@@ -105,7 +105,7 @@ async def test_project_total_time_is_derived_from_entries(client, auth_headers, 
 
 
 async def test_update_and_delete_time_entry(client, auth_headers, other_auth_headers, project):
-    end = datetime.now(timezone.utc) - timedelta(minutes=10)
+    end = datetime.now(UTC) - timedelta(minutes=10)
     created = (
         await client.post(
             TIME_URL,
@@ -138,7 +138,7 @@ async def test_update_and_delete_time_entry(client, auth_headers, other_auth_hea
 async def test_invoiced_entries_are_immutable(client, auth_headers, project, db_session):
     from app.models.TimeEntry import TimeEntry
 
-    end = datetime.now(timezone.utc) - timedelta(minutes=10)
+    end = datetime.now(UTC) - timedelta(minutes=10)
     created = (
         await client.post(
             TIME_URL,
@@ -161,7 +161,7 @@ async def test_invoiced_entries_are_immutable(client, auth_headers, project, db_
 async def test_entry_milestone_must_belong_to_project(client, auth_headers, project, user, client_profile, make_project, make_milestone):
     other_project = await make_project(client_id=client_profile.id, created_by=user.id, name="Other")
     foreign = await make_milestone(project_id=other_project.id)
-    end = datetime.now(timezone.utc) - timedelta(minutes=10)
+    end = datetime.now(UTC) - timedelta(minutes=10)
     resp = await client.post(
         TIME_URL,
         json={
@@ -175,7 +175,7 @@ async def test_entry_milestone_must_belong_to_project(client, auth_headers, proj
 
 
 async def test_deleting_a_milestone_keeps_its_time_entries(client, auth_headers, project, milestone):
-    end = datetime.now(timezone.utc) - timedelta(minutes=10)
+    end = datetime.now(UTC) - timedelta(minutes=10)
     await client.post(
         TIME_URL,
         json={

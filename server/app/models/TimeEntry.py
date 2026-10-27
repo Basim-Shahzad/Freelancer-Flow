@@ -1,18 +1,19 @@
 from __future__ import annotations
-import uuid
-from typing import TYPE_CHECKING, Optional
-from datetime import datetime, timezone
-from decimal import Decimal
 
-from sqlalchemy import DateTime, ForeignKey, Index, Numeric, String, Boolean, text
+import uuid
+from datetime import UTC, datetime
+from decimal import Decimal
+from typing import TYPE_CHECKING
+
+from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Numeric, String, text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.database import Base
 
 if TYPE_CHECKING:
-    from app.models.Project import Project
     from app.models.Milestone import Milestone
+    from app.models.Project import Project
 
 
 class TimeEntry(Base):
@@ -39,7 +40,7 @@ class TimeEntry(Base):
         DateTime(timezone=True), nullable=False
     )
     # NULL means the timer is still running.
-    end_time: Mapped[Optional[datetime]] = mapped_column(
+    end_time: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
     duration_minutes: Mapped[int] = mapped_column(nullable=False, default=0)
@@ -49,7 +50,7 @@ class TimeEntry(Base):
 
     # Rate snapshot taken when the entry is created, so later changes to a
     # profile/project rate never rewrite billing history.
-    hourly_rate: Mapped[Optional[Decimal]] = mapped_column(
+    hourly_rate: Mapped[Decimal | None] = mapped_column(
         Numeric(precision=18, scale=4), nullable=True
     )
 
@@ -61,22 +62,22 @@ class TimeEntry(Base):
         ForeignKey("projects.id", ondelete="CASCADE"), nullable=False
     )
     # SET NULL: deleting a milestone must not delete already-invoiced time.
-    milestone_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+    milestone_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("milestones.id", ondelete="SET NULL"), nullable=True
     )
     # Relationships
-    project: Mapped["Project"] = relationship(back_populates="time_entries")
-    milestone: Mapped[Optional["Milestone"]] = relationship(
+    project: Mapped[Project] = relationship(back_populates="time_entries")
+    milestone: Mapped[Milestone | None] = relationship(
         "Milestone", back_populates="time_entries"
     )
 
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+        DateTime(timezone=True), default=lambda: datetime.now(UTC)
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
-        onupdate=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
     )
 
     @property

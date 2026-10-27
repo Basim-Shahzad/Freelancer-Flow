@@ -1,14 +1,13 @@
 from __future__ import annotations
 
 import uuid
-from typing import Optional
 
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.config import settings
 from app.api.dependencies.auth import get_current_user
 from app.api.v1.openapi import errors
+from app.core.config import settings
 from app.db.crud.change_requests import (
     create_change_request,
     delete_change_request,
@@ -36,8 +35,8 @@ router = APIRouter(prefix="/change-requests", tags=["Change Requests"])
     responses=errors(401),
 )
 async def list_change_requests(
-    project_id: Optional[uuid.UUID] = Query(None),
-    status_filter: Optional[ChangeRequestStatus] = Query(None, alias="status"),
+    project_id: uuid.UUID | None = Query(None),
+    status_filter: ChangeRequestStatus | None = Query(None, alias="status"),
     skip: int = Query(0, ge=0),
     limit: int = Query(20, ge=1, le=settings.MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db),

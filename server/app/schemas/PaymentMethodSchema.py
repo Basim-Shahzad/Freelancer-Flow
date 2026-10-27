@@ -10,10 +10,18 @@ from __future__ import annotations
 import json
 import re
 import uuid
+from collections.abc import Callable
 from datetime import datetime
-from typing import Any, Callable, Literal, Optional
+from typing import Any, Literal
 
-from pydantic import ConfigDict, EmailStr, Field, ValidationError, field_validator, model_validator
+from pydantic import (
+    ConfigDict,
+    EmailStr,
+    Field,
+    ValidationError,
+    field_validator,
+    model_validator,
+)
 
 from app.core import bank_validators as bv
 from app.models.PaymentMethodConfig import PaymentMethodType
@@ -37,12 +45,12 @@ Name = ClientFacingText
 
 
 class PayoneerDetails(_Details):
-    account_email: Optional[EmailStr] = None
-    payment_request_url: Optional[str] = Field(default=None, max_length=1024)
-    bank_name: Optional[Name] = Field(default=None, max_length=255)
-    account_holder: Optional[Name] = Field(default=None, max_length=255)
-    iban: Optional[str] = None
-    swift_bic: Optional[str] = None
+    account_email: EmailStr | None = None
+    payment_request_url: str | None = Field(default=None, max_length=1024)
+    bank_name: Name | None = Field(default=None, max_length=255)
+    account_holder: Name | None = Field(default=None, max_length=255)
+    iban: str | None = None
+    swift_bic: str | None = None
 
     @field_validator("payment_request_url")
     @classmethod
@@ -73,7 +81,7 @@ class EsfcaWireDetails(_Details):
     swift_bic: str
     bank_address: Name = Field(min_length=1, max_length=500)
     # Filled from the `payment_texts` reference setting when omitted (crud).
-    purpose_of_payment: Optional[Name] = Field(default=None, max_length=255)
+    purpose_of_payment: Name | None = Field(default=None, max_length=255)
 
     @field_validator("iban")
     @classmethod
@@ -103,7 +111,7 @@ class WiseToIbanDetails(_Details):
     beneficiary_name: Name = Field(min_length=1, max_length=255)
     iban: str
     bank_name: Name = Field(min_length=1, max_length=255)
-    note: Optional[Name] = Field(default=None, max_length=1000)
+    note: Name | None = Field(default=None, max_length=1000)
 
     @field_validator("iban")
     @classmethod
@@ -115,7 +123,7 @@ class PkrBankTransferDetails(_Details):
     account_title: Name = Field(min_length=1, max_length=255)
     bank_name: Name = Field(min_length=1, max_length=255)
     iban: str
-    account_number: Optional[str] = Field(default=None, pattern=r"^[A-Za-z0-9-]{4,34}$")
+    account_number: str | None = Field(default=None, pattern=r"^[A-Za-z0-9-]{4,34}$")
 
     @field_validator("iban")
     @classmethod
@@ -125,8 +133,8 @@ class PkrBankTransferDetails(_Details):
 
 class RaastDetails(_Details):
     account_title: Name = Field(min_length=1, max_length=255)
-    raast_id: Optional[str] = Field(default=None, min_length=1, max_length=100)
-    iban: Optional[str] = None
+    raast_id: str | None = Field(default=None, min_length=1, max_length=100)
+    iban: str | None = None
 
     @field_validator("iban")
     @classmethod
@@ -224,17 +232,17 @@ class BankTransferDetails(_Details):
     account_holder: Name = Field(min_length=1, max_length=255)
     bank_name: Name = Field(min_length=1, max_length=255)
     currency: CurrencyCode
-    bank_address: Optional[Name] = Field(default=None, max_length=500)
-    reference_note: Optional[Name] = Field(default=None, max_length=500)
+    bank_address: Name | None = Field(default=None, max_length=500)
+    reference_note: Name | None = Field(default=None, max_length=500)
     scheme: Literal["IBAN", "ACH", "UK_SORT_CODE", "SWIFT_OTHER"]
 
-    iban: Optional[str] = None
-    swift_bic: Optional[str] = None
-    routing_number: Optional[str] = None
-    account_number: Optional[str] = None
-    account_type: Optional[str] = None
-    sort_code: Optional[str] = None
-    branch_code: Optional[str] = Field(default=None, max_length=50)
+    iban: str | None = None
+    swift_bic: str | None = None
+    routing_number: str | None = None
+    account_number: str | None = None
+    account_type: str | None = None
+    sort_code: str | None = None
+    branch_code: str | None = Field(default=None, max_length=50)
 
     @field_validator("country")
     @classmethod
@@ -309,7 +317,7 @@ class PaymentMethodCreate(Base):
 
     type: PaymentMethodType
     label: ClientFacingText = Field(min_length=1, max_length=100)
-    currency: Optional[CurrencyCode] = None
+    currency: CurrencyCode | None = None
     is_default: bool = False
     details: dict[str, Any]
 
@@ -322,11 +330,11 @@ class PaymentMethodCreate(Base):
 class PaymentMethodUpdate(Base):
     """PATCH /payment-methods/{id}. ``type`` is immutable; ``details`` replaces wholesale."""
 
-    label: Optional[ClientFacingText] = Field(default=None, min_length=1, max_length=100)
-    currency: Optional[CurrencyCode] = None
-    is_default: Optional[bool] = None
-    is_active: Optional[bool] = None
-    details: Optional[dict[str, Any]] = None
+    label: ClientFacingText | None = Field(default=None, min_length=1, max_length=100)
+    currency: CurrencyCode | None = None
+    is_default: bool | None = None
+    is_active: bool | None = None
+    details: dict[str, Any] | None = None
 
     model_config = ConfigDict(
         alias_generator=Base.model_config["alias_generator"],
@@ -339,7 +347,7 @@ class PaymentMethodResponse(Base):
     id: uuid.UUID
     type: PaymentMethodType
     label: str
-    currency: Optional[str] = None
+    currency: str | None = None
     is_default: bool
     is_active: bool
     sort_order: int

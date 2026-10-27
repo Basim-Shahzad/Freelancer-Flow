@@ -1,8 +1,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import UTC, datetime
 
 from sqlalchemy import func, or_, select
 from sqlalchemy.exc import IntegrityError
@@ -36,7 +35,7 @@ _aware = aware
 
 
 def _now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 async def _resolve_rate(
@@ -51,7 +50,7 @@ async def _resolve_rate(
 
 
 async def _check_milestone(
-    db: AsyncSession, milestone_id: Optional[uuid.UUID], project_id: uuid.UUID
+    db: AsyncSession, milestone_id: uuid.UUID | None, project_id: uuid.UUID
 ) -> None:
     if milestone_id is None:
         return
@@ -105,7 +104,7 @@ async def get_owned_entry(
 
 async def get_running_entry(
     db: AsyncSession, user_id: uuid.UUID
-) -> Optional[TimeEntry]:
+) -> TimeEntry | None:
     result = await db.execute(
         select(TimeEntry).where(
             TimeEntry.user_id == user_id, TimeEntry.end_time.is_(None)
@@ -269,7 +268,7 @@ async def bulk_update_time_entries(
     if any(e.is_invoiced for e in entries) and set(changes) - {"description"}:
         raise Conflict("Invoiced time entries can only have their description changed")
 
-    project: Optional[Project] = None
+    project: Project | None = None
     if "project_id" in changes:
         project = await get_project_by_id(db, changes["project_id"], user_id)
         if "milestone_id" not in changes and any(
@@ -372,13 +371,13 @@ async def sync_time_entries(
     now = _now()
     running = await get_running_entry(db, user_id)
     running_id = running.id if running else None
-    projects: dict[uuid.UUID, Optional[Project]] = {}
+    projects: dict[uuid.UUID, Project | None] = {}
     seen: set[uuid.UUID] = set()
     results: list[dict] = []
     counts = {"created": 0, "updated": 0, "deleted": 0, "conflict": 0, "rejected": 0}
     touched: list[uuid.UUID] = []
 
-    async def project_for(project_id: uuid.UUID) -> Optional[Project]:
+    async def project_for(project_id: uuid.UUID) -> Project | None:
         if project_id not in projects:
             try:
                 projects[project_id] = await get_project_by_id(db, project_id, user_id)

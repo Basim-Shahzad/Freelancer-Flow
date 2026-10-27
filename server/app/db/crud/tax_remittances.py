@@ -1,17 +1,16 @@
 from __future__ import annotations
 
 import uuid
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from decimal import Decimal
-from typing import Optional
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import NotFound
 from app.db.crud.activity import log_activity
-from app.models.FreelancerProfile import FreelancerProfile
 from app.db.crud.currency import resolve_currency
+from app.models.FreelancerProfile import FreelancerProfile
 from app.models.Invoice import Invoice, InvoiceStatus, InvoiceTax
 from app.models.Payment import Payment
 from app.models.TaxRemittance import TaxRemittance
@@ -40,7 +39,7 @@ async def create_remittance(
 ) -> TaxRemittance:
     values = data.model_dump()
     values["currency"] = resolve_currency(values["currency"], freelancer.currency)
-    values["paid_at"] = values["paid_at"] or datetime.now(timezone.utc)
+    values["paid_at"] = values["paid_at"] or datetime.now(UTC)
     remittance = TaxRemittance(**values, freelancer_id=freelancer.id)
     db.add(remittance)
     await db.flush()
@@ -111,7 +110,7 @@ async def _cash_basis_collected(
     invoice_filters: list,
     start_dt: datetime,
     end_dt: datetime,
-    tax_name: Optional[str],
+    tax_name: str | None,
 ) -> Decimal:
     """Tax received in the window: each payment carries its share of the tax.
 
@@ -148,7 +147,7 @@ async def _cash_basis_collected(
             for amount, total, tax in rows
             if Decimal(total) > 0
         ),
-        Decimal("0"),
+        Decimal(0),
     )
 
 
@@ -157,8 +156,8 @@ async def tax_summary(
     freelancer: FreelancerProfile,
     period_start: date,
     period_end: date,
-    currency: Optional[str] = None,
-    tax_name: Optional[str] = None,
+    currency: str | None = None,
+    tax_name: str | None = None,
 ) -> TaxSummaryResponse:
     currency = resolve_currency(currency, freelancer.currency)
     start_dt, end_dt = local_window(period_start, period_end, freelancer.timezone)
@@ -207,5 +206,5 @@ async def tax_summary(
         tax_name=tax_name,
         tax_collected=collected,
         tax_remitted=remitted,
-        tax_outstanding=max(collected - remitted, Decimal("0")),
+        tax_outstanding=max(collected - remitted, Decimal(0)),
     )

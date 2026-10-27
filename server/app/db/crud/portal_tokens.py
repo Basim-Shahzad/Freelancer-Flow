@@ -1,8 +1,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timedelta, timezone
-from typing import Optional
+from datetime import UTC, datetime, timedelta
 
 import jwt
 from sqlalchemy import select
@@ -23,7 +22,7 @@ async def issue_portal_token(
 
     The caller commits it atomically together with its own changes.
     """
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     expires_at = now + timedelta(days=settings.PORTAL_TOKEN_EXPIRE_DAYS)
     jti = str(uuid.uuid4())
 
@@ -61,7 +60,7 @@ async def validate_portal_token(db: AsyncSession, token_string: str) -> PortalAc
     except jwt.PyJWTError:
         raise Unauthorized("Invalid or expired token signature")
 
-    jti: Optional[str] = payload.get("jti")
+    jti: str | None = payload.get("jti")
     if not jti:
         raise Unauthorized("Token missing JTI claim")
 
@@ -75,7 +74,7 @@ async def validate_portal_token(db: AsyncSession, token_string: str) -> PortalAc
     if token_record.revoked_at is not None:
         raise Unauthorized("Token has been revoked")
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     if token_record.expires_at <= now:
         raise Unauthorized("Token has expired")
 
@@ -90,7 +89,7 @@ async def _touch_last_used(
     last = token_record.last_used_at
     if last is not None:
         if last.tzinfo is None:
-            last = last.replace(tzinfo=timezone.utc)
+            last = last.replace(tzinfo=UTC)
         if (now - last).total_seconds() < settings.PORTAL_TOKEN_TOUCH_INTERVAL_SECONDS:
             return
     token_record.last_used_at = now

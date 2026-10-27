@@ -1,14 +1,14 @@
 """Tests for /api/v1/time-entries."""
 
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime
 
 TIME_ENTRIES_URL = "/api/v1/time-entries"
 
 
 def _entry_payload(project_id, start=None, end=None, description="Worked on it", billable=True):
-    start = start or datetime(2026, 1, 1, 9, 0, tzinfo=timezone.utc)
-    end = end or datetime(2026, 1, 1, 11, 0, tzinfo=timezone.utc)
+    start = start or datetime(2026, 1, 1, 9, 0, tzinfo=UTC)
+    end = end or datetime(2026, 1, 1, 11, 0, tzinfo=UTC)
     return {
         "description": description,
         "startTime": start.isoformat(),
@@ -41,8 +41,8 @@ async def test_create_time_entry_computes_duration_from_start_and_end(client, au
     duration_minutes == 0 regardless of its actual span.
     Root cause: app/schemas/TimeEntrySchema.py TimeEntryCreate / app/db/crud/
     time_entries.py create_time_entry() should derive duration_minutes."""
-    start = datetime(2026, 1, 1, 9, 0, tzinfo=timezone.utc)
-    end = datetime(2026, 1, 1, 11, 0, tzinfo=timezone.utc)
+    start = datetime(2026, 1, 1, 9, 0, tzinfo=UTC)
+    end = datetime(2026, 1, 1, 11, 0, tzinfo=UTC)
     resp = await client.post(
         TIME_ENTRIES_URL, json=_entry_payload(project.id, start=start, end=end), headers=auth_headers
     )
@@ -55,8 +55,8 @@ async def test_create_time_entry_end_before_start_is_rejected(client, auth_heade
     start_time -- a negative-duration entry is currently accepted outright.
     Root cause: app/schemas/TimeEntrySchema.py TimeEntryBase needs a
     model_validator enforcing end_time > start_time."""
-    start = datetime(2026, 1, 1, 11, 0, tzinfo=timezone.utc)
-    end = datetime(2026, 1, 1, 9, 0, tzinfo=timezone.utc)
+    start = datetime(2026, 1, 1, 11, 0, tzinfo=UTC)
+    end = datetime(2026, 1, 1, 9, 0, tzinfo=UTC)
     resp = await client.post(
         TIME_ENTRIES_URL, json=_entry_payload(project.id, start=start, end=end), headers=auth_headers
     )

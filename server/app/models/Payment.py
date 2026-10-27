@@ -1,9 +1,10 @@
 from __future__ import annotations
+
 import enum
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from sqlalchemy import DateTime, Enum, ForeignKey, Index, Numeric, String
 from sqlalchemy.dialects.postgresql import UUID
@@ -48,7 +49,7 @@ class Payment(Base):
     invoice_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("invoices.id", ondelete="CASCADE"), nullable=False
     )
-    invoice: Mapped["Invoice"] = relationship(back_populates="payments")
+    invoice: Mapped[Invoice] = relationship(back_populates="payments")
 
     amount: Mapped[Decimal] = mapped_column(
         Numeric(precision=18, scale=4), nullable=False
@@ -56,15 +57,15 @@ class Payment(Base):
     paid_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
     )
     method: Mapped[PaymentMethod] = mapped_column(
         Enum(PaymentMethod), nullable=False, default=PaymentMethod.BANK_TRANSFER
     )
-    reference: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    reference: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
     )

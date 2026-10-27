@@ -1,6 +1,6 @@
 """DB-backed fixed-window limiter."""
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from sqlalchemy import select
@@ -9,7 +9,7 @@ from app.core.errors import RateLimited
 from app.models.RateLimitCounter import RateLimitCounter
 from app.services.rate_limit import check_rate_limit
 
-NOW = datetime(2026, 3, 1, 12, 0, 30, tzinfo=timezone.utc)
+NOW = datetime(2026, 3, 1, 12, 0, 30, tzinfo=UTC)
 
 
 async def test_blocks_after_limit_and_is_per_key(db_session):

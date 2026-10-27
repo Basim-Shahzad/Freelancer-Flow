@@ -1,20 +1,20 @@
 """GET /dashboard/summary (Step 12): every number, exclusions and month boundaries."""
 
 import uuid
-from datetime import date, datetime, time, timedelta, timezone
+from datetime import UTC, date, datetime, time, timedelta
 from decimal import Decimal
 from zoneinfo import ZoneInfo
 
+from app.models.Expense import RecurrenceInterval
 from app.models.Invoice import Invoice, InvoiceStatus
 from app.models.InvoiceItem import InvoiceItem
-from app.models.Milestone import Milestone, MilestoneStatus
+from app.models.Milestone import MilestoneStatus
 from app.models.Payment import Payment
 from app.models.Project import BillingType, ProjectStatus
-from app.models.Expense import RecurrenceInterval
 from app.models.TimeEntry import TimeEntry
 
 URL = "/api/v1/dashboard/summary"
-UTC = timezone.utc
+UTC = UTC
 
 
 def _first_of_month(day: date, offset: int = 0) -> date:
@@ -131,8 +131,8 @@ async def test_cash_in_groups_by_currency_and_splits_months(
     await _pay(db_session, usd, "999", _local("UTC", _first_of_month(today, -2), 12, 0))
 
     body = await _get(client, auth_headers)
-    assert _amounts(body["cashIn"]["thisMonth"]) == {"PKR": Decimal("50000"), "USD": Decimal("300")}
-    assert _amounts(body["cashIn"]["lastMonth"]) == {"USD": Decimal("200")}
+    assert _amounts(body["cashIn"]["thisMonth"]) == {"PKR": Decimal(50000), "USD": Decimal(300)}
+    assert _amounts(body["cashIn"]["lastMonth"]) == {"USD": Decimal(200)}
     assert body["cashIn"]["thisMonthStart"] == this_start.isoformat()
 
 
@@ -150,15 +150,15 @@ async def test_cash_in_month_boundary_follows_profile_timezone(
     await _pay(db_session, invoice, "40", _local(tz, this_start - timedelta(days=1), 23, 30))
 
     body = await _get(client, auth_headers)
-    assert _amounts(body["cashIn"]["thisMonth"]) == {"USD": Decimal("100")}
-    assert _amounts(body["cashIn"]["lastMonth"]) == {"USD": Decimal("40")}
+    assert _amounts(body["cashIn"]["thisMonth"]) == {"USD": Decimal(100)}
+    assert _amounts(body["cashIn"]["lastMonth"]) == {"USD": Decimal(40)}
     assert body["cashIn"]["timezone"] == tz
 
     # The same instants read as last month once the profile is in UTC.
     freelancer_profile.timezone = "UTC"
     await db_session.commit()
     body = await _get(client, auth_headers)
-    assert _amounts(body["cashIn"]["lastMonth"]) == {"USD": Decimal("140")}
+    assert _amounts(body["cashIn"]["lastMonth"]) == {"USD": Decimal(140)}
     assert body["cashIn"]["thisMonth"] == []
 
 
@@ -197,14 +197,14 @@ async def test_outstanding_balance_overdue_and_exclusions(
     rows = {r["currency"]: r for r in (await _get(client, auth_headers))["outstanding"]["byCurrency"]}
     assert set(rows) == {"USD", "PKR"}
     usd = rows["USD"]
-    assert Decimal(usd["balance"]) == Decimal("2500")  # 1000 + (2000 - 500)
+    assert Decimal(usd["balance"]) == Decimal(2500)  # 1000 + (2000 - 500)
     assert usd["count"] == 2
-    assert Decimal(usd["overdueBalance"]) == Decimal("1500")
+    assert Decimal(usd["overdueBalance"]) == Decimal(1500)
     assert usd["overdueCount"] == 1
     pkr = rows["PKR"]
-    assert Decimal(pkr["balance"]) == Decimal("300")
+    assert Decimal(pkr["balance"]) == Decimal(300)
     assert (pkr["count"], pkr["overdueCount"]) == (1, 1)
-    assert Decimal(pkr["overdueBalance"]) == Decimal("300")
+    assert Decimal(pkr["overdueBalance"]) == Decimal(300)
 
 
 async def test_unbilled_time_per_project_at_snapshot_rates(
@@ -233,12 +233,12 @@ async def test_unbilled_time_per_project_at_snapshot_rates(
 async def test_unbilled_milestones_only_approved_and_uninvoiced(
     client, auth_headers, db_session, freelancer_profile, client_profile, project, make_milestone
 ):
-    ok1 = await make_milestone(project_id=project.id, name="A", status=MilestoneStatus.APPROVED, amount=Decimal("400"))
-    await make_milestone(project_id=project.id, name="B", status=MilestoneStatus.APPROVED, amount=Decimal("250"))
-    await make_milestone(project_id=project.id, name="submitted", status=MilestoneStatus.SUBMITTED, amount=Decimal("999"))
+    ok1 = await make_milestone(project_id=project.id, name="A", status=MilestoneStatus.APPROVED, amount=Decimal(400))
+    await make_milestone(project_id=project.id, name="B", status=MilestoneStatus.APPROVED, amount=Decimal(250))
+    await make_milestone(project_id=project.id, name="submitted", status=MilestoneStatus.SUBMITTED, amount=Decimal(999))
     await make_milestone(project_id=project.id, name="no amount", status=MilestoneStatus.APPROVED)
-    billed = await make_milestone(project_id=project.id, name="billed", status=MilestoneStatus.APPROVED, amount=Decimal("700"))
-    freed = await make_milestone(project_id=project.id, name="freed", status=MilestoneStatus.APPROVED, amount=Decimal("50"))
+    billed = await make_milestone(project_id=project.id, name="billed", status=MilestoneStatus.APPROVED, amount=Decimal(700))
+    freed = await make_milestone(project_id=project.id, name="freed", status=MilestoneStatus.APPROVED, amount=Decimal(50))
 
     live = await _invoice(db_session, freelancer_profile, client_profile, project)
     cancelled = await _invoice(db_session, freelancer_profile, client_profile, project, status=InvoiceStatus.CANCELLED)
@@ -246,7 +246,7 @@ async def test_unbilled_milestones_only_approved_and_uninvoiced(
         db_session.add(
             InvoiceItem(
                 invoice_id=inv.id, milestone_id=ms.id, description=ms.name,
-                quantity=Decimal("1"), unit_price=ms.amount, amount=ms.amount,
+                quantity=Decimal(1), unit_price=ms.amount, amount=ms.amount,
             )
         )
     await db_session.commit()
@@ -255,7 +255,7 @@ async def test_unbilled_milestones_only_approved_and_uninvoiced(
     rows = (await _get(client, auth_headers))["unbilled"]["milestones"]
     assert len(rows) == 1
     assert rows[0]["count"] == 3  # A, B and the one freed by the cancelled invoice
-    assert Decimal(rows[0]["amount"]) == Decimal("700")  # 400 + 250 + 50
+    assert Decimal(rows[0]["amount"]) == Decimal(700)  # 400 + 250 + 50
 
 
 async def test_unbilled_retainer_periods_include_past_and_current(
@@ -267,14 +267,14 @@ async def test_unbilled_retainer_periods_include_past_and_current(
         created_by=user.id,
         name="Retainer",
         billing_type=BillingType.RETAINER,
-        retainer_amount=Decimal("1500"),
+        retainer_amount=Decimal(1500),
         retainer_interval=RecurrenceInterval.MONTHLY,
         retainer_start_date=_first_of_month(today, -2),
     )
     # A paused retainer is not "due".
     await make_project(
         client_id=client_profile.id, created_by=user.id, name="Paused", status=ProjectStatus.PAUSED,
-        billing_type=BillingType.RETAINER, retainer_amount=Decimal("10"),
+        billing_type=BillingType.RETAINER, retainer_amount=Decimal(10),
         retainer_interval=RecurrenceInterval.MONTHLY, retainer_start_date=_first_of_month(today, -1),
     )
     first = _first_of_month(today, -2)
@@ -292,7 +292,7 @@ async def test_unbilled_retainer_periods_include_past_and_current(
         _first_of_month(today, -1).isoformat(),
         _first_of_month(today).isoformat(),
     ]
-    assert all(Decimal(r["amount"]) == Decimal("1500") for r in rows)
+    assert all(Decimal(r["amount"]) == Decimal(1500) for r in rows)
     assert all(r["projectName"] == "Retainer" for r in rows)
 
 

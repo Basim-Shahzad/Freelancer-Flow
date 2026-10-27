@@ -1,17 +1,17 @@
 from __future__ import annotations
+
 import uuid
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Optional
 
 from pydantic import Field, computed_field, field_validator
 
 from app.models.Expense import RecurrenceInterval
 from app.models.Project import BillingType, ProjectStatus
 from app.services.project_progress import compute_progress_percent
+
 from .Base import Base
 from .types import CurrencyCode, Money, PositiveMoney, UTCDateTime
-
 
 _RETAINER_INTERVALS = (RecurrenceInterval.MONTHLY, RecurrenceInterval.QUARTERLY)
 
@@ -28,54 +28,54 @@ class _BillingRules(Base):
 class ProjectCreate(_BillingRules):
     name: str = Field(min_length=1, max_length=255)
     client_id: uuid.UUID
-    description: Optional[str] = None
-    type: Optional[str] = Field(default=None, max_length=255)
+    description: str | None = None
+    type: str | None = Field(default=None, max_length=255)
     status: ProjectStatus = ProjectStatus.DRAFT
-    budget: Optional[Money] = None
+    budget: Money | None = None
     billing_type: BillingType = BillingType.FIXED
     milestones_enabled: bool = Field(
         default=False, description="Always true for MILESTONE projects."
     )
-    retainer_amount: Optional[PositiveMoney] = Field(
+    retainer_amount: PositiveMoney | None = Field(
         default=None, description="RETAINER only; billed every `retainerInterval`."
     )
-    retainer_interval: Optional[RecurrenceInterval] = Field(
+    retainer_interval: RecurrenceInterval | None = Field(
         default=None, description="RETAINER only: MONTHLY or QUARTERLY."
     )
-    retainer_start_date: Optional[date] = Field(
+    retainer_start_date: date | None = Field(
         default=None, description="RETAINER only; defaults to today."
     )
-    retainer_end_date: Optional[date] = Field(
+    retainer_end_date: date | None = Field(
         default=None,
         description="RETAINER only; must be after the start date. No period starts "
         "after it.",
     )
-    currency: Optional[CurrencyCode] = Field(
+    currency: CurrencyCode | None = Field(
         default=None, description="Defaults to the client's, then the freelancer's currency."
     )
-    hourly_rate: Optional[Money] = Field(
+    hourly_rate: Money | None = Field(
         default=None,
         description="Rate snapshot for hourly billing. Defaults to the freelancer's rate.",
     )
-    due_date: Optional[UTCDateTime] = None
+    due_date: UTCDateTime | None = None
 
 
 class ProjectUpdate(_BillingRules):
-    name: Optional[str] = Field(default=None, min_length=1, max_length=255)
-    description: Optional[str] = None
-    type: Optional[str] = Field(default=None, max_length=255)
-    status: Optional[ProjectStatus] = None
-    budget: Optional[Money] = None
-    billing_type: Optional[BillingType] = None
-    milestones_enabled: Optional[bool] = None
-    retainer_amount: Optional[PositiveMoney] = None
-    retainer_interval: Optional[RecurrenceInterval] = None
-    retainer_start_date: Optional[date] = None
-    retainer_end_date: Optional[date] = None
-    currency: Optional[CurrencyCode] = None
-    hourly_rate: Optional[Money] = None
-    due_date: Optional[UTCDateTime] = None
-    client_id: Optional[uuid.UUID] = None
+    name: str | None = Field(default=None, min_length=1, max_length=255)
+    description: str | None = None
+    type: str | None = Field(default=None, max_length=255)
+    status: ProjectStatus | None = None
+    budget: Money | None = None
+    billing_type: BillingType | None = None
+    milestones_enabled: bool | None = None
+    retainer_amount: PositiveMoney | None = None
+    retainer_interval: RecurrenceInterval | None = None
+    retainer_start_date: date | None = None
+    retainer_end_date: date | None = None
+    currency: CurrencyCode | None = None
+    hourly_rate: Money | None = None
+    due_date: UTCDateTime | None = None
+    client_id: uuid.UUID | None = None
 
 class ClientInProjectList(Base):
     id: uuid.UUID
@@ -84,19 +84,19 @@ class ClientInProjectList(Base):
 class ProjectResponse(Base):
     id: uuid.UUID
     name: str
-    description: Optional[str] = None
-    type: Optional[str] = None
+    description: str | None = None
+    type: str | None = None
     status: ProjectStatus
-    budget: Optional[Decimal] = None
+    budget: Decimal | None = None
     billing_type: BillingType
     milestones_enabled: bool = False
-    retainer_amount: Optional[Decimal] = None
-    retainer_interval: Optional[RecurrenceInterval] = None
-    retainer_start_date: Optional[date] = None
-    retainer_end_date: Optional[date] = None
-    currency: Optional[str] = None
-    hourly_rate: Optional[Decimal] = None
-    due_date: Optional[datetime] = None
+    retainer_amount: Decimal | None = None
+    retainer_interval: RecurrenceInterval | None = None
+    retainer_start_date: date | None = None
+    retainer_end_date: date | None = None
+    currency: str | None = None
+    hourly_rate: Decimal | None = None
+    due_date: datetime | None = None
     total_time_spent_minutes: int = Field(
         default=0, description="SUM of the project's time entries; derived, never stored."
     )
@@ -112,7 +112,7 @@ class ProjectResponse(Base):
         "enabled, else hours vs. budget / hourlyRate for hourly projects; null otherwise."
     )
     @property
-    def progress_percent(self) -> Optional[int]:
+    def progress_percent(self) -> int | None:
         return compute_progress_percent(
             billing_type=self.billing_type.value,
             milestones_enabled=self.milestones_enabled,
@@ -128,7 +128,7 @@ class RetainerPeriodResponse(Base):
     period_start: date
     period_end: date
     label: str
-    invoice_id: Optional[uuid.UUID] = Field(
+    invoice_id: uuid.UUID | None = Field(
         default=None, description="The live invoice billing this period; null if unbilled."
     )
 

@@ -1,6 +1,5 @@
 import uuid
 from decimal import Decimal
-from typing import Optional
 
 from pydantic import Field
 
@@ -15,11 +14,11 @@ class ChangeRequestCreate(Base):
 
     project_id: uuid.UUID
     title: str = Field(min_length=1, max_length=255)
-    description: Optional[str] = Field(default=None, max_length=10_000)
-    estimated_hours: Optional[Decimal] = Field(
+    description: str | None = Field(default=None, max_length=10_000)
+    estimated_hours: Decimal | None = Field(
         default=None, ge=0, max_digits=8, decimal_places=2
     )
-    estimated_amount: Optional[Money] = Field(
+    estimated_amount: Money | None = Field(
         default=None, description="Price of the change; omit while unpriced."
     )
 
@@ -31,27 +30,27 @@ class ChangeRequestUpdate(Base):
     decision (APPROVED / REJECTED / WITHDRAWN); decisions are final.
     """
 
-    title: Optional[str] = Field(default=None, min_length=1, max_length=255)
-    description: Optional[str] = Field(default=None, max_length=10_000)
-    estimated_hours: Optional[Decimal] = Field(
+    title: str | None = Field(default=None, min_length=1, max_length=255)
+    description: str | None = Field(default=None, max_length=10_000)
+    estimated_hours: Decimal | None = Field(
         default=None, ge=0, max_digits=8, decimal_places=2
     )
-    estimated_amount: Optional[Money] = None
-    status: Optional[ChangeRequestStatus] = None
-    decision_note: Optional[str] = Field(default=None, max_length=2000)
+    estimated_amount: Money | None = None
+    status: ChangeRequestStatus | None = None
+    decision_note: str | None = Field(default=None, max_length=2000)
 
 
 class ChangeRequestResponse(Base):
     id: uuid.UUID
     project_id: uuid.UUID
     title: str
-    description: Optional[str] = None
+    description: str | None = None
     status: ChangeRequestStatus
-    estimated_hours: Optional[Decimal] = None
-    estimated_amount: Optional[Money] = None
+    estimated_hours: Decimal | None = None
+    estimated_amount: Money | None = None
     requested_at: UTCDateTime
-    decided_at: Optional[UTCDateTime] = None
-    decision_note: Optional[str] = None
+    decided_at: UTCDateTime | None = None
+    decision_note: str | None = None
     created_at: UTCDateTime
     updated_at: UTCDateTime
 

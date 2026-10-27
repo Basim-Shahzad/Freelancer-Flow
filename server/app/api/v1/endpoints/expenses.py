@@ -2,14 +2,13 @@ from __future__ import annotations
 
 import uuid
 from datetime import date
-from typing import Optional
 
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.config import settings
 from app.api.dependencies.auth import CurrentFreelancer
 from app.api.v1.openapi import errors
+from app.core.config import settings
 from app.db.crud.expenses import (
     cash_runway,
     create_expense,
@@ -40,11 +39,11 @@ async def list_expenses(
     freelancer: CurrentFreelancer,
     skip: int = Query(0, ge=0),
     limit: int = Query(20, ge=1, le=settings.MAX_PAGE_SIZE),
-    project_id: Optional[uuid.UUID] = Query(None),
-    category: Optional[str] = Query(None, max_length=100),
-    is_recurring: Optional[bool] = Query(None),
-    date_from: Optional[date] = Query(None),
-    date_to: Optional[date] = Query(None),
+    project_id: uuid.UUID | None = Query(None),
+    category: str | None = Query(None, max_length=100),
+    is_recurring: bool | None = Query(None),
+    date_from: date | None = Query(None),
+    date_to: date | None = Query(None),
     db: AsyncSession = Depends(get_db),
 ):
     expenses, total = await get_expenses(

@@ -1,7 +1,6 @@
 """Profile, expenses / runway, tax remittances, change requests and the activity feed."""
 
-import uuid
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 
 EXPENSES_URL = "/api/v1/expenses"
@@ -386,7 +385,7 @@ async def test_activity_feed_is_scoped_ordered_and_filterable(client, auth_heade
     only_cr = (await client.get(ACTIVITY_URL, params={"entity_type": "change_request"}, headers=auth_headers)).json()
     assert only_cr["total"] == 1
 
-    future = (datetime.now(timezone.utc) + timedelta(days=1)).isoformat()
+    future = (datetime.now(UTC) + timedelta(days=1)).isoformat()
     assert (await client.get(ACTIVITY_URL, params={"from": future}, headers=auth_headers)).json()["total"] == 0
     assert (await client.get(ACTIVITY_URL, params={"limit": 500}, headers=auth_headers)).status_code == 422
     assert (await client.get(ACTIVITY_URL)).status_code == 401

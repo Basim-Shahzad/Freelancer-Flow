@@ -1,9 +1,10 @@
 from __future__ import annotations
-import uuid
+
 import enum
-from typing import TYPE_CHECKING, Optional
-from datetime import date, datetime, timezone
+import uuid
+from datetime import UTC, date, datetime
 from decimal import Decimal
+from typing import TYPE_CHECKING
 
 from sqlalchemy import (
     Boolean,
@@ -25,11 +26,11 @@ from app.db.database import Base
 
 if TYPE_CHECKING:
     from app.models.ClientProfile import ClientProfile
-    from app.models.Project import Project
     from app.models.FreelancerProfile import FreelancerProfile
     from app.models.InvoiceItem import InvoiceItem
-    from app.models.Payment import Payment
     from app.models.InvoicePaymentMethod import InvoicePaymentMethod
+    from app.models.Payment import Payment
+    from app.models.Project import Project
 
 
 class InvoiceStatus(str, enum.Enum):
@@ -75,7 +76,7 @@ class Invoice(Base):
     issue_date: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
     )
     due_date: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     status: Mapped[InvoiceStatus] = mapped_column(
@@ -87,21 +88,21 @@ class Invoice(Base):
     freelancer_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("freelancers.id", ondelete="RESTRICT"), nullable=False
     )
-    freelancer: Mapped["FreelancerProfile"] = relationship(back_populates="invoices")
+    freelancer: Mapped[FreelancerProfile] = relationship(back_populates="invoices")
     client_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("clients.id", ondelete="RESTRICT"), nullable=False
     )
-    client: Mapped["ClientProfile"] = relationship(back_populates="invoices")
+    client: Mapped[ClientProfile] = relationship(back_populates="invoices")
     project_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("projects.id", ondelete="RESTRICT"), nullable=False
     )
-    project: Mapped["Project"] = relationship(back_populates="invoices")
+    project: Mapped[Project] = relationship(back_populates="invoices")
     # RETAINER invoices only: start date of the period this invoice bills.
-    retainer_period_start: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
-    items: Mapped[list["InvoiceItem"]] = relationship(
+    retainer_period_start: Mapped[date | None] = mapped_column(Date, nullable=True)
+    items: Mapped[list[InvoiceItem]] = relationship(
         back_populates="invoice", cascade="all, delete-orphan", lazy="selectin"
     )
-    payments: Mapped[list["Payment"]] = relationship(
+    payments: Mapped[list[Payment]] = relationship(
         back_populates="invoice",
         cascade="all, delete-orphan",
         lazy="selectin",
@@ -112,20 +113,20 @@ class Invoice(Base):
         Numeric(precision=18, scale=4), nullable=False
     )
     # Percentage (e.g. 10.00 == 10%).
-    taxes: Mapped[list["InvoiceTax"]] = relationship(
+    taxes: Mapped[list[InvoiceTax]] = relationship(
         back_populates="invoice",
         cascade="all, delete-orphan",
         lazy="selectin",
         order_by="InvoiceTax.sort_order",
     )
-    payment_methods: Mapped[list["InvoicePaymentMethod"]] = relationship(
+    payment_methods: Mapped[list[InvoicePaymentMethod]] = relationship(
         back_populates="invoice",
         cascade="all, delete-orphan",
         lazy="selectin",
         order_by="InvoicePaymentMethod.sort_order",
     )
     # Shown on the invoice when no/zero tax applies (reverse charge, exempt...).
-    tax_note: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    tax_note: Mapped[str | None] = mapped_column(String(500), nullable=True)
     discount_rate: Mapped[Decimal] = mapped_column(
         Numeric(precision=5, scale=2), nullable=False, default=0
     )
@@ -143,30 +144,30 @@ class Invoice(Base):
     total: Mapped[Decimal] = mapped_column(
         Numeric(precision=18, scale=4), nullable=False
     )
-    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     # Shown to the client; Paylancer never receives the money itself.
-    payment_instructions: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    payment_instructions: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Lifecycle timestamps. NULL until the event happens.
-    sent_at: Mapped[Optional[datetime]] = mapped_column(
+    sent_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
-    viewed_at: Mapped[Optional[datetime]] = mapped_column(
+    viewed_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
     # When the invoice became fully paid (NULL while unpaid / part-paid).
-    payment_at: Mapped[Optional[datetime]] = mapped_column(
+    payment_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
-        onupdate=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
     )
 
     # -- derived values (require `payments` to be loaded; it is selectin) ----
@@ -201,8 +202,8 @@ class Invoice(Base):
             return False
         due = self.due_date
         if due.tzinfo is None:
-            due = due.replace(tzinfo=timezone.utc)
-        return due < datetime.now(timezone.utc)
+            due = due.replace(tzinfo=UTC)
+        return due < datetime.now(UTC)
 
 
 class InvoiceTax(Base):
@@ -217,7 +218,7 @@ class InvoiceTax(Base):
     invoice_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("invoices.id", ondelete="CASCADE"), nullable=False, index=True
     )
-    invoice: Mapped["Invoice"] = relationship(back_populates="taxes")
+    invoice: Mapped[Invoice] = relationship(back_populates="taxes")
     sort_order: Mapped[int] = mapped_column(nullable=False, default=0)
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     rate: Mapped[Decimal] = mapped_column(Numeric(precision=7, scale=4), nullable=False)

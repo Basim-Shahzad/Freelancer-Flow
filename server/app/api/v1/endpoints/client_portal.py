@@ -1,7 +1,6 @@
 from __future__ import annotations
-from uuid import UUID
 
-from typing import Optional
+from uuid import UUID
 
 from fastapi import APIRouter, Body, Depends, Request, Response
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -9,20 +8,20 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.dependencies.client_portal import PortalSession, get_portal_session
 from app.api.dependencies.rate_limit import client_ip, portal_rate_limit
 from app.api.v1.openapi import errors
-from app.db.crud.invoices import get_client_invoice, mark_invoice_viewed
 from app.db.crud import portal as portal_crud
+from app.db.crud.invoices import get_client_invoice, mark_invoice_viewed
 from app.db.database import get_db
+from app.models.MilestoneApproval import MilestoneApprovalDecision
+from app.models.PortalAccessToken import ScopeType
 from app.schemas.MilestoneSchema import MilestoneDecision, MilestoneResponse
-from app.schemas.ReferenceSchema import PublicExchangeRates
 from app.schemas.PortalSchema import (
     PortalConvertRequest,
     PortalInvoiceResponse,
     PortalProjectResponse,
 )
+from app.schemas.ReferenceSchema import PublicExchangeRates
 from app.services import fx_fetch
 from app.services.pdf import pdf_response
-from app.models.MilestoneApproval import MilestoneApprovalDecision
-from app.models.PortalAccessToken import ScopeType
 
 router = APIRouter(
     prefix="/portal",
@@ -32,7 +31,7 @@ router = APIRouter(
 )
 
 
-def _ip(request: Request) -> Optional[str]:
+def _ip(request: Request) -> str | None:
     return client_ip(request)
 
 
@@ -88,7 +87,7 @@ async def get_portal_milestone(
 async def approve_portal_milestone(
     milestone_id: UUID,
     request: Request,
-    data: Optional[MilestoneDecision] = Body(None),
+    data: MilestoneDecision | None = Body(None),
     session: PortalSession = Depends(get_portal_session),
     db: AsyncSession = Depends(get_db),
 ):
@@ -115,7 +114,7 @@ async def approve_portal_milestone(
 async def reject_portal_milestone(
     milestone_id: UUID,
     request: Request,
-    data: Optional[MilestoneDecision] = Body(None),
+    data: MilestoneDecision | None = Body(None),
     session: PortalSession = Depends(get_portal_session),
     db: AsyncSession = Depends(get_db),
 ):

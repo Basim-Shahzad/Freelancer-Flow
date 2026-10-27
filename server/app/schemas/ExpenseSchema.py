@@ -1,7 +1,6 @@
 import uuid
 from datetime import date
 from decimal import Decimal
-from typing import Optional
 
 from pydantic import Field, model_validator
 
@@ -35,32 +34,32 @@ class ExpenseCreate(_ExpenseRules):
     description: str = Field(min_length=1, max_length=255)
     amount: PositiveMoney
     incurred_on: date
-    currency: Optional[CurrencyCode] = Field(
+    currency: CurrencyCode | None = Field(
         default=None, description="Defaults to the freelancer's currency."
     )
-    category: Optional[str] = Field(default=None, max_length=100)
-    vendor: Optional[str] = Field(default=None, max_length=255)
-    project_id: Optional[uuid.UUID] = None
+    category: str | None = Field(default=None, max_length=100)
+    vendor: str | None = Field(default=None, max_length=255)
+    project_id: uuid.UUID | None = None
     is_recurring: bool = False
-    recurrence: Optional[RecurrenceInterval] = None
-    recurrence_ends_on: Optional[date] = None
-    notes: Optional[str] = Field(default=None, max_length=5000)
+    recurrence: RecurrenceInterval | None = None
+    recurrence_ends_on: date | None = None
+    notes: str | None = Field(default=None, max_length=5000)
 
 
 class ExpenseUpdate(_ExpenseRules):
     """PATCH /expenses/{id}: all fields optional."""
 
-    description: Optional[str] = Field(default=None, min_length=1, max_length=255)
-    amount: Optional[PositiveMoney] = None
-    incurred_on: Optional[date] = None
-    currency: Optional[CurrencyCode] = None
-    category: Optional[str] = Field(default=None, max_length=100)
-    vendor: Optional[str] = Field(default=None, max_length=255)
-    project_id: Optional[uuid.UUID] = None
-    is_recurring: Optional[bool] = None
-    recurrence: Optional[RecurrenceInterval] = None
-    recurrence_ends_on: Optional[date] = None
-    notes: Optional[str] = Field(default=None, max_length=5000)
+    description: str | None = Field(default=None, min_length=1, max_length=255)
+    amount: PositiveMoney | None = None
+    incurred_on: date | None = None
+    currency: CurrencyCode | None = None
+    category: str | None = Field(default=None, max_length=100)
+    vendor: str | None = Field(default=None, max_length=255)
+    project_id: uuid.UUID | None = None
+    is_recurring: bool | None = None
+    recurrence: RecurrenceInterval | None = None
+    recurrence_ends_on: date | None = None
+    notes: str | None = Field(default=None, max_length=5000)
 
 
 class ExpenseResponse(Base):
@@ -69,13 +68,13 @@ class ExpenseResponse(Base):
     amount: PositiveMoney
     currency: str
     incurred_on: date
-    category: Optional[str] = None
-    vendor: Optional[str] = None
-    project_id: Optional[uuid.UUID] = None
+    category: str | None = None
+    vendor: str | None = None
+    project_id: uuid.UUID | None = None
     is_recurring: bool
-    recurrence: Optional[RecurrenceInterval] = None
-    recurrence_ends_on: Optional[date] = None
-    notes: Optional[str] = None
+    recurrence: RecurrenceInterval | None = None
+    recurrence_ends_on: date | None = None
+    notes: str | None = None
     created_at: UTCDateTime
     updated_at: UTCDateTime
 
@@ -98,9 +97,9 @@ class CashRunwayResponse(Base):
     monthly_one_off_average: Decimal
     monthly_burn: Decimal
     lookback_months: int
-    bank_balance: Optional[Decimal] = None
-    bank_balance_updated_at: Optional[UTCDateTime] = None
-    runway_months: Optional[Decimal] = Field(
+    bank_balance: Decimal | None = None
+    bank_balance_updated_at: UTCDateTime | None = None
+    runway_months: Decimal | None = Field(
         default=None,
         description="bank balance / monthly burn; null when the balance is "
         "unknown or the burn is zero.",

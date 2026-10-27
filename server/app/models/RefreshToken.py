@@ -1,8 +1,8 @@
 from __future__ import annotations
-import uuid
-from typing import TYPE_CHECKING
-from datetime import datetime, timezone
 
+import uuid
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, Index, String, Text
 from sqlalchemy.dialects.postgresql import UUID
@@ -38,11 +38,11 @@ class RefreshToken(Base):
     ip_address: Mapped[str | None] = mapped_column(String(45), nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+        DateTime(timezone=True), default=lambda: datetime.now(UTC)
     )
 
     # Relationship
-    user: Mapped["User"] = relationship(back_populates="refresh_tokens")
+    user: Mapped[User] = relationship(back_populates="refresh_tokens")
 
     __table_args__ = (
         Index("ix_refresh_tokens_user_id", "user_id"),
@@ -51,7 +51,7 @@ class RefreshToken(Base):
 
     @property
     def is_expired(self) -> bool:
-        return datetime.now(timezone.utc) >= self.expires_at
+        return datetime.now(UTC) >= self.expires_at
 
     @property
     def is_valid(self) -> bool:

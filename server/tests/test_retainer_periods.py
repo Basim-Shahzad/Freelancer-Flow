@@ -1,7 +1,7 @@
 """Retainer-period invoicing (Step 14): period math, API and double-billing guard."""
 
 import uuid
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from decimal import Decimal
 
 import pytest
@@ -204,8 +204,8 @@ async def test_bill_the_current_period_adds_a_retainer_line(
     assert body["retainerPeriodStart"] == _months_ago(0).isoformat()
     assert len(body["items"]) == 1
     assert body["items"][0]["description"].startswith("Retainer — ")
-    assert Decimal(body["items"][0]["amount"]) == Decimal("1500")
-    assert Decimal(body["total"]) == Decimal("1500")
+    assert Decimal(body["items"][0]["amount"]) == Decimal(1500)
+    assert Decimal(body["total"]) == Decimal(1500)
 
     periods = (
         await client.get(
@@ -229,7 +229,7 @@ async def test_overage_lines_can_be_added_to_a_retainer_invoice(
         items=[{"description": "Extra hours", "quantity": "2", "unitPrice": "50"}],
     )
     assert resp.status_code == 201, resp.text
-    assert Decimal(resp.json()["total"]) == Decimal("1600")
+    assert Decimal(resp.json()["total"]) == Decimal(1600)
 
 
 async def test_misaligned_or_future_periods_are_rejected(
@@ -304,7 +304,7 @@ async def test_database_blocks_double_billing_even_without_the_precheck(
     inv = (await _bill(client, auth_headers, project["id"], _months_ago(0))).json()
     original = await db_session.get(Invoice, uuid.UUID(inv["id"]))
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     dup = Invoice(
         invoice_number="DUP-1",
         issue_date=now,
@@ -315,8 +315,8 @@ async def test_database_blocks_double_billing_even_without_the_precheck(
         client_id=original.client_id,
         project_id=original.project_id,
         retainer_period_start=original.retainer_period_start,
-        subtotal=Decimal("1"),
-        total=Decimal("1"),
+        subtotal=Decimal(1),
+        total=Decimal(1),
     )
     db_session.add(dup)
     with pytest.raises(IntegrityError):

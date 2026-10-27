@@ -4,7 +4,7 @@ import uuid
 
 from sqlalchemy import select
 
-from app.models.Milestone import Milestone, MilestoneStatus
+from app.models.Milestone import MilestoneStatus
 from app.models.PortalAccessToken import PortalAccessToken, ScopeType
 
 MILESTONES_URL = "/api/v1/milestones"
@@ -162,7 +162,6 @@ async def test_milestone_approved_by_is_reported_in_list_response(
     to the field default, so the API can never actually report who approved
     a milestone via this list endpoint, even after a real approval.
     Root cause: app/schemas/MilestoneSchema.py MilestoneResponse.approved_by."""
-    import uuid as uuid_module
 
     milestone.status = MilestoneStatus.APPROVED
     milestone.approved_by_client_id = client_profile.id

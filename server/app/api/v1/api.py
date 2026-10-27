@@ -1,4 +1,5 @@
 from fastapi.routing import APIRouter
+
 from app.api.v1.endpoints import (
     activity,
     auth,
@@ -15,8 +16,8 @@ from app.api.v1.endpoints import (
     profile,
     projects,
     reference,
-    time_entries,
     tax,
+    time_entries,
 )
 
 api_router = APIRouter()

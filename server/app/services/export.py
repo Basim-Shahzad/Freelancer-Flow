@@ -16,10 +16,11 @@ import re
 import tempfile
 import uuid
 import zipfile
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Any, Iterable, Mapping, Optional
+from typing import Any
 
 from sqlalchemy import inspect as sa_inspect
 
@@ -64,7 +65,7 @@ class ExportData:
 
     tables: dict[str, Any]
     invoices: list[Invoice]
-    rates: Optional[Mapping[str, Any]] = None
+    rates: Mapping[str, Any] | None = None
     app_version: str = ""
     exported_at: datetime = field(default_factory=datetime.now)
 

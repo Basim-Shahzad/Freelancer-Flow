@@ -17,7 +17,7 @@ RATES = {
 
 
 def test_direct_pair_usd_to_pkr():
-    d = convert_for_display(Decimal("1000"), "USD", "PKR", RATES)
+    d = convert_for_display(Decimal(1000), "USD", "PKR", RATES)
     assert d.currency == "PKR"
     assert d.amount == Decimal("281250.00")
     assert d.rate == Decimal("281.25")
@@ -27,19 +27,19 @@ def test_direct_pair_usd_to_pkr():
 
 
 def test_inverse_pair_pkr_to_usd_rounds_half_up():
-    d = convert_for_display(Decimal("100000"), "PKR", "USD", RATES)
+    d = convert_for_display(Decimal(100000), "PKR", "USD", RATES)
     assert d.amount == Decimal("355.56")  # 355.5555...
     assert d.currency == "USD"
 
 
 def test_cross_pair_goes_through_base():
-    d = convert_for_display(Decimal("100"), "EUR", "PKR", RATES)
+    d = convert_for_display(Decimal(100), "EUR", "PKR", RATES)
     assert d.amount == Decimal("30570.65")  # 100 / 0.92 * 281.25
 
 
 def test_rounding_follows_target_currency_exponent():
-    d = convert_for_display(Decimal("10"), "USD", "JPY", RATES)
-    assert d.amount == Decimal("1501")  # JPY has no minor unit
+    d = convert_for_display(Decimal(10), "USD", "JPY", RATES)
+    assert d.amount == Decimal(1501)  # JPY has no minor unit
 
 
 @pytest.mark.parametrize(
@@ -52,15 +52,15 @@ def test_rounding_follows_target_currency_exponent():
     ],
 )
 def test_missing_or_bad_rate_returns_none(rates, to):
-    assert convert_for_display(Decimal("5"), "USD", to, rates) is None
+    assert convert_for_display(Decimal(5), "USD", to, rates) is None
 
 
 def test_same_currency_returns_none():
-    assert convert_for_display(Decimal("5"), "USD", "USD", RATES) is None
+    assert convert_for_display(Decimal(5), "USD", "USD", RATES) is None
 
 
 def test_missing_as_of_is_none():
-    d = convert_for_display(Decimal("1"), "USD", "PKR", {**RATES, "as_of": None})
+    d = convert_for_display(Decimal(1), "USD", "PKR", {**RATES, "as_of": None})
     assert d.as_of is None
 
 

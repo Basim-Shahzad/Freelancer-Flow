@@ -8,10 +8,11 @@ from __future__ import annotations
 
 import json
 import re
+from collections.abc import Mapping
 from decimal import Decimal
 from io import BytesIO
 from pathlib import Path
-from typing import Any, Mapping, Optional
+from typing import Any
 
 from fastapi import Response
 from jinja2 import Environment, FileSystemLoader, select_autoescape
@@ -40,7 +41,7 @@ class PdfRenderError(RuntimeError):
     pass
 
 
-def format_money(value: Decimal, currency: Optional[str]) -> str:
+def format_money(value: Decimal, currency: str | None) -> str:
     """``1,234.50 USD``, with the currency's own number of decimals."""
     exp = currency_exponent(currency)
     return f"{value:,.{exp}f} {currency or ''}".strip()
@@ -63,7 +64,7 @@ def _payment_rows(raw: str | Mapping[str, Any]) -> list[tuple[str, str]]:
     ]
 
 
-def _reference_line(invoice: Invoice, rates: Optional[Mapping[str, Any]]) -> Optional[dict]:
+def _reference_line(invoice: Invoice, rates: Mapping[str, Any] | None) -> dict | None:
     """Total and balance in the counterpart currency (USD<->PKR), or ``None``."""
     other = display_currency_for(invoice.currency)
     if not other or not rates:
@@ -81,7 +82,7 @@ def _reference_line(invoice: Invoice, rates: Optional[Mapping[str, Any]]) -> Opt
 
 
 def render_invoice_pdf(
-    invoice: Invoice, rates: Optional[Mapping[str, Any]] = None
+    invoice: Invoice, rates: Mapping[str, Any] | None = None
 ) -> bytes:
     """Render ``invoice`` to PDF bytes.
 
@@ -117,7 +118,7 @@ def render_invoice_pdf(
     return buffer.getvalue()
 
 
-def pdf_response(invoice: Invoice, rates: Optional[Mapping[str, Any]] = None) -> Response:
+def pdf_response(invoice: Invoice, rates: Mapping[str, Any] | None = None) -> Response:
     """``application/pdf`` response named ``<invoice_number>.pdf``."""
     safe = re.sub(r"[^A-Za-z0-9._-]", "_", invoice.invoice_number)
     return Response(

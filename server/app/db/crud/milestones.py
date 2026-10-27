@@ -2,15 +2,15 @@ from __future__ import annotations
 
 import logging
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.errors import Conflict, NotFound, Unprocessable
-from app.db.crud.portal_tokens import issue_portal_token
 from app.db.crud.activity import diff_changes, log_activity
+from app.db.crud.portal_tokens import issue_portal_token
 from app.db.crud.projects import get_project_by_id
 from app.models.FreelancerProfile import FreelancerProfile
 from app.models.Invoice import Invoice, InvoiceStatus
@@ -126,7 +126,7 @@ async def update_milestone(
                 f"to {new_status.value}{hint}"
             )
         if new_status == MilestoneStatus.APPROVED:
-            milestone.approved_at = datetime.now(timezone.utc)
+            milestone.approved_at = datetime.now(UTC)
             milestone.approved_by_client_id = None
     elif "status" in update_data:
         update_data.pop("status")
@@ -224,7 +224,7 @@ async def submit_milestone(
     project = await get_project_by_id(db, milestone.project_id, user_id)
 
     milestone.status = MilestoneStatus.SUBMITTED
-    milestone.submitted_at = datetime.now(timezone.utc)
+    milestone.submitted_at = datetime.now(UTC)
     # A fresh decision cycle: clear any previous verdict.
     milestone.approved_at = None
     milestone.approved_by_client_id = None

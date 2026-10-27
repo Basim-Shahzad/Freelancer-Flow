@@ -13,7 +13,6 @@ from __future__ import annotations
 import base64
 import hashlib
 import re
-from typing import Optional
 
 from cryptography.fernet import Fernet, InvalidToken
 from sqlalchemy import Text
@@ -63,7 +62,7 @@ def contains_cnic(text: str) -> bool:
     return bool(_CNIC.search(text))
 
 
-def reject_card_and_cnic(value: Optional[str]) -> Optional[str]:
+def reject_card_and_cnic(value: str | None) -> str | None:
     """Validator for free text shown to clients (notes, payment instructions).
 
     Bank details (IBAN) are allowed here: a freelancer's own account is a
@@ -78,7 +77,7 @@ def reject_card_and_cnic(value: Optional[str]) -> Optional[str]:
     return value
 
 
-def reject_payment_details(value: Optional[str]) -> Optional[str]:
+def reject_payment_details(value: str | None) -> str | None:
     """Validator for payment references: a transaction ID only."""
     value = reject_card_and_cnic(value)
     if value is not None and contains_iban(value):
@@ -86,7 +85,7 @@ def reject_payment_details(value: Optional[str]) -> Optional[str]:
     return value
 
 
-def mask(value: Optional[str], visible: int = 4) -> Optional[str]:
+def mask(value: str | None, visible: int = 4) -> str | None:
     """``"1234567-8"`` -> ``"•••••67-8"``-style: keep only the last characters."""
     if not value:
         return value

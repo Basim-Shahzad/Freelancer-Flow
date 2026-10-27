@@ -8,7 +8,7 @@ counted even when the caller goes on to fail the request.
 from __future__ import annotations
 
 import random
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import delete, select, update
 from sqlalchemy.exc import IntegrityError
@@ -23,7 +23,7 @@ GLOBAL_PRUNE_AGE = timedelta(days=1)
 
 def _window_start(now: datetime, window_seconds: int) -> datetime:
     epoch = int(now.timestamp())
-    return datetime.fromtimestamp(epoch - epoch % window_seconds, tz=timezone.utc)
+    return datetime.fromtimestamp(epoch - epoch % window_seconds, tz=UTC)
 
 
 async def _bump(db: AsyncSession, key: str, window_start: datetime) -> bool:
@@ -47,7 +47,7 @@ async def check_rate_limit(
     now: datetime | None = None,
 ) -> None:
     """Count one attempt for ``key``; raise ``RateLimited`` past ``limit``."""
-    now = now or datetime.now(timezone.utc)
+    now = now or datetime.now(UTC)
     start = _window_start(now, window_seconds)
 
     if not await _bump(db, key, start):

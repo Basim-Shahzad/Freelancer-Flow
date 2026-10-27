@@ -5,16 +5,17 @@ Revises: 5c1e7a9d3b42
 Create Date: 2026-10-05 15:00:00.000000
 
 """
-from typing import Sequence, Union
+from collections.abc import Sequence
+
+import sqlalchemy as sa
 
 from alembic import op
-import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision: str = '7d2f4b6a9c10'
-down_revision: Union[str, Sequence[str], None] = '5c1e7a9d3b42'
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | Sequence[str] | None = '5c1e7a9d3b42'
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 # `recurrenceinterval` already exists (expenses); reuse it, don't recreate.
 _interval = sa.Enum('MONTHLY', 'QUARTERLY', 'YEARLY', name='recurrenceinterval', create_type=False)

@@ -2,6 +2,7 @@ from datetime import datetime
 from uuid import UUID
 
 from pydantic import ConfigDict, EmailStr, Field, field_validator
+
 from .Base import Base
 
 # ---------------------------------------------------------------------------

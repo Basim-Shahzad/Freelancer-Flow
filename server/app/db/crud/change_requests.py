@@ -1,8 +1,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import UTC, datetime
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -13,7 +12,6 @@ from app.db.crud.projects import get_project_by_id
 from app.models.ChangeRequest import ChangeRequest, ChangeRequestStatus
 from app.models.Project import Project
 from app.schemas.ChangeRequestSchema import ChangeRequestCreate, ChangeRequestUpdate
-
 
 
 async def get_change_request_by_id(
@@ -35,8 +33,8 @@ async def get_change_requests(
     db: AsyncSession,
     user_id: uuid.UUID,
     *,
-    project_id: Optional[uuid.UUID] = None,
-    status_filter: Optional[ChangeRequestStatus] = None,
+    project_id: uuid.UUID | None = None,
+    status_filter: ChangeRequestStatus | None = None,
     skip: int = 0,
     limit: int = 20,
 ) -> tuple[list[ChangeRequest], int]:
@@ -103,7 +101,7 @@ async def update_change_request(
         update_data.pop("status")
         new_status = None
     if new_status is not None:
-        change_request.decided_at = datetime.now(timezone.utc)
+        change_request.decided_at = datetime.now(UTC)
     elif "decision_note" in update_data and update_data["decision_note"] is not None:
         raise Unprocessable("decision_note can only be set together with a decision")
 

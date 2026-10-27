@@ -9,7 +9,6 @@ from app.core.security import create_access_token
 from app.core.sensitive import _FERNET
 from app.db.crud import reference
 from app.models.ActivityEvent import ActivityEvent
-from app.models.User import UserRole
 
 URL = "/api/v1/payment-methods"
 PK_IBAN = "PK36SCBL0000001123456702"

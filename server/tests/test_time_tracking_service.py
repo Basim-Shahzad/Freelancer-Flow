@@ -1,8 +1,8 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from app.services.time_tracking import overlaps, validate_window
 
-NOW = datetime(2026, 1, 10, 12, 0, tzinfo=timezone.utc)
+NOW = datetime(2026, 1, 10, 12, 0, tzinfo=UTC)
 
 
 def _h(hours):

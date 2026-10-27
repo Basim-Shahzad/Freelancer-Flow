@@ -1,12 +1,11 @@
 """Milestone money, ordering, transitions, POST submit and approval history."""
 
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 
 from sqlalchemy import select
 
-from app.models.Milestone import Milestone, MilestoneStatus
 from app.models.MilestoneApproval import MilestoneApproval
 from app.models.PortalAccessToken import PortalAccessToken, ScopeType
 
@@ -156,7 +155,7 @@ async def test_portal_last_used_at_is_recorded(client, project, client_profile, 
 
 
 async def test_portal_project_view_hides_internal_fields(client, project, client_profile, make_portal_token, db_session):
-    project.hourly_rate = Decimal("999")
+    project.hourly_rate = Decimal(999)
     await db_session.commit()
     token, _ = await make_portal_token(
         client_id=client_profile.id, scope_type=ScopeType.PROJECT, scope=project.id
@@ -173,4 +172,4 @@ async def test_milestone_and_token_created_at_use_per_row_defaults(db_session, p
     await __import__("asyncio").sleep(0.05)
     b = await make_milestone(project_id=project.id, name="B")
     assert b.created_at > a.created_at
-    assert abs((datetime.now(timezone.utc) - b.created_at).total_seconds()) < 60
+    assert abs((datetime.now(UTC) - b.created_at).total_seconds()) < 60

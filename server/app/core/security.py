@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import UUID, uuid4
 
@@ -30,12 +30,12 @@ def verify_password(plain: str, hashed: str) -> bool:
 def _create_token(
     subject: str | UUID, token_type: str, expires_delta: timedelta
 ) -> str:
-    expire = datetime.now(timezone.utc) + expires_delta
+    expire = datetime.now(UTC) + expires_delta
     payload: dict[str, Any] = {
         "sub": str(subject),
         "type": token_type,
         "exp": expire,
-        "iat": datetime.now(timezone.utc),
+        "iat": datetime.now(UTC),
         # Unique per token: `iat`/`exp` have one-second precision, so without
         # it two tokens minted in the same second would be identical and the
         # second refresh token would violate RefreshToken.token's UNIQUE.

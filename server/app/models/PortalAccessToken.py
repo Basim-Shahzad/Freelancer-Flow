@@ -1,14 +1,15 @@
 from __future__ import annotations
-import uuid
-from typing import TYPE_CHECKING
-from datetime import datetime, timezone
-import enum
 
-from sqlalchemy import DateTime, ForeignKey, String, Text, Enum, Boolean
+import enum
+import uuid
+from datetime import UTC, datetime
+
+from sqlalchemy import DateTime, Enum, ForeignKey, String
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.database import Base
+
 
 class ScopeType(str, enum.Enum):
     PROJECT = "project"
@@ -40,10 +41,10 @@ class PortalAccessToken(Base):
     )
 
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc)
+        DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC)
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
-        onupdate=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
     )

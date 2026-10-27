@@ -1,5 +1,4 @@
 import uuid
-from typing import Optional
 
 from pydantic import Field
 
@@ -13,11 +12,11 @@ class PaymentCreate(Base):
     """POST /invoices/{id}/payments"""
 
     amount: PositiveMoney
-    paid_at: Optional[UTCDateTime] = Field(
+    paid_at: UTCDateTime | None = Field(
         default=None, description="Defaults to now. May not be in the future."
     )
     method: PaymentMethod = PaymentMethod.BANK_TRANSFER
-    reference: Optional[TransactionReference] = Field(
+    reference: TransactionReference | None = Field(
         default=None, max_length=255,
         description="Transaction ID only; card numbers, IBANs and CNICs are rejected.",
     )
@@ -29,5 +28,5 @@ class PaymentResponse(Base):
     amount: PositiveMoney
     paid_at: UTCDateTime
     method: PaymentMethod
-    reference: Optional[str] = None
+    reference: str | None = None
     created_at: UTCDateTime

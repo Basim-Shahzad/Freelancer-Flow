@@ -4,9 +4,8 @@ import asyncio
 import logging
 import uuid
 from dataclasses import dataclass
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
-from typing import Optional
 from zoneinfo import ZoneInfo
 
 from sqlalchemy import func, select, update
@@ -14,22 +13,22 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.core.errors import Conflict, NotFound, RateLimited, Unprocessable
-from app.db.crud.portal_tokens import issue_portal_token
 from app.core.config import settings
+from app.core.errors import Conflict, NotFound, RateLimited, Unprocessable
 from app.db.crud.activity import diff_changes, log_activity
-from app.db.crud.time_entries import ID_CAP
-from app.db.crud.payment_methods import list_methods
-from app.db.crud.projects import get_project_by_id
-from app.models.FreelancerProfile import FreelancerProfile
 from app.db.crud.currency import resolve_currency
+from app.db.crud.payment_methods import list_methods
+from app.db.crud.portal_tokens import issue_portal_token
+from app.db.crud.projects import get_project_by_id
+from app.db.crud.time_entries import ID_CAP
+from app.models.FreelancerProfile import FreelancerProfile
 from app.models.Invoice import Invoice, InvoiceStatus, InvoiceTax
+from app.models.InvoiceEvent import InvoiceEvent, InvoiceEventType
 from app.models.InvoiceItem import InvoiceItem
 from app.models.InvoicePaymentMethod import InvoicePaymentMethod
-from app.models.InvoiceEvent import InvoiceEvent, InvoiceEventType
 from app.models.Milestone import Milestone, MilestoneStatus
-from app.models.Project import BillingType, Project
 from app.models.PortalAccessToken import PortalAccessToken, ScopeType
+from app.models.Project import BillingType, Project
 from app.models.TimeEntry import TimeEntry
 from app.schemas.InvoiceSchema import (
     InvoiceCreate,
@@ -43,9 +42,6 @@ from app.services.email_service import (
     send_invoice_email,
     send_invoice_reminder_email,
 )
-from app.services.pdf import render_invoice_pdf
-from app.services.retainer import period_label, period_starts
-from app.services.sharing import build_whatsapp_url, invoice_message
 from app.services.invoicing import (
     TaxSpec,
     Totals,
@@ -54,6 +50,9 @@ from app.services.invoicing import (
     line_amount,
     time_entry_amount,
 )
+from app.services.pdf import render_invoice_pdf
+from app.services.retainer import period_label, period_starts
+from app.services.sharing import build_whatsapp_url, invoice_message
 
 logger = logging.getLogger(__name__)
 
@@ -64,11 +63,11 @@ OPEN_STATUSES = (InvoiceStatus.SENT, InvoiceStatus.PARTIALLY_PAID)
 
 
 def _now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def _aware(value: datetime) -> datetime:
-    return value if value.tzinfo else value.replace(tzinfo=timezone.utc)
+    return value if value.tzinfo else value.replace(tzinfo=UTC)
 
 
 def _load_options():
@@ -111,10 +110,10 @@ async def get_invoices(
     *,
     skip: int = 0,
     limit: int = 20,
-    status_filter: Optional[InvoiceDisplayStatus] = None,
-    client_id: Optional[uuid.UUID] = None,
-    project_id: Optional[uuid.UUID] = None,
-    search: Optional[str] = None,
+    status_filter: InvoiceDisplayStatus | None = None,
+    client_id: uuid.UUID | None = None,
+    project_id: uuid.UUID | None = None,
+    search: str | None = None,
 ) -> tuple[list[Invoice], int]:
     filters = [Invoice.freelancer_id == freelancer_id]
     if client_id:
@@ -151,7 +150,7 @@ async def get_invoices(
 async def _next_invoice_number(
     db: AsyncSession,
     freelancer: FreelancerProfile,
-    issue_date: Optional[datetime] = None,
+    issue_date: datetime | None = None,
 ) -> str:
     """Gap-free per-freelancer number.
 
@@ -252,7 +251,7 @@ async def _milestone_items(
             InvoiceItem(
                 milestone_id=milestone.id,
                 description=milestone.name,
-                quantity=Decimal("1"),
+                quantity=Decimal(1),
                 unit_price=milestone.amount,
                 amount=milestone.amount,
             )
@@ -298,7 +297,7 @@ def _tax_rows(totals: Totals) -> list[InvoiceTax]:
 async def _payment_method_snapshots(
     db: AsyncSession,
     freelancer: FreelancerProfile,
-    method_ids: Optional[list[uuid.UUID]],
+    method_ids: list[uuid.UUID] | None,
 ) -> list[InvoicePaymentMethod]:
     """Copy payment methods onto an invoice (``None`` = the active defaults)."""
     available = await list_methods(db, freelancer.id, include_inactive=False)
@@ -372,9 +371,9 @@ async def _retainer_item(
         raise Conflict("This retainer period has already been invoiced")
     return InvoiceItem(
         description=f"Retainer — {period_label(period_start, project.retainer_interval)}",
-        quantity=Decimal("1"),
+        quantity=Decimal(1),
         unit_price=project.retainer_amount,
-        amount=line_amount(Decimal("1"), project.retainer_amount, currency),
+        amount=line_amount(Decimal(1), project.retainer_amount, currency),
     )
 
 
@@ -624,8 +623,8 @@ def add_event(
     db: AsyncSession,
     invoice_id: uuid.UUID,
     event_type: InvoiceEventType,
-    detail: Optional[str] = None,
-    ip_address: Optional[str] = None,
+    detail: str | None = None,
+    ip_address: str | None = None,
 ) -> None:
     db.add(
         InvoiceEvent(
@@ -663,7 +662,7 @@ def _issuer_name(invoice: Invoice) -> str:
     return invoice.issuer["name"] or "Your freelancer"
 
 
-def _reply_to(invoice: Invoice) -> Optional[str]:
+def _reply_to(invoice: Invoice) -> str | None:
     user = invoice.freelancer.user
     return user.email if user else None
 
@@ -744,7 +743,7 @@ async def _email_undelivered(db: AsyncSession, invoice_id: uuid.UUID) -> bool:
 class SendResult:
     invoice: Invoice
     token: str
-    delivered: Optional[bool]  # None when no email was attempted
+    delivered: bool | None  # None when no email was attempted
 
 
 async def _mint_token(db: AsyncSession, invoice: Invoice) -> str:
@@ -1014,7 +1013,7 @@ async def mark_invoice_viewed(
     db: AsyncSession,
     invoice_id: uuid.UUID,
     client_id: uuid.UUID,
-    ip_address: Optional[str],
+    ip_address: str | None,
 ) -> Invoice:
     """Portal read: return the invoice and stamp the first view."""
     invoice = await get_client_invoice(db, invoice_id, client_id)

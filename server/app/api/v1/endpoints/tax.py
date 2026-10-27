@@ -2,14 +2,13 @@ from __future__ import annotations
 
 import uuid
 from datetime import date
-from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.config import settings
 from app.api.dependencies.auth import CurrentFreelancer
 from app.api.v1.openapi import errors
+from app.core.config import settings
 from app.db.crud.tax_remittances import (
     create_remittance,
     delete_remittance,
@@ -17,13 +16,13 @@ from app.db.crud.tax_remittances import (
     tax_summary,
 )
 from app.db.database import get_db
-from app.schemas.types import CurrencyCode
 from app.schemas.TaxRemittanceSchema import (
     TaxRemittanceCreate,
     TaxRemittanceListResponse,
     TaxRemittanceResponse,
     TaxSummaryResponse,
 )
+from app.schemas.types import CurrencyCode
 
 router = APIRouter(prefix="/tax", tags=["Tax"])
 
@@ -43,8 +42,8 @@ async def get_tax_summary(
     freelancer: CurrentFreelancer,
     period_start: date = Query(...),
     period_end: date = Query(...),
-    currency: Optional[CurrencyCode] = Query(None),
-    tax_name: Optional[str] = Query(None, max_length=100),
+    currency: CurrencyCode | None = Query(None),
+    tax_name: str | None = Query(None, max_length=100),
     db: AsyncSession = Depends(get_db),
 ):
     if period_end < period_start:

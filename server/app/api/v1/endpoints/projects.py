@@ -1,14 +1,13 @@
 from __future__ import annotations
 
 import uuid
-from typing import Optional
 
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.config import settings
 from app.api.dependencies.auth import get_current_freelancer, get_current_user
 from app.api.v1.openapi import errors
+from app.core.config import settings
 from app.db.crud.milestones import get_milestones, reorder_milestones
 from app.db.crud.projects import (
     create_project,
@@ -46,9 +45,9 @@ router = APIRouter(prefix="/projects", tags=["Projects"])
 async def list_projects(
     skip: int = Query(0, ge=0),
     limit: int = Query(20, ge=1, le=settings.MAX_PAGE_SIZE),
-    client_id: Optional[uuid.UUID] = Query(None),
-    status: Optional[ProjectStatus] = Query(None),
-    search: Optional[str] = Query(None, max_length=100),
+    client_id: uuid.UUID | None = Query(None),
+    status: ProjectStatus | None = Query(None),
+    search: str | None = Query(None, max_length=100),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):

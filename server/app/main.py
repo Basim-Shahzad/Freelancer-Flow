@@ -1,20 +1,20 @@
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request, Response
-from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
+from fastapi.responses import JSONResponse
 from sqlalchemy import text
 
 from app.api.v1.api import api_router
 from app.core.config import settings
 from app.core.errors import DomainError, RateLimited
 from app.core.middleware import BodySizeLimitMiddleware
-from app.db.database import init_db, async_session
-from app.models.User import UserRole
-from app.schemas.AuthSchema import UserCreate
 from app.db.crud.auth import create_user, get_user_by_email
 from app.db.crud.reference import seed_reference_settings
+from app.db.database import async_session
+from app.models.User import UserRole
+from app.schemas.AuthSchema import UserCreate
 
 # ---------------------------------------------------------------------------
 # Startup — create tables + seed superuser
@@ -46,7 +46,6 @@ async def _seed_reference_data() -> None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    from app import models
 
     # await init_db()
     await _seed_superuser()
@@ -101,7 +100,7 @@ def create_app() -> FastAPI:
 
             # Skip streaming responses (FileResponse, StreamingResponse, etc.)
             if "streaming" in response.__class__.__name__.lower():
-                print(f"\n--- OUTGOING RESPONSE (STREAMING) ---")
+                print("\n--- OUTGOING RESPONSE (STREAMING) ---")
                 print(
                     f"Method: {request.method} | Path: {request.url.path} | Status: {response.status_code}\n"
                 )

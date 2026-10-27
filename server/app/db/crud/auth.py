@@ -3,14 +3,14 @@ Users, refresh tokens and the session flows built on them (register, login,
 refresh rotation, logout, password change). Routes only handle cookies.
 """
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 from jwt.exceptions import PyJWTError
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.core.config import settings
 from app.core.errors import BadRequest, Conflict, Forbidden, Unauthorized
@@ -21,9 +21,9 @@ from app.core.security import (
     hash_password,
     verify_password,
 )
-from app.models.User import User, UserRole
-from app.models.RefreshToken import RefreshToken
 from app.models.FreelancerProfile import FreelancerProfile
+from app.models.RefreshToken import RefreshToken
+from app.models.User import User, UserRole
 from app.schemas.AuthSchema import UserCreate
 
 # ---------------------------------------------------------------------------
@@ -72,7 +72,7 @@ async def create_user(
 
 
 async def update_last_login(db: AsyncSession, user: User) -> None:
-    user.last_login_at = datetime.now(timezone.utc)
+    user.last_login_at = datetime.now(UTC)
     await db.flush()
 
 
@@ -104,7 +104,7 @@ async def create_refresh_token_record(
     record = RefreshToken(
         user_id=user_id,
         token=token,
-        expires_at=datetime.now(timezone.utc)
+        expires_at=datetime.now(UTC)
         + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS),
         user_agent=user_agent,
         ip_address=ip_address,
@@ -121,7 +121,7 @@ async def get_refresh_token_record(db: AsyncSession, token: str) -> RefreshToken
 
 async def revoke_refresh_token(db: AsyncSession, record: RefreshToken) -> None:
     record.revoked = True
-    record.revoked_at = datetime.now(timezone.utc)
+    record.revoked_at = datetime.now(UTC)
     await db.flush()
 
 
@@ -131,7 +131,7 @@ async def revoke_all_user_tokens(db: AsyncSession, user_id: UUID) -> int:
     )
     result = await db.scalars(stmt)
     tokens = result.all()
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     for t in tokens:
         t.revoked = True
         t.revoked_at = now

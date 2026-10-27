@@ -1,10 +1,11 @@
 from __future__ import annotations
+
 import enum
 import json
 import uuid
 from datetime import date
 from decimal import Decimal
-from typing import Any, Literal, Optional
+from typing import Any, Literal
 
 from pydantic import Field, computed_field, field_validator, model_validator
 
@@ -16,7 +17,6 @@ from .Base import Base
 from .PaymentSchema import PaymentResponse
 from .TaxSchema import TaxInput, TaxLineResponse
 from .types import ClientFacingText, CurrencyCode, Money, Percent, UTCDateTime
-
 
 # Money Rule: shown with every payment-instructions block.
 PAYMENT_DISCLAIMER = (
@@ -44,7 +44,7 @@ class InvoiceItemCreate(Base):
     """A manually entered line item."""
 
     description: str = Field(min_length=1, max_length=255)
-    quantity: Decimal = Field(gt=0, max_digits=10, decimal_places=2, default=Decimal("1"))
+    quantity: Decimal = Field(gt=0, max_digits=10, decimal_places=2, default=Decimal(1))
     unit_price: Money
 
 
@@ -58,33 +58,33 @@ class InvoiceCreate(Base):
     """
 
     project_id: uuid.UUID
-    issue_date: Optional[UTCDateTime] = Field(default=None, description="Defaults to now.")
-    due_date: Optional[UTCDateTime] = Field(
+    issue_date: UTCDateTime | None = Field(default=None, description="Defaults to now.")
+    due_date: UTCDateTime | None = Field(
         default=None,
         description="Defaults to issue date + client payment terms (or the "
         "freelancer's default terms).",
     )
-    currency: Optional[CurrencyCode] = Field(
+    currency: CurrencyCode | None = Field(
         default=None, description="Defaults to project, client, then freelancer currency."
     )
-    taxes: Optional[list[TaxInput]] = Field(
+    taxes: list[TaxInput] | None = Field(
         default=None,
         max_length=10,
         description="Taxes to apply. Omit to use the profile's default taxes; "
         "[] for none.",
     )
-    tax_note: Optional[str] = Field(
+    tax_note: str | None = Field(
         default=None, max_length=500,
         description="Printed when no tax applies (exempt, reverse charge...).",
     )
-    discount_rate: Percent = Decimal("0")
-    notes: Optional[ClientFacingText] = Field(default=None, max_length=5000)
-    payment_instructions: Optional[ClientFacingText] = Field(
+    discount_rate: Percent = Decimal(0)
+    notes: ClientFacingText | None = Field(default=None, max_length=5000)
+    payment_instructions: ClientFacingText | None = Field(
         default=None, max_length=2000,
         description="How the client should pay (e.g. bank account / IBAN). "
         "Omit to use the profile's default; null for none.",
     )
-    payment_method_ids: Optional[list[uuid.UUID]] = Field(
+    payment_method_ids: list[uuid.UUID] | None = Field(
         default=None,
         max_length=20,
         description="Payment methods to show the client (snapshotted). Omit to use "
@@ -93,7 +93,7 @@ class InvoiceCreate(Base):
     items: list[InvoiceItemCreate] = Field(default_factory=list, max_length=200)
     time_entry_ids: list[uuid.UUID] = Field(default_factory=list, max_length=1000)
     milestone_ids: list[uuid.UUID] = Field(default_factory=list, max_length=200)
-    retainer_period_start: Optional[date] = Field(
+    retainer_period_start: date | None = Field(
         default=None,
         description="RETAINER projects only: start date of the period to bill. Adds "
         "a 'Retainer — <period>' line at the retainer amount. Must be one of the "
@@ -101,7 +101,7 @@ class InvoiceCreate(Base):
     )
 
     @model_validator(mode="after")
-    def _validate(self) -> "InvoiceCreate":
+    def _validate(self) -> InvoiceCreate:
         if not (
             self.items
             or self.time_entry_ids
@@ -124,14 +124,14 @@ class InvoiceCreate(Base):
 class InvoiceUpdate(Base):
     """PATCH /invoices/{id}: header fields of a DRAFT invoice only."""
 
-    issue_date: Optional[UTCDateTime] = None
-    due_date: Optional[UTCDateTime] = None
-    taxes: Optional[list[TaxInput]] = Field(default=None, max_length=10)
-    tax_note: Optional[str] = Field(default=None, max_length=500)
-    discount_rate: Optional[Percent] = None
-    notes: Optional[ClientFacingText] = Field(default=None, max_length=5000)
-    payment_instructions: Optional[ClientFacingText] = Field(default=None, max_length=2000)
-    payment_method_ids: Optional[list[uuid.UUID]] = Field(
+    issue_date: UTCDateTime | None = None
+    due_date: UTCDateTime | None = None
+    taxes: list[TaxInput] | None = Field(default=None, max_length=10)
+    tax_note: str | None = Field(default=None, max_length=500)
+    discount_rate: Percent | None = None
+    notes: ClientFacingText | None = Field(default=None, max_length=5000)
+    payment_instructions: ClientFacingText | None = Field(default=None, max_length=2000)
+    payment_method_ids: list[uuid.UUID] | None = Field(
         default=None,
         max_length=20,
         description="Replaces the snapshotted payment methods. [] for none.",
@@ -153,8 +153,8 @@ class InvoiceItemResponse(Base):
     quantity: Decimal
     unit_price: Money
     amount: Money
-    time_entry_id: Optional[uuid.UUID] = None
-    milestone_id: Optional[uuid.UUID] = None
+    time_entry_id: uuid.UUID | None = None
+    milestone_id: uuid.UUID | None = None
 
 
 class InvoicePaymentMethodResponse(Base):
@@ -163,7 +163,7 @@ class InvoicePaymentMethodResponse(Base):
     id: uuid.UUID
     type: PaymentMethodType
     label: str
-    currency: Optional[str] = None
+    currency: str | None = None
     details: dict[str, Any]
 
     @field_validator("details", mode="before")
@@ -173,7 +173,7 @@ class InvoicePaymentMethodResponse(Base):
 
     @computed_field  # type: ignore[prop-decorator]
     @property
-    def pay_link(self) -> Optional[str]:
+    def pay_link(self) -> str | None:
         """Payoneer payment-request link: a link-out only, never a charge."""
         if self.type == PaymentMethodType.PAYONEER:
             return self.details.get("paymentRequestUrl")
@@ -188,12 +188,12 @@ class InvoiceParty(Base):
 class InvoiceIssuer(Base):
     """Who the invoice is from (the freelancer's business identity)."""
 
-    name: Optional[str] = None
-    business_name: Optional[str] = None
-    address: Optional[str] = None
-    tax_registration_number: Optional[str] = None
-    tax_label: Optional[str] = None
-    logo_url: Optional[str] = None
+    name: str | None = None
+    business_name: str | None = None
+    address: str | None = None
+    tax_registration_number: str | None = None
+    tax_label: str | None = None
+    logo_url: str | None = None
 
 
 class InvoiceResponse(Base):
@@ -207,7 +207,7 @@ class InvoiceResponse(Base):
     project_id: uuid.UUID
     client: InvoiceParty
     project: InvoiceParty
-    retainer_period_start: Optional[date] = None
+    retainer_period_start: date | None = None
     issuer: InvoiceIssuer
     items: list[InvoiceItemResponse]
     payments: list[PaymentResponse]
@@ -216,18 +216,18 @@ class InvoiceResponse(Base):
     discount_rate: Decimal
     discount_amount: Money
     taxes: list[TaxLineResponse]
-    tax_note: Optional[str] = None
+    tax_note: str | None = None
     tax_amount: Money
     withholding_amount: Money
     total: Money
     amount_paid: Money
     balance_due: Money
     is_overdue: bool
-    notes: Optional[str] = None
-    payment_instructions: Optional[str] = None
-    sent_at: Optional[UTCDateTime] = None
-    viewed_at: Optional[UTCDateTime] = None
-    payment_at: Optional[UTCDateTime] = Field(
+    notes: str | None = None
+    payment_instructions: str | None = None
+    sent_at: UTCDateTime | None = None
+    viewed_at: UTCDateTime | None = None
+    payment_at: UTCDateTime | None = Field(
         default=None, description="When the invoice became fully paid."
     )
     created_at: UTCDateTime
@@ -256,7 +256,7 @@ class InvoiceEventResponse(Base):
     invoice_id: uuid.UUID
     event_type: InvoiceEventType
     occurred_at: UTCDateTime
-    detail: Optional[str] = None
+    detail: str | None = None
 
 
 class InvoiceEventListResponse(Base):
@@ -285,7 +285,7 @@ class InvoiceShareLinks(Base):
 
 class InvoiceSendResponse(InvoiceShareLinks):
     invoice: InvoiceResponse
-    email_delivered: Optional[bool] = Field(
+    email_delivered: bool | None = Field(
         default=None,
         description="Null when no email was attempted. False when it could not be "
         "sent (see the EMAIL_FAILED event); the links still work.",

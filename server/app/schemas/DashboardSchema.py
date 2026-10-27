@@ -3,7 +3,6 @@ from __future__ import annotations
 import uuid
 from datetime import date
 from decimal import Decimal
-from typing import Optional
 
 from pydantic import Field
 
@@ -41,7 +40,7 @@ class Outstanding(Base):
 class UnbilledTime(Base):
     project_id: uuid.UUID
     project_name: str
-    currency: Optional[str] = None
+    currency: str | None = None
     hours: Decimal = Field(description="Finished, billable, uninvoiced hours.")
     amount: Money = Field(description="At each entry's rate snapshot; entries with no rate add 0.")
 
@@ -49,7 +48,7 @@ class UnbilledTime(Base):
 class UnbilledMilestones(Base):
     project_id: uuid.UUID
     project_name: str
-    currency: Optional[str] = None
+    currency: str | None = None
     count: int
     amount: Money
 
@@ -57,7 +56,7 @@ class UnbilledMilestones(Base):
 class UnbilledRetainerPeriod(Base):
     project_id: uuid.UUID
     project_name: str
-    currency: Optional[str] = None
+    currency: str | None = None
     period_start: date
     period_end: date
     label: str
@@ -83,5 +82,5 @@ class DashboardSummary(Base):
     cash_in: CashIn
     outstanding: Outstanding
     unbilled: Unbilled
-    running_timer: Optional[RunningTimer] = None
+    running_timer: RunningTimer | None = None
     active_projects: int

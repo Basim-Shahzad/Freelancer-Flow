@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -54,7 +54,7 @@ async def update_freelancer_profile(
     for field, value in update_data.items():
         setattr(freelancer, field, value)
     if "bank_balance" in update_data:
-        freelancer.bank_balance_updated_at = datetime.now(timezone.utc)
+        freelancer.bank_balance_updated_at = datetime.now(UTC)
 
     if changes:
         log_activity(

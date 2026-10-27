@@ -1,9 +1,10 @@
 from __future__ import annotations
-import uuid
-from datetime import datetime, timezone
-from typing import Any, Optional
 
-from sqlalchemy import DateTime, ForeignKey, Index, JSON, String
+import uuid
+from datetime import UTC, datetime
+from typing import Any
+
+from sqlalchemy import JSON, DateTime, ForeignKey, Index, String
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -35,11 +36,11 @@ class ActivityEvent(Base):
     action: Mapped[str] = mapped_column(String(50), nullable=False)
     summary: Mapped[str] = mapped_column(String(255), nullable=False)
     # {"field": {"old": ..., "new": ...}} for updates.
-    changes: Mapped[Optional[dict[str, Any]]] = mapped_column(
+    changes: Mapped[dict[str, Any] | None] = mapped_column(
         JSON().with_variant(JSONB(), "postgresql"), nullable=True
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
     )

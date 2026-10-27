@@ -11,9 +11,9 @@ from __future__ import annotations
 import asyncio
 import logging
 import weakref
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal, InvalidOperation
-from typing import Any, Optional
+from typing import Any
 from urllib.parse import urlparse
 
 import httpx
@@ -34,7 +34,7 @@ class FxFetchError(Exception):
 
 
 # One lock per event loop: only one fetch runs at a time within a process.
-_locks: "weakref.WeakKeyDictionary[asyncio.AbstractEventLoop, asyncio.Lock]" = (
+_locks: weakref.WeakKeyDictionary[asyncio.AbstractEventLoop, asyncio.Lock] = (
     weakref.WeakKeyDictionary()
 )
 
@@ -47,7 +47,7 @@ def _fetch_lock() -> asyncio.Lock:
     return lock
 
 
-async def fetch_rates(client: Optional[httpx.AsyncClient] = None) -> dict[str, Any]:
+async def fetch_rates(client: httpx.AsyncClient | None = None) -> dict[str, Any]:
     """Fetch rates once (no retries) and return a full ``exchange_rates`` value.
 
     Raises ``FxFetchError`` on any network, HTTP or payload problem.
@@ -65,7 +65,7 @@ async def fetch_rates(client: Optional[httpx.AsyncClient] = None) -> dict[str, A
             raise ValueError("provider did not report success")
         provider_rates = payload["rates"]
         as_of = datetime.fromtimestamp(
-            int(payload["time_last_update_unix"]), tz=timezone.utc
+            int(payload["time_last_update_unix"]), tz=UTC
         ).date()
 
         rates: dict[str, str] = {}
@@ -87,7 +87,7 @@ async def fetch_rates(client: Optional[httpx.AsyncClient] = None) -> dict[str, A
         "rates": rates,
         "as_of": as_of.isoformat(),
         "source": urlparse(settings.FX_API_URL).hostname,
-        "fetched_at": datetime.now(timezone.utc).isoformat(),
+        "fetched_at": datetime.now(UTC).isoformat(),
         "manual_override": False,
     }
 
@@ -101,12 +101,12 @@ def _is_fresh(value: dict[str, Any]) -> bool:
     except ValueError:
         return False
     if fetched.tzinfo is None:
-        fetched = fetched.replace(tzinfo=timezone.utc)
-    age = datetime.now(timezone.utc) - fetched
+        fetched = fetched.replace(tzinfo=UTC)
+    age = datetime.now(UTC) - fetched
     return age < timedelta(hours=settings.FX_MAX_AGE_HOURS)
 
 
-async def _store(db: AsyncSession, value: dict[str, Any], user: Optional[User]) -> dict:
+async def _store(db: AsyncSession, value: dict[str, Any], user: User | None) -> dict:
     as_of = value.get("as_of")
     setting = await reference_crud.set_setting(
         db,
@@ -119,7 +119,7 @@ async def _store(db: AsyncSession, value: dict[str, Any], user: Optional[User]) 
 
 
 async def get_exchange_rates(
-    db: AsyncSession, client: Optional[httpx.AsyncClient] = None
+    db: AsyncSession, client: httpx.AsyncClient | None = None
 ) -> dict[str, Any]:
     """Cached rates, refreshed when stale. Never raises into the request."""
     setting = await reference_crud.find_setting(db, reference_crud.EXCHANGE_RATES)
@@ -148,7 +148,7 @@ async def get_exchange_rates(
 
 
 async def refresh_now(
-    db: AsyncSession, user: User, client: Optional[httpx.AsyncClient] = None
+    db: AsyncSession, user: User, client: httpx.AsyncClient | None = None
 ) -> dict[str, Any]:
     """Admin-forced fetch. Clears any manual override; failures are surfaced."""
     async with _fetch_lock():

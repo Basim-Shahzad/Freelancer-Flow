@@ -1,10 +1,10 @@
+from datetime import UTC, datetime, timedelta
+
 import jwt
 import pytest
-from datetime import datetime, timedelta, timezone
 
 from app.core.config import settings
 from app.core.security import create_access_token, create_refresh_token
-
 
 REGISTER_URL = "/api/v1/auth/register"
 LOGIN_URL = "/api/v1/auth/login"
@@ -164,8 +164,8 @@ async def test_me_rejects_expired_token(client, user):
         {
             "sub": str(user.id),
             "type": "access",
-            "exp": datetime.now(timezone.utc) - timedelta(minutes=1),
-            "iat": datetime.now(timezone.utc) - timedelta(minutes=10),
+            "exp": datetime.now(UTC) - timedelta(minutes=1),
+            "iat": datetime.now(UTC) - timedelta(minutes=10),
         },
         settings.SECRET_KEY,
         algorithm=settings.ALGORITHM,
@@ -184,8 +184,8 @@ async def test_me_rejects_token_without_sub_claim(client):
     malformed = jwt.encode(
         {
             "type": "access",
-            "exp": datetime.now(timezone.utc) + timedelta(minutes=5),
-            "iat": datetime.now(timezone.utc),
+            "exp": datetime.now(UTC) + timedelta(minutes=5),
+            "iat": datetime.now(UTC),
         },
         settings.SECRET_KEY,
         algorithm=settings.ALGORITHM,

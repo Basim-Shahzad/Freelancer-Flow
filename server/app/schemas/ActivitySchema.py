@@ -1,5 +1,5 @@
 import uuid
-from typing import Any, Optional
+from typing import Any
 
 from .Base import Base
 from .types import UTCDateTime
@@ -11,11 +11,11 @@ class ActivityEventResponse(Base):
     entity_id: uuid.UUID
     action: str
     summary: str
-    changes: Optional[dict[str, Any]] = None
+    changes: dict[str, Any] | None = None
     created_at: UTCDateTime
 
 
 class ActivityListResponse(Base):
     events: list[ActivityEventResponse]
     total: int
-    next_cursor: Optional[str] = None
+    next_cursor: str | None = None

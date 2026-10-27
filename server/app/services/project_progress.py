@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 from decimal import Decimal
-from typing import Optional
 
 
 def compute_progress_percent(
@@ -11,10 +10,10 @@ def compute_progress_percent(
     milestones_enabled: bool,
     milestone_total: int,
     milestone_done: int,
-    budget: Optional[Decimal],
-    hourly_rate: Optional[Decimal],
+    budget: Decimal | None,
+    hourly_rate: Decimal | None,
     total_minutes: int,
-) -> Optional[int]:
+) -> int | None:
     """0-100, or ``None`` when progress cannot be measured.
 
     Milestones (approved or submitted vs. total) win when enabled and present;

@@ -2,21 +2,22 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from decimal import Decimal
-from typing import Any, Mapping, Optional
+from typing import Any
 from urllib.parse import quote
 
 from app.services.fx import REFERENCE_NOTE, convert_for_display, display_currency_for
 from app.services.phone import wa_digits
 
 
-def build_whatsapp_url(number: Optional[str], text: str) -> str:
+def build_whatsapp_url(number: str | None, text: str) -> str:
     """``wa.me`` link; ``number`` is E.164 or None (the user picks the chat)."""
     target = wa_digits(number) if number else ""
     return f"https://wa.me/{target}?text={quote(text, safe='')}"
 
 
-def _amount_line(amount: Decimal, currency: str, rates: Optional[Mapping[str, Any]]) -> str:
+def _amount_line(amount: Decimal, currency: str, rates: Mapping[str, Any] | None) -> str:
     line = f"{currency} {amount:,.2f}"
     other = display_currency_for(currency)
     shown = convert_for_display(amount, currency, other, rates) if other and rates else None
@@ -34,7 +35,7 @@ def invoice_message(
     due_date,
     portal_link: str,
     issuer_name: str,
-    rates: Optional[Mapping[str, Any]] = None,
+    rates: Mapping[str, Any] | None = None,
     reminder: bool = False,
     overdue: bool = False,
 ) -> str:

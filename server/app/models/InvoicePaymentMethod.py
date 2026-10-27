@@ -1,6 +1,7 @@
 from __future__ import annotations
+
 import uuid
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from sqlalchemy import Enum, ForeignKey, Integer, String
 from sqlalchemy.dialects.postgresql import UUID
@@ -28,15 +29,15 @@ class InvoicePaymentMethod(Base):
     invoice_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("invoices.id", ondelete="CASCADE"), nullable=False, index=True
     )
-    invoice: Mapped["Invoice"] = relationship(back_populates="payment_methods")
+    invoice: Mapped[Invoice] = relationship(back_populates="payment_methods")
     sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     type: Mapped[PaymentMethodType] = mapped_column(
         Enum(PaymentMethodType), nullable=False
     )
     label: Mapped[str] = mapped_column(String(100), nullable=False)
-    currency: Mapped[Optional[str]] = mapped_column(String(3), nullable=True)
+    currency: Mapped[str | None] = mapped_column(String(3), nullable=True)
     # Serialized JSON copy of the config's details, encrypted at rest.
     details: Mapped[str] = mapped_column(EncryptedText, nullable=False)
-    source_method_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+    source_method_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("payment_method_configs.id", ondelete="SET NULL"), nullable=True
     )

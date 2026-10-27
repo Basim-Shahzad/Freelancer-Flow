@@ -1,6 +1,6 @@
 """Unit tests for the pure invoicing arithmetic (no database)."""
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 from app.services.invoicing import (
@@ -13,7 +13,7 @@ from app.services.invoicing import (
     time_entry_amount,
 )
 
-T0 = datetime(2026, 1, 1, 9, 0, tzinfo=timezone.utc)
+T0 = datetime(2026, 1, 1, 9, 0, tzinfo=UTC)
 
 
 def _tax(rate, **kw):
@@ -21,36 +21,36 @@ def _tax(rate, **kw):
 
 
 def test_totals_apply_discount_before_tax():
-    t = compute_totals(Decimal("1000"), Decimal("10"), [_tax("15")], "USD")
+    t = compute_totals(Decimal(1000), Decimal(10), [_tax("15")], "USD")
     assert (t.discount_amount, t.tax_amount, t.total) == (
         Decimal("100.00"), Decimal("135.00"), Decimal("1035.00"),
     )
 
 
 def test_totals_round_half_up_to_currency_minor_unit():
-    t = compute_totals(Decimal("33.33"), Decimal("0"), [_tax("15")], "USD")
+    t = compute_totals(Decimal("33.33"), Decimal(0), [_tax("15")], "USD")
     assert t.tax_amount == Decimal("5.00")  # 4.9995 -> 5.00
     assert t.total == Decimal("38.33")
 
 
 def test_no_taxes():
-    t = compute_totals(Decimal("50"), Decimal("0"))
+    t = compute_totals(Decimal(50), Decimal(0))
     assert (t.discount_amount, t.tax_amount, t.total) == (
-        Decimal("0.00"), Decimal("0"), Decimal("50"),
+        Decimal("0.00"), Decimal(0), Decimal(50),
     )
 
 
 def test_rounding_follows_currency_exponent():
-    assert quantize_money(Decimal("1234.5"), "JPY") == Decimal("1235")
+    assert quantize_money(Decimal("1234.5"), "JPY") == Decimal(1235)
     assert quantize_money(Decimal("1.2345"), "KWD") == Decimal("1.235")
     assert quantize_money(Decimal("1.2345"), "USD") == Decimal("1.23")
-    t = compute_totals(Decimal("1000"), Decimal("0"), [_tax("10")], "JPY")
-    assert t.tax_amount == Decimal("100") and t.total == Decimal("1100")
+    t = compute_totals(Decimal(1000), Decimal(0), [_tax("10")], "JPY")
+    assert t.tax_amount == Decimal(100) and t.total == Decimal(1100)
 
 
 def test_multiple_and_compound_taxes():
     t = compute_totals(
-        Decimal("100"), Decimal("0"),
+        Decimal(100), Decimal(0),
         [_tax("5", name="GST"), _tax("10", name="PST", is_compound=True)], "USD",
     )
     # 5.00 on 100, then 10% on 105.
@@ -59,14 +59,14 @@ def test_multiple_and_compound_taxes():
 
 
 def test_inclusive_tax_is_extracted_not_added():
-    t = compute_totals(Decimal("115"), Decimal("0"), [_tax("15", is_inclusive=True)], "USD")
+    t = compute_totals(Decimal(115), Decimal(0), [_tax("15", is_inclusive=True)], "USD")
     assert t.tax_amount == Decimal("15.00")
-    assert t.total == Decimal("115")
+    assert t.total == Decimal(115)
 
 
 def test_withholding_reduces_amount_due_and_is_not_collected_tax():
     t = compute_totals(
-        Decimal("1000"), Decimal("0"),
+        Decimal(1000), Decimal(0),
         [_tax("10", name="VAT"), _tax("5", name="WHT", is_withholding=True)], "USD",
     )
     assert t.tax_amount == Decimal("100.00")
@@ -77,7 +77,7 @@ def test_withholding_reduces_amount_due_and_is_not_collected_tax():
 
 def test_compound_tax_ignores_earlier_withholding():
     t = compute_totals(
-        Decimal("1000"), Decimal("0"),
+        Decimal(1000), Decimal(0),
         [
             _tax("10", name="VAT"),
             _tax("5", name="WHT", is_withholding=True),
@@ -102,7 +102,7 @@ def test_duration_rounds_to_nearest_minute_and_never_goes_negative():
 def test_time_entry_amount_bills_exact_minutes():
     # 50 minutes at 100/h = 83.33, whereas billing the rounded 0.83h would give 83.00.
     assert hours_from_minutes(50) == Decimal("0.83")
-    assert time_entry_amount(50, Decimal("100")) == Decimal("83.33")
+    assert time_entry_amount(50, Decimal(100)) == Decimal("83.33")
 
 
 def test_line_amount():

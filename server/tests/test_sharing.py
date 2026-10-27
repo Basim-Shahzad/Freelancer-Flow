@@ -25,7 +25,7 @@ def _msg(**kw):
     base = dict(
         client_name="Ali & Co",
         invoice_number="INV-0001",
-        amount=Decimal("100"),
+        amount=Decimal(100),
         currency="USD",
         due_date=date(2026, 11, 1),
         portal_link="https://app.test/portal/invoices/1?token=abc",

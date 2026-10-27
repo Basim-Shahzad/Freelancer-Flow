@@ -2,6 +2,7 @@
 production secret checks and OpenAPI generation."""
 
 import uuid
+from datetime import UTC
 
 import pytest
 from cryptography.fernet import Fernet
@@ -11,7 +12,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import Settings, settings
 from app.core.errors import RateLimited
-from app.models.PortalAccessToken import ScopeType
 from app.models.RateLimitCounter import RateLimitCounter
 from app.services.rate_limit import check_rate_limit
 
@@ -186,11 +186,11 @@ async def test_export_has_a_per_ip_limit_too(client, auth_headers, other_auth_he
 
 
 async def test_stale_rows_of_other_keys_are_pruned(db_session, monkeypatch):
-    from datetime import datetime, timedelta, timezone
+    from datetime import datetime, timedelta
 
     from app.services import rate_limit
 
-    old = datetime.now(timezone.utc) - timedelta(days=3)
+    old = datetime.now(UTC) - timedelta(days=3)
     db_session.add(RateLimitCounter(key="abandoned", window_start=old, count=5))
     await db_session.commit()
     monkeypatch.setattr(rate_limit, "GLOBAL_PRUNE_PROBABILITY", 1.0)
@@ -200,11 +200,11 @@ async def test_stale_rows_of_other_keys_are_pruned(db_session, monkeypatch):
 
 
 async def test_recent_rows_of_other_keys_are_kept(db_session, monkeypatch):
-    from datetime import datetime, timedelta, timezone
+    from datetime import datetime, timedelta
 
     from app.services import rate_limit
 
-    recent = datetime.now(timezone.utc) - timedelta(hours=1)
+    recent = datetime.now(UTC) - timedelta(hours=1)
     db_session.add(RateLimitCounter(key="recent", window_start=recent, count=5))
     await db_session.commit()
     monkeypatch.setattr(rate_limit, "GLOBAL_PRUNE_PROBABILITY", 1.0)

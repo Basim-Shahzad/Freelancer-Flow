@@ -1,14 +1,13 @@
 """Pure phone-number helpers for WhatsApp sharing."""
 
 import re
-from typing import Optional
 
 _STRIP = re.compile(r"[\s\-().]")
 _E164 = re.compile(r"^\+[1-9]\d{7,14}$")
 _PK_LOCAL = re.compile(r"^03\d{9}$")
 
 
-def normalize_whatsapp(raw: Optional[str]) -> Optional[str]:
+def normalize_whatsapp(raw: str | None) -> str | None:
     """Return an E.164 number, or None for empty input; raise ValueError if invalid.
 
     Pakistani local numbers (03XXXXXXXXX) become +923XXXXXXXXX; 00-prefixed

@@ -1,7 +1,7 @@
 import re
 import uuid
 from decimal import Decimal
-from typing import Annotated, Literal, Optional
+from typing import Annotated, Literal
 from zoneinfo import ZoneInfo
 
 from pydantic import AfterValidator, Field, HttpUrl
@@ -47,30 +47,30 @@ class FreelancerProfileUpdate(Base):
     Business identity is what invoices print (instead of the user's name).
     """
 
-    hourly_rate: Optional[Money] = None
-    type: Optional[str] = Field(default=None, max_length=255)
-    currency: Optional[CurrencyCode] = None
-    business_name: Optional[str] = Field(default=None, max_length=255)
-    business_address: Optional[str] = Field(default=None, max_length=1000)
-    country: Optional[str] = Field(
+    hourly_rate: Money | None = None
+    type: str | None = Field(default=None, max_length=255)
+    currency: CurrencyCode | None = None
+    business_name: str | None = Field(default=None, max_length=255)
+    business_address: str | None = Field(default=None, max_length=1000)
+    country: str | None = Field(
         default=None, pattern=r"^[A-Z]{2}$", description="ISO-3166 alpha-2; informational only."
     )
-    timezone: Optional[TimezoneName] = None
-    tax_registration_number: Optional[str] = Field(default=None, max_length=100)
-    tax_label: Optional[str] = Field(default=None, max_length=50)
-    tax_basis: Optional[Literal["accrual", "cash"]] = None
-    payment_instructions: Optional[ClientFacingText] = Field(
+    timezone: TimezoneName | None = None
+    tax_registration_number: str | None = Field(default=None, max_length=100)
+    tax_label: str | None = Field(default=None, max_length=50)
+    tax_basis: Literal["accrual", "cash"] | None = None
+    payment_instructions: ClientFacingText | None = Field(
         default=None, max_length=2000,
         description="Default payment instructions copied onto new invoices.",
     )
-    invoice_number_format: Optional[InvoiceNumberFormat] = None
-    logo_url: Optional[HttpUrl] = None
-    default_payment_terms_days: Optional[int] = Field(default=None, ge=0, le=365)
-    default_taxes: Optional[list[TaxInput]] = Field(
+    invoice_number_format: InvoiceNumberFormat | None = None
+    logo_url: HttpUrl | None = None
+    default_payment_terms_days: int | None = Field(default=None, ge=0, le=365)
+    default_taxes: list[TaxInput] | None = Field(
         default=None, max_length=10,
         description="Taxes applied to new invoices unless overridden; [] for none.",
     )
-    bank_balance: Optional[Decimal] = Field(
+    bank_balance: Decimal | None = Field(
         default=None, max_digits=18, decimal_places=4,
         description="Current cash position; stamps bankBalanceUpdatedAt.",
     )
@@ -78,22 +78,22 @@ class FreelancerProfileUpdate(Base):
 
 class FreelancerProfileResponse(Base):
     id: uuid.UUID
-    hourly_rate: Optional[Money] = None
-    type: Optional[str] = None
-    currency: Optional[str] = None
-    country: Optional[str] = None
+    hourly_rate: Money | None = None
+    type: str | None = None
+    currency: str | None = None
+    country: str | None = None
     timezone: str
-    business_name: Optional[str] = None
-    business_address: Optional[str] = None
-    tax_registration_number: Optional[str] = None
-    tax_label: Optional[str] = None
+    business_name: str | None = None
+    business_address: str | None = None
+    tax_registration_number: str | None = None
+    tax_label: str | None = None
     tax_basis: str
-    payment_instructions: Optional[str] = None
+    payment_instructions: str | None = None
     invoice_number_format: str
-    logo_url: Optional[str] = None
+    logo_url: str | None = None
     default_payment_terms_days: int
     default_taxes: list[TaxInput] = Field(default_factory=list)
-    bank_balance: Optional[Decimal] = None
-    bank_balance_updated_at: Optional[UTCDateTime] = None
+    bank_balance: Decimal | None = None
+    bank_balance_updated_at: UTCDateTime | None = None
     created_at: UTCDateTime
     updated_at: UTCDateTime

@@ -1,8 +1,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import UTC, datetime
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -70,9 +69,9 @@ async def decide_milestone(
     client: ClientProfile,
     token: PortalAccessToken,
     *,
-    comment: Optional[str] = None,
-    ip_address: Optional[str] = None,
-    user_agent: Optional[str] = None,
+    comment: str | None = None,
+    ip_address: str | None = None,
+    user_agent: str | None = None,
 ) -> Milestone:
     comment = comment.strip() if comment else None
     if decision == MilestoneApprovalDecision.REJECTED and not comment:
@@ -109,7 +108,7 @@ async def decide_milestone(
     # Denormalised cache of the latest decision (the approval row above is
     # the audit history).
     milestone.approved_by_client_id = client.id
-    milestone.approved_at = datetime.now(timezone.utc)
+    milestone.approved_at = datetime.now(UTC)
 
     project = await db.get(Project, milestone.project_id)
     if project is not None:

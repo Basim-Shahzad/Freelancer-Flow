@@ -1,7 +1,7 @@
 from __future__ import annotations
+
 import uuid
 from datetime import datetime
-from typing import Optional
 
 from pydantic import ConfigDict, Field
 
@@ -17,11 +17,11 @@ class MilestoneCreate(Base):
     """POST /milestones"""
 
     name: str = Field(min_length=1, max_length=255)
-    description: Optional[str] = Field(default=None, max_length=10_000)
+    description: str | None = Field(default=None, max_length=10_000)
     project_id: uuid.UUID
-    due_date: Optional[UTCDateTime] = None
+    due_date: UTCDateTime | None = None
     approval_required: bool = False
-    amount: Optional[Money] = Field(
+    amount: Money | None = Field(
         default=None, description="Money attached to the milestone (fixed-price billing)."
     )
 
@@ -33,13 +33,13 @@ class MilestoneUpdate(Base):
     approval goes through ``POST /milestones/{id}/submit`` instead.
     """
 
-    name: Optional[str] = Field(default=None, min_length=1, max_length=255)
-    description: Optional[str] = Field(default=None, max_length=10_000)
-    status: Optional[MilestoneStatus] = None
-    due_date: Optional[UTCDateTime] = None
-    approval_required: Optional[bool] = None
-    amount: Optional[Money] = None
-    sort_order: Optional[int] = Field(default=None, ge=0)
+    name: str | None = Field(default=None, min_length=1, max_length=255)
+    description: str | None = Field(default=None, max_length=10_000)
+    status: MilestoneStatus | None = None
+    due_date: UTCDateTime | None = None
+    approval_required: bool | None = None
+    amount: Money | None = None
+    sort_order: int | None = Field(default=None, ge=0)
 
 
 class MilestoneReorder(Base):
@@ -54,7 +54,7 @@ class MilestoneReorder(Base):
 class MilestoneDecision(Base):
     """Body of the portal approve / reject endpoints."""
 
-    comment: Optional[str] = Field(default=None, max_length=2000)
+    comment: str | None = Field(default=None, max_length=2000)
 
 
 # ── Response schemas ──────────────────────────────────────────────────────────
@@ -68,19 +68,19 @@ class MilestoneResponse(Base):
     id: uuid.UUID
     project_id: uuid.UUID
     name: str
-    description: Optional[str] = None
+    description: str | None = None
     status: MilestoneStatus
-    due_date: Optional[datetime] = None
+    due_date: datetime | None = None
     approval_required: bool
-    amount: Optional[Money] = None
+    amount: Money | None = None
     sort_order: int
-    submitted_at: Optional[datetime] = None
-    approved_by: Optional[uuid.UUID] = Field(
+    submitted_at: datetime | None = None
+    approved_by: uuid.UUID | None = Field(
         default=None,
         validation_alias="approved_by_client_id",
         description="Client who made the latest approve/reject decision.",
     )
-    approved_at: Optional[datetime] = None
+    approved_at: datetime | None = None
     created_at: datetime
     updated_at: datetime
 

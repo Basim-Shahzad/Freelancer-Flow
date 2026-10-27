@@ -1,10 +1,11 @@
 from __future__ import annotations
-import uuid
-from typing import TYPE_CHECKING, Optional
-from datetime import datetime, timezone
-from decimal import Decimal
 
-from sqlalchemy import DateTime, ForeignKey, String, Numeric
+import uuid
+from datetime import UTC, datetime
+from decimal import Decimal
+from typing import TYPE_CHECKING
+
+from sqlalchemy import DateTime, ForeignKey, Numeric, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -12,8 +13,8 @@ from app.db.database import Base
 
 if TYPE_CHECKING:
     from app.models.Invoice import Invoice
-    from app.models.TimeEntry import TimeEntry
     from app.models.Milestone import Milestone
+    from app.models.TimeEntry import TimeEntry
 
 
 class InvoiceItem(Base):
@@ -26,21 +27,21 @@ class InvoiceItem(Base):
     invoice_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("invoices.id", ondelete="CASCADE"), nullable=False
     )
-    invoice: Mapped["Invoice"] = relationship(back_populates="items")
+    invoice: Mapped[Invoice] = relationship(back_populates="items")
 
     # Optional traceability back to the billing source. Hourly-billed lines
     # point at the TimeEntry they were generated from; fixed-price/milestone
     # lines point at the Milestone instead. Both nullable since an item can
     # also be a manually added ad-hoc charge with neither.
-    time_entry_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+    time_entry_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("time_entries.id", ondelete="SET NULL"), nullable=True
     )
-    time_entry: Mapped[Optional["TimeEntry"]] = relationship()
+    time_entry: Mapped[TimeEntry | None] = relationship()
 
-    milestone_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+    milestone_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("milestones.id", ondelete="SET NULL"), nullable=True
     )
-    milestone: Mapped[Optional["Milestone"]] = relationship()
+    milestone: Mapped[Milestone | None] = relationship()
 
     description: Mapped[str] = mapped_column(String(255), nullable=False)
     quantity: Mapped[Decimal] = mapped_column(
@@ -56,10 +57,10 @@ class InvoiceItem(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
-        onupdate=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
     )

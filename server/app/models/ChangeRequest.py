@@ -1,9 +1,10 @@
 from __future__ import annotations
+
 import enum
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from sqlalchemy import DateTime, Enum, ForeignKey, Index, Numeric, String, Text
 from sqlalchemy.dialects.postgresql import UUID
@@ -34,37 +35,37 @@ class ChangeRequest(Base):
     project_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("projects.id", ondelete="CASCADE"), nullable=False
     )
-    project: Mapped["Project"] = relationship(back_populates="change_requests")
+    project: Mapped[Project] = relationship(back_populates="change_requests")
 
     title: Mapped[str] = mapped_column(String(255), nullable=False)
-    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
     status: Mapped[ChangeRequestStatus] = mapped_column(
         Enum(ChangeRequestStatus), nullable=False, default=ChangeRequestStatus.PENDING
     )
-    estimated_hours: Mapped[Optional[Decimal]] = mapped_column(
+    estimated_hours: Mapped[Decimal | None] = mapped_column(
         Numeric(precision=8, scale=2), nullable=True
     )
     # Price of the change; NULL means "not priced yet".
-    estimated_amount: Mapped[Optional[Decimal]] = mapped_column(
+    estimated_amount: Mapped[Decimal | None] = mapped_column(
         Numeric(precision=18, scale=4), nullable=True
     )
     requested_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
     )
-    decided_at: Mapped[Optional[datetime]] = mapped_column(
+    decided_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
-    decision_note: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    decision_note: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
-        onupdate=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
     )

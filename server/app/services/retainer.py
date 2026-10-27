@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import calendar
 from datetime import date, timedelta
-from typing import Optional
 
 from app.models.Expense import RecurrenceInterval
 
@@ -44,7 +43,7 @@ def period_starts(
     start: date,
     interval: RecurrenceInterval,
     through: date,
-    end_date: Optional[date] = None,
+    end_date: date | None = None,
 ) -> list[date]:
     """Every period start from ``start`` up to ``through`` (inclusive), and no
     later than ``end_date`` when the retainer has one."""

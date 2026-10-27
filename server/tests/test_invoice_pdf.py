@@ -112,7 +112,7 @@ async def test_pdf_reference_line_for_usd_with_rates(client, db_session, auth_he
     )
     inv = await _invoice(client, auth_headers, project.id)  # 200 USD
     text = await _pdf(client, auth_headers, inv["id"])
-    assert f"{Decimal('200') * Decimal('281.25'):,.2f} PKR" in text
+    assert f"{Decimal(200) * Decimal('281.25'):,.2f} PKR" in text
     assert "Reference rate only" in text
 
 

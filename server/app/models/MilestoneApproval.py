@@ -1,18 +1,19 @@
 from __future__ import annotations
-import uuid
-from typing import TYPE_CHECKING
-from datetime import datetime, timezone
-import enum
 
-from sqlalchemy import DateTime, ForeignKey, String, Enum, Text
+import enum
+import uuid
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING
+
+from sqlalchemy import DateTime, Enum, ForeignKey, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.database import Base
 
 if TYPE_CHECKING:
-    from app.models.Milestone import Milestone
     from app.models.ClientProfile import ClientProfile
+    from app.models.Milestone import Milestone
     from app.models.PortalAccessToken import PortalAccessToken
 
 
@@ -36,7 +37,7 @@ class MilestoneApproval(Base):
         Enum(MilestoneApprovalDecision), nullable=False
     )
     decided_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc)
+        DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC)
     )
     # Why the client decided this way; required in practice for rejections.
     comment: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -49,15 +50,15 @@ class MilestoneApproval(Base):
     )
 
     # Relationships
-    milestone: Mapped["Milestone"] = relationship(back_populates="approvals")
-    client: Mapped["ClientProfile"] = relationship()
-    access_token: Mapped["PortalAccessToken | None"] = relationship()
+    milestone: Mapped[Milestone] = relationship(back_populates="approvals")
+    client: Mapped[ClientProfile] = relationship()
+    access_token: Mapped[PortalAccessToken | None] = relationship()
 
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc)
+        DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC)
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
-        onupdate=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
     )

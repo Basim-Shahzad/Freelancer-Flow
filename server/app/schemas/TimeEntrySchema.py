@@ -1,5 +1,5 @@
 import uuid
-from typing import Literal, Optional
+from typing import Literal
 
 from pydantic import Field, model_validator
 
@@ -15,8 +15,8 @@ class TimeEntryCreate(Base):
     end_time: UTCDateTime
     is_billable: bool = True
     project_id: uuid.UUID
-    milestone_id: Optional[uuid.UUID] = None
-    hourly_rate: Optional[Money] = Field(
+    milestone_id: uuid.UUID | None = None
+    hourly_rate: Money | None = Field(
         default=None,
         description="Rate snapshot for this entry. Defaults to the project's rate, "
         "then the freelancer's profile rate.",
@@ -34,39 +34,39 @@ class TimeEntryStart(Base):
 
     description: str = Field(min_length=1, max_length=255)
     project_id: uuid.UUID
-    milestone_id: Optional[uuid.UUID] = None
+    milestone_id: uuid.UUID | None = None
     is_billable: bool = True
-    start_time: Optional[UTCDateTime] = Field(
+    start_time: UTCDateTime | None = Field(
         default=None, description="Defaults to now. May not be in the future."
     )
-    hourly_rate: Optional[Money] = None
+    hourly_rate: Money | None = None
 
 
 class TimeEntryUpdate(Base):
     """PATCH /time-entries/entry/{id}: all fields optional."""
 
-    description: Optional[str] = Field(default=None, min_length=1, max_length=255)
-    start_time: Optional[UTCDateTime] = None
-    end_time: Optional[UTCDateTime] = None
-    is_billable: Optional[bool] = None
-    milestone_id: Optional[uuid.UUID] = None
-    hourly_rate: Optional[Money] = None
+    description: str | None = Field(default=None, min_length=1, max_length=255)
+    start_time: UTCDateTime | None = None
+    end_time: UTCDateTime | None = None
+    is_billable: bool | None = None
+    milestone_id: uuid.UUID | None = None
+    hourly_rate: Money | None = None
 
 
 class TimeEntryResponse(Base):
     id: uuid.UUID
     project_id: uuid.UUID
-    milestone_id: Optional[uuid.UUID] = None
+    milestone_id: uuid.UUID | None = None
     description: str
     start_time: UTCDateTime
-    end_time: Optional[UTCDateTime] = Field(
+    end_time: UTCDateTime | None = Field(
         default=None, description="null while the timer is running."
     )
     is_running: bool
     duration_minutes: int
     is_billable: bool
     is_invoiced: bool
-    hourly_rate: Optional[Money] = None
+    hourly_rate: Money | None = None
     created_at: UTCDateTime
     updated_at: UTCDateTime
 
@@ -74,10 +74,10 @@ class TimeEntryResponse(Base):
 class TimeEntryBulkSet(Base):
     """Fields a bulk edit may change. An explicit ``milestoneId: null`` clears it."""
 
-    project_id: Optional[uuid.UUID] = None
-    milestone_id: Optional[uuid.UUID] = None
-    is_billable: Optional[bool] = None
-    description: Optional[str] = Field(default=None, min_length=1, max_length=255)
+    project_id: uuid.UUID | None = None
+    milestone_id: uuid.UUID | None = None
+    is_billable: bool | None = None
+    description: str | None = Field(default=None, min_length=1, max_length=255)
 
     @model_validator(mode="after")
     def _non_empty(self) -> "TimeEntryBulkSet":
@@ -106,14 +106,14 @@ class TimeEntrySyncItem(Base):
 
     id: uuid.UUID
     start_time: UTCDateTime
-    end_time: Optional[UTCDateTime] = Field(
+    end_time: UTCDateTime | None = Field(
         default=None, description="null for a still-running timer."
     )
     project_id: uuid.UUID
-    milestone_id: Optional[uuid.UUID] = None
+    milestone_id: uuid.UUID | None = None
     description: str = Field(default="", max_length=255)
     is_billable: bool = True
-    updated_at: Optional[UTCDateTime] = Field(
+    updated_at: UTCDateTime | None = Field(
         default=None,
         description="The server version the client last saw; omit for new entries.",
     )
@@ -127,9 +127,9 @@ class TimeEntrySyncRequest(Base):
 class TimeEntrySyncResult(Base):
     id: uuid.UUID
     status: Literal["created", "updated", "deleted", "conflict", "rejected"]
-    reason: Optional[str] = None
-    warning: Optional[Literal["overlap"]] = None
-    entry: Optional[TimeEntryResponse] = Field(
+    reason: str | None = None
+    warning: Literal["overlap"] | None = None
+    entry: TimeEntryResponse | None = Field(
         default=None, description="Server copy after the sync, when one exists."
     )
 

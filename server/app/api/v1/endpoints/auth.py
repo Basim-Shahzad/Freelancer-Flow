@@ -1,17 +1,17 @@
-from fastapi import APIRouter, Request, status, Cookie, Response
+from fastapi import APIRouter, Cookie, Request, Response, status
 
 from app.api.dependencies.auth import CurrentUser, DBSession
 from app.api.dependencies.rate_limit import client_ip, enforce_auth_limits
 from app.api.v1.openapi import errors
+from app.db.crud import auth as auth_crud
 from app.schemas.AuthSchema import (
+    AccessTokenResponse,
     ChangePasswordRequest,
     LoginRequest,
     MessageResponse,
     UserCreate,
     UserResponse,
-    AccessTokenResponse,
 )
-from app.db.crud import auth as auth_crud
 
 router = APIRouter()
 

@@ -1,27 +1,27 @@
 from sqlalchemy import func, select
 from sqlalchemy.orm import column_property
 
-from .User import User
+from .ActivityEvent import ActivityEvent
+from .ChangeRequest import ChangeRequest
 from .ClientProfile import ClientProfile
-from .Project import Project
-from .RefreshToken import RefreshToken
-from .TimeEntry import TimeEntry
+from .Expense import Expense
+from .FreelancerProfile import FreelancerProfile
+from .Invoice import Invoice, InvoiceTax
+from .InvoiceEvent import InvoiceEvent
+from .InvoiceItem import InvoiceItem
+from .InvoicePaymentMethod import InvoicePaymentMethod
 from .Milestone import Milestone, MilestoneStatus
 from .MilestoneApproval import MilestoneApproval
-from .FreelancerProfile import FreelancerProfile
-from .PortalAccessToken import PortalAccessToken
-from .Invoice import Invoice, InvoiceTax
-from .InvoiceItem import InvoiceItem
 from .Payment import Payment
-from .InvoiceEvent import InvoiceEvent
-from .Expense import Expense
-from .TaxRemittance import TaxRemittance
-from .ChangeRequest import ChangeRequest
-from .ActivityEvent import ActivityEvent
-from .ReferenceSetting import ReferenceSetting
 from .PaymentMethodConfig import PaymentMethodConfig
-from .InvoicePaymentMethod import InvoicePaymentMethod
+from .PortalAccessToken import PortalAccessToken
+from .Project import Project
 from .RateLimitCounter import RateLimitCounter
+from .ReferenceSetting import ReferenceSetting
+from .RefreshToken import RefreshToken
+from .TaxRemittance import TaxRemittance
+from .TimeEntry import TimeEntry
+from .User import User
 
 # Derived, never stored: total tracked minutes per project (replaces the old
 # `Project.total_time_spent` column, which duplicated this SUM and drifted).

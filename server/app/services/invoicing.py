@@ -6,19 +6,19 @@ minor unit and taxes are an arbitrary list of user-defined rates.
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import datetime
 from decimal import ROUND_HALF_EVEN, ROUND_HALF_UP, Decimal
-from typing import Iterable, Optional
 
 from app.core.currencies import currency_exponent
 
-_HUNDRED = Decimal("100")
-_SIXTY = Decimal("60")
+_HUNDRED = Decimal(100)
+_SIXTY = Decimal(60)
 
 
 def quantize_money(
-    value: Decimal, currency: Optional[str] = None, *, rounding: str = ROUND_HALF_UP
+    value: Decimal, currency: str | None = None, *, rounding: str = ROUND_HALF_UP
 ) -> Decimal:
     """Round to the currency's minor unit (JPY 0, USD 2, KWD 3...), half-up."""
     return value.quantize(Decimal(1).scaleb(-currency_exponent(currency)), rounding=rounding)
@@ -40,14 +40,14 @@ def hours_from_minutes(minutes: int) -> Decimal:
 
 
 def time_entry_amount(
-    minutes: int, hourly_rate: Decimal, currency: Optional[str] = None
+    minutes: int, hourly_rate: Decimal, currency: str | None = None
 ) -> Decimal:
     """Bill exact minutes (not the rounded hour figure) so totals cannot drift."""
     return quantize_money(Decimal(minutes) / _SIXTY * hourly_rate, currency)
 
 
 def line_amount(
-    quantity: Decimal, unit_price: Decimal, currency: Optional[str] = None
+    quantity: Decimal, unit_price: Decimal, currency: str | None = None
 ) -> Decimal:
     return quantize_money(quantity * unit_price, currency)
 
@@ -92,7 +92,7 @@ def compute_totals(
     subtotal: Decimal,
     discount_rate: Decimal,
     taxes: Iterable[TaxSpec] = (),
-    currency: Optional[str] = None,
+    currency: str | None = None,
     *,
     rounding: str = ROUND_HALF_UP,
 ) -> Totals:
@@ -113,11 +113,11 @@ def compute_totals(
     discount_amount = q(subtotal * discount_rate / _HUNDRED)
     discounted = subtotal - discount_amount
 
-    inclusive_rate = sum((t.rate for t in taxes if t.is_inclusive), Decimal("0"))
+    inclusive_rate = sum((t.rate for t in taxes if t.is_inclusive), Decimal(0))
     net = discounted / (1 + inclusive_rate / _HUNDRED) if inclusive_rate else discounted
 
     lines: list[TaxLine] = []
-    running_exclusive = Decimal("0")
+    running_exclusive = Decimal(0)
     for t in taxes:
         if t.is_inclusive:
             base = net
@@ -132,10 +132,10 @@ def compute_totals(
             TaxLine(t.name, t.rate, amount, t.is_inclusive, t.is_compound, t.is_withholding)
         )
 
-    tax_amount = sum((l.amount for l in lines if not l.is_withholding), Decimal("0"))
-    withholding = sum((l.amount for l in lines if l.is_withholding), Decimal("0"))
+    tax_amount = sum((l.amount for l in lines if not l.is_withholding), Decimal(0))
+    withholding = sum((l.amount for l in lines if l.is_withholding), Decimal(0))
     inclusive_collected = sum(
-        (l.amount for l in lines if l.is_inclusive and not l.is_withholding), Decimal("0")
+        (l.amount for l in lines if l.is_inclusive and not l.is_withholding), Decimal(0)
     )
     exclusive_collected = tax_amount - inclusive_collected
     # Inclusive tax is already inside `discounted`; only exclusive tax adds on.

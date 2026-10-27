@@ -1,7 +1,7 @@
 """Tests for /api/v1/invoices, /invoices/{id}/payments and the invoice portal view."""
 
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 import pytest
@@ -49,7 +49,7 @@ def _pay(client, headers, invoice_id, amount, **extra):
 
 
 async def _log_time(client, headers, project_id, minutes=120, **extra):
-    end = datetime.now(timezone.utc) - timedelta(minutes=5)
+    end = datetime.now(UTC) - timedelta(minutes=5)
     start = end - timedelta(minutes=minutes)
     resp = await client.post(
         "/api/v1/time-entries",
@@ -143,7 +143,7 @@ async def test_create_invoice_uses_profile_business_identity_and_defaults(
     assert body["issuer"]["taxRegistrationNumber"] == "TAX-12345"
     assert body["currency"] == "USD"
     assert [t["name"] for t in body["taxes"]] == ["Sales Tax"]
-    assert Decimal(body["taxes"][0]["rate"]) == Decimal("15")
+    assert Decimal(body["taxes"][0]["rate"]) == Decimal(15)
     issued = datetime.fromisoformat(body["issueDate"])
     assert datetime.fromisoformat(body["dueDate"]) - issued == timedelta(days=14)
 
@@ -168,7 +168,7 @@ async def test_create_invoice_needs_at_least_one_line(client, auth_headers, proj
 
 
 async def test_create_invoice_rejects_due_before_issue(client, auth_headers, project):
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     resp = await _create(
         client, auth_headers, project.id,
         issueDate=_iso(now), dueDate=_iso(now - timedelta(days=1)),
@@ -297,7 +297,7 @@ async def test_time_entries_from_another_project_are_refused(
 
 
 async def test_invoice_from_milestones(client, auth_headers, project, make_milestone):
-    m1 = await make_milestone(project_id=project.id, name="Phase 1", amount=Decimal("500"))
+    m1 = await make_milestone(project_id=project.id, name="Phase 1", amount=Decimal(500))
     body = await _create_ok(
         client, auth_headers, project.id, items=[], milestoneIds=[str(m1.id)],
         taxes=[{"name": "VAT", "rate": "15"}],
@@ -317,13 +317,13 @@ async def test_milestone_billing_rules(client, auth_headers, project, make_miles
     assert resp.status_code == 422
 
     unapproved = await make_milestone(
-        project_id=project.id, name="Needs OK", amount=Decimal("100"), approval_required=True
+        project_id=project.id, name="Needs OK", amount=Decimal(100), approval_required=True
     )
     resp = await _create(client, auth_headers, project.id, items=[], milestoneIds=[str(unapproved.id)])
     assert resp.status_code == 409
 
     approved = await make_milestone(
-        project_id=project.id, name="OK", amount=Decimal("100"),
+        project_id=project.id, name="OK", amount=Decimal(100),
         approval_required=True, status=MilestoneStatus.APPROVED,
     )
     resp = await _create(client, auth_headers, project.id, items=[], milestoneIds=[str(approved.id)])
@@ -331,7 +331,7 @@ async def test_milestone_billing_rules(client, auth_headers, project, make_miles
 
 
 async def test_invoiced_milestone_cannot_be_deleted(client, auth_headers, project, make_milestone):
-    m = await make_milestone(project_id=project.id, amount=Decimal("100"))
+    m = await make_milestone(project_id=project.id, amount=Decimal(100))
     await _create_ok(client, auth_headers, project.id, items=[], milestoneIds=[str(m.id)])
     resp = await client.delete(f"/api/v1/milestones/{m.id}", headers=auth_headers)
     assert resp.status_code == 409
@@ -471,7 +471,7 @@ async def test_payment_rules(client, auth_headers, other_auth_headers, project):
     assert (await _pay(client, auth_headers, invoice["id"], "1000.01")).status_code == 422  # overpay
     assert (await _pay(client, auth_headers, invoice["id"], "0")).status_code == 422
     assert (await _pay(client, auth_headers, invoice["id"], "-5")).status_code == 422
-    future = _iso(datetime.now(timezone.utc) + timedelta(days=2))
+    future = _iso(datetime.now(UTC) + timedelta(days=2))
     assert (await _pay(client, auth_headers, invoice["id"], "10", paidAt=future)).status_code == 422
     assert (await _pay(client, other_auth_headers, invoice["id"], "10")).status_code == 404
 
@@ -503,7 +503,7 @@ async def test_void_payment_rederives_status(client, auth_headers, project):
 
 
 async def test_overdue_is_derived_not_stored(client, auth_headers, project):
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     invoice = await _create_ok(
         client, auth_headers, project.id,
         issueDate=_iso(now - timedelta(days=40)), dueDate=_iso(now - timedelta(days=10)),
@@ -552,7 +552,7 @@ def _write_off(client, headers, invoice_id, reason="Client stopped responding"):
 
 async def test_write_off_partially_paid_invoice(client, auth_headers, project):
     invoice = await _create_ok(
-        client, auth_headers, project.id, dueDate=_iso(datetime.now(timezone.utc) - timedelta(days=3))
+        client, auth_headers, project.id, dueDate=_iso(datetime.now(UTC) - timedelta(days=3))
     )
     await _send_ok(client, auth_headers, invoice["id"])
     await _pay(client, auth_headers, invoice["id"], "400")
@@ -703,7 +703,7 @@ async def test_multiple_taxes_inclusive_and_withholding(client, auth_headers, pr
         ],
         taxNote="Reverse charge not applicable",
     )
-    assert [Decimal(t["amount"]) for t in body["taxes"]] == [50, Decimal("105"), 20]
+    assert [Decimal(t["amount"]) for t in body["taxes"]] == [50, Decimal(105), 20]
     assert Decimal(body["taxAmount"]) == 155 and Decimal(body["withholdingAmount"]) == 20
     assert Decimal(body["total"]) == 1135 and body["taxNote"] == "Reverse charge not applicable"
 
@@ -724,4 +724,4 @@ async def test_invoice_number_format_is_configurable(client, auth_headers, proje
     )
     assert resp.status_code == 200, resp.text
     body = await _create_ok(client, auth_headers, project.id)
-    assert body["invoiceNumber"] == f"{datetime.now(timezone.utc).year}/001"
+    assert body["invoiceNumber"] == f"{datetime.now(UTC).year}/001"

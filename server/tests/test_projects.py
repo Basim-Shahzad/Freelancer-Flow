@@ -223,8 +223,9 @@ async def test_delete_project_cascades_to_milestones(
     resp = await client.delete(f"{PROJECTS_URL}/{project.id}", headers=auth_headers)
     assert resp.status_code == 204
 
-    from app.models.Milestone import Milestone
     from sqlalchemy import select
+
+    from app.models.Milestone import Milestone
 
     result = await db_session.execute(select(Milestone).where(Milestone.id == milestone.id))
     assert result.scalar_one_or_none() is None

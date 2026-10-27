@@ -3,7 +3,7 @@ from __future__ import annotations
 import uuid
 from datetime import date
 from decimal import Decimal, InvalidOperation
-from typing import Any, Optional
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -19,11 +19,11 @@ class ExchangeRatesValue(BaseModel):
     base: str = Field(default="USD", min_length=3, max_length=3)
     # Units of the currency per 1 unit of ``base``, kept as decimal strings.
     rates: dict[str, str] = Field(default_factory=dict)
-    as_of: Optional[date] = Field(
+    as_of: date | None = Field(
         default=None, description="The provider's own update date for these rates."
     )
-    source: Optional[str] = None
-    fetched_at: Optional[UTCDateTime] = None
+    source: str | None = None
+    fetched_at: UTCDateTime | None = None
     manual_override: bool = False
 
     @field_validator("rates")
@@ -46,8 +46,8 @@ class PublicExchangeRates(Base):
 
     base: str
     rates: dict[str, str]
-    as_of: Optional[date] = None
-    source: Optional[str] = None
+    as_of: date | None = None
+    source: str | None = None
 
 
 class PaymentTextsValue(BaseModel):
@@ -62,15 +62,15 @@ class ReferenceSettingOut(BaseModel):
     id: uuid.UUID
     key: str
     value: dict[str, Any]
-    reference_date: Optional[date] = None
-    notes: Optional[str] = None
+    reference_date: date | None = None
+    notes: str | None = None
     updated_at: UTCDateTime
-    updated_by: Optional[uuid.UUID] = Field(
+    updated_by: uuid.UUID | None = Field(
         default=None, description="Null means the system fetcher."
     )
 
 
 class ReferenceSettingUpdate(BaseModel):
     value: dict[str, Any]
-    reference_date: Optional[date] = None
-    notes: Optional[str] = Field(default=None, max_length=1000)
+    reference_date: date | None = None
+    notes: str | None = Field(default=None, max_length=1000)

@@ -1,12 +1,11 @@
 from __future__ import annotations
 
 import uuid
-from typing import Optional
 
-from sqlalchemy import select, func
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.core.errors import Conflict, NotFound, Unprocessable
 from app.db.crud.activity import diff_changes, log_activity
@@ -39,7 +38,7 @@ async def get_clients(
     user_id: uuid.UUID,
     skip: int = 0,
     limit: int = 20,
-    search: Optional[str] = None,
+    search: str | None = None,
 ) -> tuple[list[ClientProfile], int]:
     query = (
         select(ClientProfile)
