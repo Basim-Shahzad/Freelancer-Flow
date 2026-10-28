@@ -65,6 +65,24 @@ export type RetainerInterval = "monthly" | "quarterly";
 
 export type MilestoneStatus = "pending" | "in_progress" | "submitted" | "approved" | "rejected";
 
+export type ChangeRequestStatus = "pending" | "approved" | "rejected" | "withdrawn";
+
+/** Scope-change view model, mapped from the API in `lib/api/mappers/change-requests.ts`. */
+export interface ChangeRequest {
+  id: string;
+  projectId: string;
+  title: string;
+  description: string;
+  status: ChangeRequestStatus;
+  /** Plain hours, at most 2 decimals. */
+  estimatedHours?: number;
+  /** Minor units in the project's currency. */
+  estimatedAmount?: number;
+  requestedAt: string;
+  decidedAt?: string;
+  decisionNote?: string;
+}
+
 /** Milestone view model, mapped from the API in `lib/api/mappers/milestones.ts`. */
 export interface Milestone {
   id: string;
