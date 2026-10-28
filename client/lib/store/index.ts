@@ -3,35 +3,16 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { daysFromToday, nowISO, todayISO } from "../dates";
-import { calcTotals, formatInvoiceNumber } from "../invoice";
-import { formatMoney } from "../money";
 import {
   seedActivity, seedBusinessLocal, seedExports, seedInvoices, seedPortalProjects, seedTime,
 } from "../seed";
 import type {
   ActivityEntry, ActivityType, BusinessLocal, DataExport, Invoice, InvoiceEvent, InvoiceEventType,
-  InvoiceLine, PortalProject, TimeEntry,
+  PortalProject, TimeEntry,
 } from "../types";
 
 export const uid = (prefix: string) =>
   `${prefix}-${(globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2)).replace(/-/g, "").slice(0, 10)}`;
-const token = () => (globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2)).replace(/-/g, "").slice(0, 12);
-
-export interface NewInvoiceInput {
-  clientId: string;
-  projectId?: string;
-  currency: Invoice["currency"];
-  issueDate?: string;
-  dueDate: string;
-  lines: InvoiceLine[];
-  taxPercent: number;
-  discount: number;
-  paymentMethodIds: string[];
-  note?: string;
-  /** Time entry ids to mark invoiced. */
-  timeEntryIds?: string[];
-  asDraft?: boolean;
-}
 
 interface State {
   /** True once persisted state has been loaded in the browser. Gate UI on this to avoid hydration mismatch. */
@@ -43,7 +24,7 @@ interface State {
   portalProjects: PortalProject[];
   /**
    * Read-only mock time entries. Time tracking runs on the API (`lib/hooks/time-entries`); this array only feeds
-   * screens not migrated yet (invoice creation: step 9, dashboard: step 11, export: step 12), which delete it.
+   * screens not migrated yet (dashboard: step 11, export: step 12), which delete it.
    */
   time: TimeEntry[];
   invoices: Invoice[];
@@ -61,8 +42,6 @@ interface Actions {
   approveMilestone(projectId: string, milestoneId: string): void;
   requestMilestoneChanges(projectId: string, milestoneId: string, comment: string): void;
 
-  createInvoice(input: NewInvoiceInput): Invoice;
-  updateInvoice(id: string, patch: Partial<Invoice>): void;
   markViewed(id: string): void;
 
   requestExport(): DataExport;
@@ -115,27 +94,9 @@ export const useAppStore = create<AppStore>()(
           log("project", "Changes requested by client", p?.name ?? projectId, comment.slice(0, 80));
         },
 
-        createInvoice: (input) => {
-          const s = get();
-          const number = formatInvoiceNumber(s.businessLocal.invoicePrefix, s.businessLocal.nextInvoiceNumber);
-          const inv: Invoice = {
-            id: uid("inv"), number, clientId: input.clientId, projectId: input.projectId, currency: input.currency,
-            status: input.asDraft ? "draft" : "unpaid", issueDate: input.issueDate ?? todayISO(), dueDate: input.dueDate,
-            lines: input.lines, taxPercent: input.taxPercent, discount: input.discount, paymentMethodIds: input.paymentMethodIds,
-            note: input.note ?? "", shareToken: token(), payments: [], events: [ev("created", input.asDraft ? "Draft created" : "Invoice created")],
-          };
-          set((st) => ({
-            invoices: [inv, ...st.invoices],
-            businessLocal: { ...st.businessLocal, nextInvoiceNumber: st.businessLocal.nextInvoiceNumber + 1 },
-            time: st.time.map((t) => (input.timeEntryIds?.includes(t.id) ? { ...t, isInvoiced: true } : t)),
-          }));
-          log("invoice", input.asDraft ? "Draft created" : "Invoice created", number, formatMoney(calcTotals(inv).total, inv.currency));
-          return inv;
-        },
-        updateInvoice: (id, patch) => { patchInvoice(id, (i) => ({ ...i, ...patch, events: [ev("edited", "Invoice edited"), ...i.events] })); },
         markViewed: (id) => patchInvoice(id, (i) => (i.events.some((e) => e.type === "viewed") ? i : { ...i, events: [ev("viewed", "Viewed by client"), ...i.events] })),
-        // Sending, reminding, payments, write-off and cancelling run on the API (`lib/hooks/invoices`); the rest of the
-        // mock invoice actions go with the create flow (step 9) and the dashboard/export/portal (steps 11-14).
+        // Creating, editing, sending, reminding, payments, write-off and cancelling run on the API (`lib/hooks/invoices`);
+        // the remaining mock invoices feed the dashboard/export/portal until steps 11-14.
 
         requestExport: () => {
           const x: DataExport = { id: uid("x"), requestedAt: nowISO(), status: "preparing", fileName: `paylancr-export-${todayISO()}.zip`, sizeLabel: "4.2 MB" };

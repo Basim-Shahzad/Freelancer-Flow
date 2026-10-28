@@ -53,8 +53,8 @@ lib/                   types, money, fx, dates, invoice (calcTotals/deriveStatus
 - `lib/payment-methods.ts` — `METHOD_KINDS`, `BANK_SCHEMES`, `fieldsFor(kind,scheme)`, `methodTitle`, `methodSummary`, `maskValue`.
 - `lib/selectors.ts` — `toInvoiceView(inv, clients, projects)` (adds display status, totals, client, project), `outstandingByCurrency`, `clientName`, `projectName`.
 - `lib/store/index.ts` — `useAppStore(selector)`; select narrow slices (primitive/stable values) to avoid re-render loops; never select a freshly-built array/object
-  without `useShallow` (from `zustand/react/shallow`) or `useMemo` over raw slices. Actions: see the `Actions` interface (createInvoice, updateInvoice, markViewed,
-  approveMilestone, requestMilestoneChanges, requestExport/finishExport…). Invoice list, detail and lifecycle (send, remind, cancel, write off, payments) are NOT store actions any more: use `lib/hooks/invoices`.
+  without `useShallow` (from `zustand/react/shallow`) or `useMemo` over raw slices. Actions: see the `Actions` interface (markViewed,
+  approveMilestone, requestMilestoneChanges, requestExport/finishExport…). Invoice list, detail, creation, draft edit/delete and lifecycle (send, remind, cancel, write off, payments) are NOT store actions any more: use `lib/hooks/invoices`.
 - Invoices on the API: `InvoiceDetail` / `InvoiceSummary` / `InvoiceShare` / `InvoiceTimelineEvent` in `lib/types.ts`, mapped by `lib/api/mappers/invoices.ts` (`DISPLAY_STATUS` maps the server's seven `displayStatus` values onto the chip statuses; totals are the server's, never recomputed). Hooks: `useInvoices(filters)`, `useInvoice`, `useInvoiceEvents`, `useInvoiceOptions`, `useSendInvoice`, `useRemindInvoice`, `useShareLinks`, `useCancelInvoice`, `useWriteOffInvoice`, `useReverseWriteOff`, `useRecordPayment`, `useVoidPayment`, `useInvoicePdf`; `invoiceKeys` is the key factory. `InvoiceDocument` renders a `DocInvoice` (`toDocInvoice` for the API; `legacyToDocInvoice` for the mock `Invoice` until step 14).
 - `lib/hooks/*` — `useHydrated`, `useIsOnline`, `useElapsed`/`formatClock`, `useCopy` (+ `<CopyButton>`).
 - Toasts: `import { toast } from "sonner"`.
