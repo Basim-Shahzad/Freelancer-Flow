@@ -4,7 +4,7 @@ import { isLive } from "@/lib/invoice";
 import { formatHours, formatMoney } from "@/lib/money";
 import type { InvoiceView } from "@/lib/selectors";
 import type { Stage } from "@/components/domain/stage-thread";
-import type { BillingType, Milestone, MilestoneStatus, Project, ProjectStatus, ProjectWithSchedule, RetainerInterval, TimeEntry } from "@/lib/types";
+import type { BillingType, ChangeRequest, ChangeRequestStatus, Milestone, MilestoneStatus, Project, ProjectStatus, ProjectWithSchedule, RetainerInterval, TimeEntry } from "@/lib/types";
 
 /** Pure project helpers: labels, stage derivation, progress, unbilled work. */
 
@@ -158,6 +158,22 @@ export function milestoneState(status: MilestoneStatus): { label: string; tone: 
     case "in_progress": return { label: "In progress", tone: "wait" };
     case "pending": return { label: "Not started", tone: "todo" };
   }
+}
+
+/** Plain-language state for a scope-change row (same tones as milestones). */
+export function changeRequestState(status: ChangeRequestStatus): { label: string; tone: MilestoneTone } {
+  switch (status) {
+    case "pending": return { label: "Awaiting decision", tone: "wait" };
+    case "approved": return { label: "Approved", tone: "done" };
+    case "rejected": return { label: "Rejected", tone: "warn" };
+    case "withdrawn": return { label: "Withdrawn", tone: "todo" };
+  }
+}
+
+/** Only a pending scope change can be edited or decided; a decision is final (delete stays available). */
+export function changeRequestActions(c: Pick<ChangeRequest, "status">): { canEdit: boolean; canDecide: boolean } {
+  const pending = c.status === "pending";
+  return { canEdit: pending, canDecide: pending };
 }
 
 export interface MilestoneActions {

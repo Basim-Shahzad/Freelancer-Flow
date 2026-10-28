@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { InvoiceView } from "@/lib/selectors";
 import { milestoneFixture, scheduledProjectFixture } from "@/lib/test/projects";
 import type { ProjectWithSchedule, TimeEntry } from "@/lib/types";
-import { deriveStage, milestoneActions, milestoneState, projectProgress, progressText, rateLabel, stagePips, unbilledOf, unbilledWeeks } from "./logic";
+import { changeRequestActions, changeRequestState, deriveStage, milestoneActions, milestoneState, projectProgress, progressText, rateLabel, stagePips, unbilledOf, unbilledWeeks } from "./logic";
 
 const TODAY = "2026-10-05";
 
@@ -92,6 +92,19 @@ describe("milestoneState", () => {
     expect(milestoneState("submitted").tone).toBe("wait");
     expect(milestoneState("rejected").tone).toBe("warn");
     expect(milestoneState("approved").tone).toBe("done");
+  });
+});
+
+describe("changeRequestState / changeRequestActions", () => {
+  it("labels every status", () => {
+    expect(changeRequestState("pending")).toEqual({ label: "Awaiting decision", tone: "wait" });
+    expect(changeRequestState("approved").tone).toBe("done");
+    expect(changeRequestState("rejected").tone).toBe("warn");
+    expect(changeRequestState("withdrawn").tone).toBe("todo");
+  });
+  it("allows edit and decide only while pending", () => {
+    expect(changeRequestActions({ status: "pending" })).toEqual({ canEdit: true, canDecide: true });
+    for (const status of ["approved", "rejected", "withdrawn"] as const) expect(changeRequestActions({ status })).toEqual({ canEdit: false, canDecide: false });
   });
 });
 
