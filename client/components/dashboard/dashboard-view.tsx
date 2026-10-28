@@ -20,6 +20,7 @@ import { AttentionSection, PaymentsSection } from "./activity-sections";
 import { attentionInvoices, cashIn, monthRange, recentPayments, unbilledSummary } from "./aggregate";
 import { CashSection } from "./money-sections";
 import { OfflineNotice } from "./offline-notice";
+import { PendingScopeChanges } from "./pending-scope-changes";
 import { ProjectsSection, type ActiveProjectRow } from "./projects-section";
 import { OwedHero } from "./owed-hero";
 import { activeCurrencies, sentToPaidDays, stagesByCurrency } from "./stages";
@@ -96,6 +97,7 @@ export function DashboardView() {
       <div className="grid items-start gap-6 @4xl:grid-cols-[minmax(0,1fr)_22rem]">
         <div className="flex min-w-0 flex-col gap-6">
           <AttentionSection items={data.attention} />
+          <PendingScopeChanges />
           <CashSection thisMonth={data.thisMonth} lastMonth={data.lastMonth} today={data.today} base={base} />
           <PaymentsSection rows={data.payments} />
         </div>
