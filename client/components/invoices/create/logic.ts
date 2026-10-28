@@ -1,13 +1,17 @@
-import { addDays, fmtDate, isoDate, parse } from "@/lib/dates";
-import { calcTotals, lineAmount } from "@/lib/invoice";
+import type { InvoiceCreateInput, TaxInputRow } from "@/lib/api/mappers/invoices";
+import { addDays, fmtDate, isoDate, parse, todayISO } from "@/lib/dates";
+import { lineAmount, previewTotals } from "@/lib/invoice";
+import type { DocInvoice } from "@/lib/invoice-doc";
 import { formatHours, formatMoney, parseAmount } from "@/lib/money";
-import { uid, type NewInvoiceInput } from "@/lib/store";
-import type { Client, Invoice, InvoiceLine, PaymentMethod, Project, ProjectWithSchedule, TimeEntry } from "@/lib/types";
+import { uid } from "@/lib/store";
+import type { InvoiceDetail, InvoiceLine, PaymentMethod, Project, ProjectWithSchedule, TimeEntry } from "@/lib/types";
 
-/** Pure logic for the 5-step invoice builder: items per billing type, manual lines, validation, totals. */
+/** Pure logic for the 5-step invoice builder: items per billing type, manual lines, validation, the API payload and a live preview. */
 
 export const STEPS = ["Project", "Items", "Tax & discount", "Payment methods", "Review"] as const;
 export const FIXED_BALANCE_ID = "fixed-balance";
+export const NOTES_MAX = 5000;
+export const INSTRUCTIONS_MAX = 2000;
 
 export interface ReadyItem {
   id: string;
@@ -18,17 +22,20 @@ export interface ReadyItem {
   amount: number;
   /** Not selectable (e.g. milestone not approved yet). */
   disabled?: boolean;
+  /** Preview model only; the API payload is derived from `kind` and `id` (see `buildPayload`). */
   line: Omit<InvoiceLine, "id">;
 }
 
 const hoursOf = (minutes: number) => Math.round((minutes / 60) * 100) / 100;
 
+const live = (invoices: InvoiceDetail[], projectId: string) => invoices.filter((i) => i.projectId === projectId && i.status !== "void");
+
 /** Amount already invoiced against a fixed-price project (after discount, before tax; void excluded). */
-export function invoicedAmount(project: Project, invoices: Invoice[]): number {
-  return invoices.filter((i) => i.projectId === project.id && i.status !== "void").reduce((s, i) => s + calcTotals(i).taxable, 0);
+export function invoicedAmount(project: Project, invoices: InvoiceDetail[]): number {
+  return live(invoices, project.id).reduce((s, i) => s + i.subtotal - i.discountAmount, 0);
 }
 
-export const fixedRemaining = (project: Project, invoices: Invoice[]): number =>
+export const fixedRemaining = (project: Project, invoices: InvoiceDetail[]): number =>
   Math.max((project.budget ?? 0) - invoicedAmount(project, invoices), 0);
 
 const MILESTONE_NOTE: Record<string, string> = {
@@ -38,41 +45,48 @@ const MILESTONE_NOTE: Record<string, string> = {
   rejected: "Client asked for changes · can’t be invoiced yet",
 };
 
-/** Ids of milestones / retainer periods that a live invoice line already points at. */
-const invoicedRefs = (invoices: Invoice[]): Set<string> =>
-  new Set(invoices.filter((i) => i.status !== "void").flatMap((i) => i.lines.map((l) => l.source?.refId).filter((x): x is string => !!x)));
+/** Milestone ids that a live invoice line already bills. */
+const invoicedMilestones = (invoices: InvoiceDetail[], projectId: string): Set<string> =>
+  new Set(live(invoices, projectId).flatMap((i) => i.items.map((l) => l.milestoneId).filter((x): x is string => !!x)));
 
 /**
- * Everything that could go on an invoice for this project, by billing type. The milestone API has no `invoiceId`,
- * so a milestone counts as invoiced when a live invoice line references it (retainer periods also carry `invoiceId`).
+ * Everything that could go on an invoice for this project, by billing type. A milestone counts as invoiced when a
+ * live invoice line carries its id (the milestone API has no `invoiceId`); a retainer period when it has an `invoiceId`
+ * or a live invoice bills its start date. The server bills a retainer period in advance, so a future one is not selectable.
  */
-export function itemsForProject(project: ProjectWithSchedule, time: TimeEntry[], invoices: Invoice[]): ReadyItem[] {
-  const refs = invoicedRefs(invoices);
+export function itemsForProject(project: ProjectWithSchedule, time: TimeEntry[], invoices: InvoiceDetail[], today: string = todayISO()): ReadyItem[] {
   switch (project.billingType) {
     case "hourly": {
       const rate = project.hourlyRate ?? 0;
       return time
-        .filter((t) => t.projectId === project.id && t.billable && !t.isInvoiced)
+        .filter((t) => t.projectId === project.id && t.billable && !t.isInvoiced && !t.unsynced && t.endAt)
         .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0))
         .map((t) => {
           const qty = hoursOf(t.minutes);
+          const entryRate = t.hourlyRate ?? rate;
           return {
             id: t.id, kind: "time" as const,
             title: `${fmtDate(t.date)} · ${formatHours(t.minutes)}`, sub: `${t.description} · billable`,
-            amount: Math.round(qty * rate),
-            line: { description: `${fmtDate(t.date)} · ${t.description}`, qty, rate, source: { type: "time" as const, refId: t.id } },
+            amount: Math.round(qty * entryRate),
+            line: { description: `${fmtDate(t.date)} · ${t.description}`, qty, rate: entryRate, source: { type: "time" as const, refId: t.id } },
           };
         });
     }
-    case "retainer":
-      return project.retainerPeriods.filter((r) => !r.invoiceId && !refs.has(r.id)).map((r) => ({
-        id: r.id, kind: "retainer" as const,
-        title: `Retainer · ${r.label}`,
-        sub: `${fmtDate(r.start)} – ${fmtDate(r.end)}`,
-        amount: r.amount,
-        line: { description: `Retainer · ${r.label}`, qty: 1, rate: r.amount, source: { type: "retainer" as const, refId: r.id } },
-      }));
-    case "milestone":
+    case "retainer": {
+      const billedStarts = new Set(live(invoices, project.id).map((i) => i.retainerPeriodStart).filter((x): x is string => !!x));
+      return project.retainerPeriods.filter((r) => !r.invoiceId && !billedStarts.has(r.start)).map((r) => {
+        const future = r.start > today;
+        return {
+          id: r.id, kind: "retainer" as const,
+          title: `Retainer · ${r.label}`,
+          sub: future ? `${fmtDate(r.start)} – ${fmtDate(r.end)} · billed in advance, from ${fmtDate(r.start)}` : `${fmtDate(r.start)} – ${fmtDate(r.end)}`,
+          amount: r.amount, disabled: future,
+          line: { description: `Retainer · ${r.label}`, qty: 1, rate: r.amount, source: { type: "retainer" as const, refId: r.id } },
+        };
+      });
+    }
+    case "milestone": {
+      const refs = invoicedMilestones(invoices, project.id);
       return project.milestones.filter((m) => !refs.has(m.id)).map((m) => {
         const amount = m.amount ?? 0;
         const noAmount = m.status === "approved" && amount <= 0;
@@ -84,6 +98,7 @@ export function itemsForProject(project: ProjectWithSchedule, time: TimeEntry[],
           line: { description: `${m.title} milestone`, qty: 1, rate: amount, source: { type: "milestone" as const, refId: m.id } },
         };
       });
+    }
     case "fixed": {
       const remaining = fixedRemaining(project, invoices);
       if (remaining <= 0) return [];
@@ -115,7 +130,10 @@ export function projectNote(project: Project, items: ReadyItem[]): string {
   }
 }
 
-/** Which selection to start with: everything ready, or only the item named by ?period=. */
+/**
+ * Which selection to start with: everything ready, or only the item named by ?period=. A retainer invoice bills
+ * one period, so only the earliest ready one is preselected.
+ */
 export function initialSelection(items: ReadyItem[], period?: string, project?: ProjectWithSchedule): string[] {
   if (period) {
     const byId = items.find((i) => !i.disabled && i.id === period);
@@ -123,7 +141,8 @@ export function initialSelection(items: ReadyItem[], period?: string, project?: 
     const hit = byId?.id ?? (byLabel && items.find((i) => !i.disabled && i.id === byLabel.id)?.id);
     if (hit) return [hit];
   }
-  return readyIds(items);
+  const ready = readyIds(items);
+  return items[0]?.kind === "retainer" ? ready.slice(0, 1) : ready;
 }
 
 /* ---------------------------------------------------------------- manual lines */
@@ -158,14 +177,24 @@ export function manualLines(rows: ManualRow[]): InvoiceLine[] {
 
 /* ------------------------------------------------------------------ flow state */
 
+/** `default` = the server applies the profile's default taxes; `none` = a deliberate "no tax"; `custom` = one named tax. */
+export type TaxMode = "default" | "none" | "custom";
+
 export interface FlowState {
   projectId: string;
   selected: string[];
   manual: ManualRow[];
-  tax: string;
+  taxMode: TaxMode;
+  taxName: string;
+  /** Percent as typed. */
+  taxRate: string;
+  /** Percent as typed. */
   discount: string;
   termsDays: number;
-  methodIds: string[];
+  /** `null` = untouched: the server snapshots your default methods. `[]` = none. */
+  methodIds: string[] | null;
+  notes: string;
+  paymentInstructions: string;
 }
 
 export function parsePercent(s: string): number | null {
@@ -175,14 +204,10 @@ export function parsePercent(s: string): number | null {
   return Number.isFinite(n) && n >= 0 && n <= 100 ? n : null;
 }
 
-export function parseDiscount(s: string): number | null {
-  if (s.trim() === "") return 0;
-  const m = parseAmount(s);
-  return m !== null && m >= 0 ? m : null;
-}
+export const selectedItems = (items: ReadyItem[], selected: string[]): ReadyItem[] => items.filter((i) => !i.disabled && selected.includes(i.id));
 
 export function selectedLines(items: ReadyItem[], selected: string[]): InvoiceLine[] {
-  return items.filter((i) => !i.disabled && selected.includes(i.id)).map((i) => ({ ...i.line, id: uid("l") }));
+  return selectedItems(items, selected).map((i) => ({ ...i.line, id: uid("l") }));
 }
 
 export function allLines(items: ReadyItem[], state: Pick<FlowState, "selected" | "manual">): InvoiceLine[] {
@@ -196,54 +221,90 @@ export function termsOptions(clientTerms: number): number[] {
 export const termsLabel = (d: number) => (d === 0 ? "Due on receipt" : `Net ${d}`);
 export const dueDateFor = (issue: string, termsDays: number) => isoDate(addDays(parse(issue), termsDays));
 
-/** The default enabled method (else the first enabled one). */
+/** The enabled default methods: what the server snapshots when `paymentMethodIds` is omitted. */
 export function defaultMethodIds(methods: PaymentMethod[]): string[] {
-  const enabled = methods.filter((m) => m.enabled);
-  const def = enabled.find((m) => m.isDefault) ?? enabled[0];
-  return def ? [def.id] : [];
+  return methods.filter((m) => m.enabled && m.isDefault).map((m) => m.id);
 }
 
-export interface StepContext { state: FlowState; project?: Project; items: ReadyItem[]; enabledMethodCount: number }
+export interface StepContext { state: FlowState; project?: Project; items: ReadyItem[] }
 
 /** Returns an error message when the step can't be left, else null. */
-export function validateStep(step: number, { state, project, items, enabledMethodCount }: StepContext): string | null {
+export function validateStep(step: number, { state, project, items }: StepContext): string | null {
   switch (step) {
     case 1: return project ? null : "Choose a project to continue.";
     case 2: {
       if (state.manual.some((r) => manualRowError(r))) return "Finish or clear the incomplete extra line to continue.";
+      if (selectedItems(items, state.selected).filter((i) => i.kind === "retainer").length > 1) return "An invoice bills one retainer period. Choose one to continue.";
       return allLines(items, state).length === 0 ? "Select at least one item or add a line to continue." : null;
     }
     case 3: {
-      if (parsePercent(state.tax) === null) return "Tax must be a number between 0 and 100.";
-      const discount = parseDiscount(state.discount);
-      if (discount === null) return "Discount must be an amount like 50 or 12.50.";
-      const subtotal = allLines(items, state).reduce((s, l) => s + lineAmount(l), 0);
-      return discount > subtotal ? "Discount can’t be more than the subtotal." : null;
+      if (state.taxMode === "custom") {
+        if (!state.taxName.trim()) return "Tax needs a name, like VAT.";
+        if (parsePercent(state.taxRate) === null) return "Tax must be a number between 0 and 100.";
+      }
+      if (parsePercent(state.discount) === null) return "Discount must be a percentage between 0 and 100.";
+      if (state.notes.length > NOTES_MAX) return `Notes can’t be longer than ${NOTES_MAX} characters.`;
+      if (state.paymentInstructions.length > INSTRUCTIONS_MAX) return `Payment note can’t be longer than ${INSTRUCTIONS_MAX} characters.`;
+      return null;
     }
-    case 4: return state.methodIds.length === 0 && enabledMethodCount > 0 ? "Choose at least one way for your client to pay you." : null;
     default: return null;
   }
 }
 
-/** Store input for createInvoice. */
-export function buildInput(state: FlowState, project: Project, client: Client, items: ReadyItem[], asDraft: boolean): NewInvoiceInput {
-  const chosen = items.filter((i) => !i.disabled && state.selected.includes(i.id));
+/** The taxes the flow sends: `null` (omit) for the profile defaults, `[]` for none, else the one custom tax. */
+export function taxRows(state: Pick<FlowState, "taxMode" | "taxName" | "taxRate">): TaxInputRow[] | null {
+  if (state.taxMode === "default") return null;
+  if (state.taxMode === "none") return [];
+  return [{ name: state.taxName, rate: state.taxRate }];
+}
+
+/**
+ * The `POST /invoices` input. Sources map to the API's own fields: time entries -> `timeEntryIds` (billed at each
+ * entry's rate snapshot), approved milestones -> `milestoneIds`, a retainer period -> `retainerPeriodStart` (the
+ * server adds the line), and the fixed-price balance plus manual rows -> `items`.
+ */
+export function buildPayload(state: FlowState, project: Project, items: ReadyItem[], issueDate: string): InvoiceCreateInput {
+  const chosen = selectedItems(items, state.selected);
+  const fixed = chosen.filter((i) => i.kind === "fixed").map((i) => ({ description: i.line.description, quantity: i.line.qty, unitPrice: i.line.rate }));
+  const manual = manualLines(state.manual).map((l) => ({ description: l.description, quantity: l.qty, unitPrice: l.rate }));
   return {
-    clientId: client.id, projectId: project.id, currency: project.currency,
-    dueDate: dueDateFor(isoDate(new Date()), state.termsDays),
-    lines: allLines(items, state),
-    taxPercent: parsePercent(state.tax) ?? 0, discount: parseDiscount(state.discount) ?? 0,
-    paymentMethodIds: state.methodIds,
+    projectId: project.id,
+    currency: project.currency,
+    issueDate,
+    dueDate: dueDateFor(issueDate, state.termsDays),
+    items: [...fixed, ...manual],
     timeEntryIds: chosen.filter((i) => i.kind === "time").map((i) => i.id),
-    asDraft,
+    milestoneIds: chosen.filter((i) => i.kind === "milestone").map((i) => i.id),
+    retainerPeriodStart: chosen.find((i) => i.kind === "retainer")?.id,
+    taxes: taxRows(state),
+    discountRate: state.discount,
+    notes: state.notes,
+    paymentInstructions: state.paymentInstructions,
+    paymentMethodIds: state.methodIds,
   };
 }
 
-/** In-progress invoice for the live preview (never stored). */
-export function buildTransientInvoice(input: NewInvoiceInput, number: string, issueDate: string): Invoice {
+/** A live preview of the invoice (never sent): the document model with totals from `previewTotals`. */
+export function buildPreview(state: FlowState, project: Project | undefined, items: ReadyItem[], issueDate: string, currency: Project["currency"]): DocInvoice {
+  const lines = allLines(items, state);
+  const subtotal = lines.reduce((s, l) => s + lineAmount(l), 0);
+  const rows = state.taxMode === "custom" ? [{ name: state.taxName.trim() || "Tax", rate: state.taxRate }] : [];
+  const t = previewTotals(subtotal, state.discount, rows);
   return {
-    id: "preview", number, clientId: input.clientId, projectId: input.projectId, currency: input.currency, status: "draft",
-    issueDate, dueDate: input.dueDate, lines: input.lines, taxPercent: input.taxPercent, discount: input.discount,
-    paymentMethodIds: input.paymentMethodIds, note: input.note ?? "", shareToken: "preview", payments: [], events: [],
+    number: "New invoice",
+    currency: project?.currency ?? currency,
+    issueDate,
+    dueDate: dueDateFor(issueDate, state.termsDays),
+    status: "draft",
+    lines: lines.map((l) => ({ id: l.id, description: l.description, qty: l.qty, unitPrice: l.rate, amount: lineAmount(l), isTime: l.source?.type === "time" })),
+    subtotal: t.subtotal,
+    discount: t.discountAmount,
+    taxes: rows.map((r, i) => ({ label: `${r.name} (${r.rate || 0}%)`, amount: t.taxLines[i] ?? 0 })),
+    withholding: 0,
+    total: t.total,
+    paid: 0,
+    balance: t.total,
+    note: state.notes.trim() || undefined,
+    paymentInstructions: state.paymentInstructions.trim() || undefined,
   };
 }
