@@ -68,6 +68,14 @@ describe("content", () => {
     expect(screen.getByText("50%")).toBeTruthy();
   });
 
+  it("shows the project's scope changes for any billing type", async () => {
+    m.mock.onGet("/projects/p1").reply(200, projectResponseFixture({ milestonesEnabled: false, progressPercent: null }));
+    m.mock.onGet("/change-requests").reply(200, { changeRequests: [{ id: "cr1", projectId: "p1", title: "Extra page", description: null, status: "PENDING", estimatedHours: null, estimatedAmount: null, requestedAt: "2026-10-01T09:00:00Z", decidedAt: null, decisionNote: null, createdAt: "2026-10-01T09:00:00Z", updatedAt: "2026-10-01T09:00:00Z" }], total: 1 });
+    renderWithProviders(<ProjectDetailView id="p1" />);
+    expect(await screen.findByText("Extra page")).toBeTruthy();
+    expect(screen.getByText("Scope changes")).toBeTruthy();
+  });
+
   it("shows invoiced and not-yet-invoiced retainer periods, without an invoice action", async () => {
     m.mock.onGet("/projects/p1").reply(200, projectResponseFixture({ billingType: "RETAINER", hourlyRate: null, retainerAmount: "1300.00", retainerInterval: "MONTHLY" }));
     m.mock.onGet("/projects/p1/retainer-periods").reply(200, { periods: [

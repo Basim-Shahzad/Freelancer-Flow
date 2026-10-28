@@ -17,6 +17,7 @@ import { formatDuration, formatMoney } from "@/lib/money";
 import { getApiErrorMessage, getApiErrorStatus } from "@/lib/services/api.service";
 import { useAppStore } from "@/lib/store";
 import type { Milestone, Project } from "@/lib/types";
+import { ChangeRequestsPanel } from "./change-requests-panel";
 import { DeleteProjectDialog } from "./delete-project-dialog";
 import { BILLING_LABEL, INTERVAL_LABEL, milestoneTotal, progressText, projectProgress } from "./logic";
 import { MilestonesPanel } from "./milestones-panel";
@@ -98,6 +99,7 @@ export function ProjectDetailView({ id }: { id: string }) {
       <div className="grid items-start gap-6 @4xl:grid-cols-[minmax(0,1fr)_22rem]">
         <div className="flex min-w-0 flex-col gap-6">
           {project.milestonesEnabled && <MilestonesPanel project={project} query={milestonesQuery} today={today} />}
+          <ChangeRequestsPanel project={project} />
           {type === "retainer" && (
             <RetainerSchedule
               project={project} periods={periodsQuery.data} isLoading={periodsQuery.isPending && periodsQuery.fetchStatus !== "idle"}
