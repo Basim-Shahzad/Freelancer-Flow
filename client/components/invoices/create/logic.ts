@@ -1,8 +1,10 @@
+import axios from "axios";
 import type { InvoiceCreateInput, TaxInputRow } from "@/lib/api/mappers/invoices";
 import { addDays, fmtDate, isoDate, parse, todayISO } from "@/lib/dates";
 import { lineAmount, previewTotals } from "@/lib/invoice";
 import type { DocInvoice } from "@/lib/invoice-doc";
 import { formatHours, formatMoney, parseAmount } from "@/lib/money";
+import { getApiErrorMessage, getApiErrorStatus } from "@/lib/services/api.service";
 import { uid } from "@/lib/store";
 import type { InvoiceDetail, InvoiceLine, PaymentMethod, Project, ProjectWithSchedule, TimeEntry } from "@/lib/types";
 
@@ -249,6 +251,38 @@ export function validateStep(step: number, { state, project, items }: StepContex
     }
     default: return null;
   }
+}
+
+const STEP_OF_FIELD: Record<string, number> = {
+  projectId: 1, items: 2, timeEntryIds: 2, milestoneIds: 2, retainerPeriodStart: 2,
+  taxes: 3, taxNote: 3, discountRate: 3, notes: 3, paymentInstructions: 3, issueDate: 3, dueDate: 3, paymentMethodIds: 4,
+};
+
+export interface CreateFailure {
+  /** The step to send the user back to. */
+  step: number;
+  message: string;
+  /** 409: a source was taken meanwhile (e.g. the retainer period is already invoiced); refetch what is ready. */
+  conflict: boolean;
+  /** 429: show "try again later", not a field message. */
+  rateLimited: boolean;
+}
+
+/** Maps a failed `POST /invoices` onto the step it belongs to: 422 by its `loc`, 409 to the Items step, the rest to Review. */
+export function createFailure(error: unknown): CreateFailure {
+  const status = getApiErrorStatus(error);
+  const message = getApiErrorMessage(error, "Couldn’t create the invoice. Try again.");
+  if (status === 409) return { step: 2, message, conflict: true, rateLimited: false };
+  if (status === 429) return { step: 5, message: "You’re doing that too often. Try again in a little while.", conflict: false, rateLimited: true };
+  if (status === 422 && axios.isAxiosError(error)) {
+    const detail = (error.response?.data as { detail?: unknown } | undefined)?.detail;
+    const first = Array.isArray(detail) ? (detail as { loc?: (string | number)[] }[])[0] : undefined;
+    const field = (first?.loc ?? []).find((p): p is string => typeof p === "string" && p !== "body");
+    const key = field?.replace(/_([a-z])/g, (_, c: string) => c.toUpperCase());
+    // A model-level error (e.g. "needs at least one item") has no field: it is about the lines.
+    return { step: (key && STEP_OF_FIELD[key]) || 2, message, conflict: false, rateLimited: false };
+  }
+  return { step: 5, message, conflict: false, rateLimited: false };
 }
 
 /** The taxes the flow sends: `null` (omit) for the profile defaults, `[]` for none, else the one custom tax. */

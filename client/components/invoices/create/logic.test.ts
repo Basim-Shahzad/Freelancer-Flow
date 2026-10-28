@@ -1,3 +1,4 @@
+import { AxiosError } from "axios";
 import { describe, expect, it } from "vitest";
 import { responseToInvoice, toInvoiceCreate } from "@/lib/api/mappers/invoices";
 import { previewTotals } from "@/lib/invoice";
@@ -7,7 +8,7 @@ import { milestoneFixture, testProjects } from "@/lib/test/projects";
 import { timeEntryFixture } from "@/lib/test/time-entries";
 import type { InvoiceDetail, ProjectWithSchedule, RetainerPeriod } from "@/lib/types";
 import {
-  buildPayload, buildPreview, defaultMethodIds, dueDateFor, fixedRemaining, initialSelection, itemsForProject, manualLines, manualRowError,
+  buildPayload, buildPreview, createFailure, defaultMethodIds, dueDateFor, fixedRemaining, initialSelection, itemsForProject, manualLines, manualRowError,
   parsePercent, readyIds, taxRows, termsOptions, validateStep, type FlowState,
 } from "./logic";
 
@@ -194,6 +195,18 @@ describe("buildPayload", () => {
     expect("taxes" in body({ taxMode: "default" })).toBe(false);
     expect(body({ taxMode: "none" }).taxes).toEqual([]);
     expect(body({ taxMode: "custom", taxName: "VAT", taxRate: "15", discount: "10" })).toMatchObject({ taxes: [{ name: "VAT", rate: "15" }], discountRate: "10" });
+  });
+});
+
+describe("createFailure", () => {
+  const http = (status: number, data: unknown) => new AxiosError("x", "ERR", undefined, undefined, { status, data } as never);
+  it("sends a 422 to the step of its field, a 409 to Items, a 429 to a try-later message", () => {
+    expect(createFailure(http(422, { detail: [{ loc: ["body", "payment_method_ids", 0], msg: "bad id" }] }))).toMatchObject({ step: 4, message: "bad id" });
+    expect(createFailure(http(422, { detail: [{ loc: ["body", "taxes", 0, "rate"], msg: "too high" }] })).step).toBe(3);
+    expect(createFailure(http(422, { detail: [{ loc: ["body"], msg: "needs a line" }] })).step).toBe(2);
+    expect(createFailure(http(409, { detail: "Already invoiced" }))).toMatchObject({ step: 2, conflict: true, message: "Already invoiced" });
+    expect(createFailure(http(429, { detail: "slow" }))).toMatchObject({ rateLimited: true });
+    expect(createFailure(new AxiosError("Network Error"))).toMatchObject({ step: 5, conflict: false });
   });
 });
 

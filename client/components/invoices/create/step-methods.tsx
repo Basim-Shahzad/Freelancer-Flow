@@ -8,9 +8,16 @@ import { methodSummary, methodTitle } from "@/lib/payment-methods";
 import type { PaymentMethod } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-interface Props { methods: PaymentMethod[]; selected: string[]; error: string | null; onToggle: (id: string) => void }
+interface Props {
+  methods: PaymentMethod[];
+  selected: string[];
+  /** Untouched: the server snapshots your default methods. */
+  usingDefaults: boolean;
+  error: string | null;
+  onToggle: (id: string) => void;
+}
 
-export function StepMethods({ methods, selected, error, onToggle }: Props) {
+export function StepMethods({ methods, selected, usingDefaults, error, onToggle }: Props) {
   return (
     <section aria-labelledby="ic-4" className="flex flex-col gap-4">
       <div className="flex items-baseline justify-between gap-4 border-b border-rule pb-2">
@@ -19,6 +26,10 @@ export function StepMethods({ methods, selected, error, onToggle }: Props) {
       </div>
       <p className="text-sm text-muted-foreground">The client sees these as instructions with copy buttons. There is no pay button; Paylancr never moves money.</p>
       {methods.length === 0 && <Notice tone="warn"><b>No payment methods are enabled.</b> You can still create the invoice, but your client won’t see how to pay. <Link href="/settings/payment-methods" className="font-medium text-primary-ink underline underline-offset-[3px]">Add a method</Link>.</Notice>}
+      {methods.length > 0 && selected.length === 0 && (
+        <Notice tone="warn" role="status"><b>No payment methods selected.</b> Your client won’t see how to pay unless you add a payment note.</Notice>
+      )}
+      {usingDefaults && selected.length > 0 && <p className="t-caption">Your default methods are selected. Change them here to pick exactly which ones this invoice shows. They are copied onto the invoice, so later edits to a method don’t change it.</p>}
       <div role="group" aria-label="Payment methods">
         {methods.map((m) => {
           const on = selected.includes(m.id);

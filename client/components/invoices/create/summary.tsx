@@ -2,9 +2,9 @@
 
 import { Money } from "@/components/domain/money";
 import { counterpartOf } from "@/lib/fx";
-import { calcTotals } from "@/lib/invoice";
+import type { DocInvoice } from "@/lib/invoice-doc";
 import { formatAmount } from "@/lib/money";
-import type { Client, Invoice, Project } from "@/lib/types";
+import type { Client, Project } from "@/lib/types";
 
 function Row({ k, v }: { k: string; v: string }) {
   return (
@@ -15,9 +15,8 @@ function Row({ k, v }: { k: string; v: string }) {
   );
 }
 
-/** Sticky running summary: subtotal, discount, tax, total (+ labelled estimate). */
-export function Summary({ invoice, client, project }: { invoice: Invoice; client?: Client; project?: Project }) {
-  const t = calcTotals(invoice);
+/** Sticky running summary: subtotal, discount, tax, total (+ labelled estimate). A preview; the server computes the real numbers on create. */
+export function Summary({ invoice, client, project, defaultTaxes }: { invoice: DocInvoice; client?: Client; project?: Project; defaultTaxes?: boolean }) {
   const cur = invoice.currency;
   return (
     <aside aria-label="Invoice summary" className="@4xl:sticky @4xl:top-4">
@@ -28,14 +27,15 @@ export function Summary({ invoice, client, project }: { invoice: Invoice; client
           <div className="text-xs text-muted-foreground">{project?.name ?? "No project"} · {invoice.lines.length} {invoice.lines.length === 1 ? "line" : "lines"}</div>
         </div>
         <div>
-          <Row k="Subtotal" v={`${cur} ${formatAmount(t.subtotal, cur)}`} />
-          <Row k="Discount" v={t.discount > 0 ? `− ${formatAmount(t.discount, cur)}` : "—"} />
-          <Row k={`Tax ${invoice.taxPercent}%`} v={formatAmount(t.tax, cur)} />
+          <Row k="Subtotal" v={`${cur} ${formatAmount(invoice.subtotal, cur)}`} />
+          <Row k="Discount" v={invoice.discount > 0 ? `− ${formatAmount(invoice.discount, cur)}` : "—"} />
+          {invoice.taxes.map((t) => <Row key={t.label} k={t.label} v={formatAmount(t.amount, cur)} />)}
         </div>
         <div className="flex flex-col gap-1">
           <span className="t-eyebrow">Total</span>
-          <Money size="lg" currency={cur} amount={t.total} estimateIn={counterpartOf(cur)} note />
+          <Money size="lg" currency={cur} amount={invoice.total} estimateIn={counterpartOf(cur)} note />
         </div>
+        {defaultTaxes && <p className="t-caption">Your default taxes are added when the invoice is created, so the final total may differ.</p>}
       </div>
     </aside>
   );
