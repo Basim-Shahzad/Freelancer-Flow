@@ -17,6 +17,7 @@ import { useAppStore } from "@/lib/store";
 import { ActionBar, type PanelKind } from "./action-bar";
 import { ConfirmPanel } from "./confirm-panel";
 import { DetailHeader } from "./detail-header";
+import { DeleteDraftDialog, EditDraftDialog } from "./draft-dialogs";
 import { EventsTimeline } from "./events-timeline";
 import { MoneySummary } from "./money-summary";
 import { PaymentsSection } from "./payments-section";
@@ -47,6 +48,9 @@ export function InvoiceDetailView({ id }: { id: string }) {
   const pdf = useInvoicePdf();
   const [panel, setPanel] = useState<PanelKind | null>(null);
   const [sendOpen, setSendOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [recreate, setRecreate] = useState(false);
   const doc = useMemo(() => (invoice ? toDocInvoice(invoice) : undefined), [invoice]);
 
   if (query.isPending) {
@@ -98,7 +102,10 @@ export function InvoiceDetailView({ id }: { id: string }) {
         <aside className="min-w-0 print:hidden @4xl:sticky @4xl:top-6" aria-label="Actions, payments and activity">
           <Card className="@4xl:max-h-[calc(100dvh-3rem)] @4xl:overflow-y-auto">
             <CardBody>
-              <ActionBar status={status} offline={offline} panel={panel} onSend={() => setSendOpen(true)} onPanel={togglePanel} />
+              <ActionBar
+                status={status} offline={offline} panel={panel} onSend={() => setSendOpen(true)} onPanel={togglePanel}
+                onEdit={() => setEditOpen(true)} onDelete={() => { setRecreate(false); setDeleteOpen(true); }}
+              />
             </CardBody>
             <PaymentsSection invoice={invoice} canVoid={status !== "void" && status !== "draft"} offline={offline} />
             <EventsTimeline
@@ -110,6 +117,15 @@ export function InvoiceDetailView({ id }: { id: string }) {
         </aside>
       </Split>
       <SendDialog invoice={invoice} open={sendOpen} onOpenChange={setSendOpen} offline={offline} />
+      {status === "draft" && (
+        <>
+          <EditDraftDialog
+            key={invoice.updatedAt} invoice={invoice} open={editOpen} onOpenChange={setEditOpen} offline={offline}
+            onRecreate={() => { setEditOpen(false); setRecreate(true); setDeleteOpen(true); }}
+          />
+          <DeleteDraftDialog invoice={invoice} open={deleteOpen} onOpenChange={setDeleteOpen} offline={offline} recreate={recreate} />
+        </>
+      )}
     </Page>
   );
 }

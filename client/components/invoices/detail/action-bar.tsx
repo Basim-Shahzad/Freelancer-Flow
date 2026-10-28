@@ -1,6 +1,6 @@
 "use client";
 
-import { Bell, MoreHorizontal, Send, Share2 } from "lucide-react";
+import { Bell, MoreHorizontal, Pencil, Send, Share2, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { isLive } from "@/lib/invoice";
@@ -14,6 +14,9 @@ interface Props {
   panel: PanelKind | null;
   onSend: () => void;
   onPanel: (p: PanelKind) => void;
+  /** Draft-only actions. */
+  onEdit?: () => void;
+  onDelete?: () => void;
 }
 
 /**
@@ -21,7 +24,7 @@ interface Props {
  * write-off, cancel) lives in "More". Actions that need a connection are disabled offline. The server decides
  * whether a transition is valid (409), so "Cancel invoice" is offered on anything not paid or closed.
  */
-export function ActionBar({ status, offline, panel, onSend, onPanel }: Props) {
+export function ActionBar({ status, offline, panel, onSend, onPanel, onEdit, onDelete }: Props) {
   const draft = status === "draft";
   const live = isLive(status);
   const writtenOff = status === "written_off";
@@ -29,11 +32,12 @@ export function ActionBar({ status, offline, panel, onSend, onPanel }: Props) {
   const toggle = (p: PanelKind) => ({ "aria-expanded": panel === p, "aria-controls": `panel-${p}`, onClick: () => onPanel(p) });
   const canCancel = !closed && status !== "paid";
   const canShare = !draft && status !== "void";
-  const hasMore = canShare || live || writtenOff || canCancel;
+  const hasMore = canShare || live || writtenOff || canCancel || draft;
 
   return (
     <div role="toolbar" aria-label="Invoice actions" className="flex flex-col gap-2 print:hidden">
       {draft && <Button block disabled={offline} onClick={onSend}><Send aria-hidden="true" />Send invoice</Button>}
+      {draft && onEdit && <Button block variant="outline" disabled={offline} onClick={onEdit}><Pencil aria-hidden="true" />Edit draft</Button>}
       {live && <Button block disabled={offline} {...toggle("record")}>Record payment</Button>}
       {live && <Button block variant="outline" disabled={offline} {...toggle("remind")}><Bell aria-hidden="true" />Send a reminder</Button>}
       {hasMore && (
@@ -46,6 +50,7 @@ export function ActionBar({ status, offline, panel, onSend, onPanel }: Props) {
             {canShare && (live || writtenOff || canCancel) && <DropdownMenuSeparator />}
             {live && <DropdownMenuItem disabled={offline} onSelect={() => onPanel("writeoff")}>Write off</DropdownMenuItem>}
             {writtenOff &&<DropdownMenuItem disabled={offline} onSelect={() => onPanel("reverse")}>Reverse write-off</DropdownMenuItem>}
+            {draft && onDelete && <DropdownMenuItem destructive disabled={offline} onSelect={onDelete}><Trash2 className="size-4" aria-hidden="true" />Delete draft</DropdownMenuItem>}
             {canCancel && <DropdownMenuItem destructive disabled={offline} onSelect={() => onPanel("cancel")}>Cancel invoice</DropdownMenuItem>}
           </DropdownMenuContent>
         </DropdownMenu>
