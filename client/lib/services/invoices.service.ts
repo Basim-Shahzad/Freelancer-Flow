@@ -1,5 +1,6 @@
 import type {
-  ApiInvoiceDisplayStatus, InvoiceEventListResponse, InvoiceListResponse, InvoiceResponse, InvoiceSendResponse, InvoiceShareLinks,
+  ApiInvoiceDisplayStatus, InvoiceCreate, InvoiceEventListResponse, InvoiceListResponse, InvoiceResponse, InvoiceSendResponse, InvoiceShareLinks,
+  InvoiceUpdate,
   PaymentCreate, PaymentResponse, ShareChannel,
 } from "@/lib/api/invoices.types";
 import { cleanParams, toListResult, type ListParams } from "@/lib/api/pagination";
@@ -18,6 +19,11 @@ export const invoicesService = {
   list: (params: InvoiceListParams = {}) =>
     api.get<InvoiceListResponse>("/invoices", { params: cleanParams(params) }).then((r) => toListResult(r.data, "invoices")),
   get: (id: string) => api.get<InvoiceResponse>(base(id)).then((r) => r.data),
+  create: (body: InvoiceCreate) => api.post<InvoiceResponse>("/invoices", body).then((r) => r.data),
+  /** Drafts only; returns the recomputed invoice. */
+  update: (id: string, body: InvoiceUpdate) => api.patch<InvoiceResponse>(base(id), body).then((r) => r.data),
+  /** Drafts only. */
+  remove: (id: string) => api.delete(base(id)).then(() => undefined),
   /** The authenticated PDF, as a Blob. */
   pdf: (id: string) => api.get<Blob>(`${base(id)}/pdf`, { responseType: "blob" }).then((r) => r.data),
   send: (id: string, channel: ShareChannel) => api.post<InvoiceSendResponse>(`${base(id)}/send`, { channel }).then((r) => r.data),

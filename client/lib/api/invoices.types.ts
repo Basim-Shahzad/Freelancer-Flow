@@ -162,3 +162,52 @@ export interface PaymentCreate {
   method: ApiPaymentMethod;
   reference?: string;
 }
+
+/** A tax to apply (`rate` is a percent: "15" is 15%). */
+export interface TaxInput {
+  name: string;
+  rate: string;
+  isInclusive: boolean;
+  isCompound: boolean;
+  isWithholding: boolean;
+}
+
+export interface InvoiceItemCreate {
+  description: string;
+  quantity: string;
+  unitPrice: string;
+}
+
+/**
+ * `POST /invoices`. At least one of `items`, `timeEntryIds`, `milestoneIds` or `retainerPeriodStart` is required.
+ * `taxes` omitted = the profile's default taxes, `[]` = none; `paymentMethodIds` omitted = the active defaults, `[]` = none.
+ */
+export interface InvoiceCreate {
+  projectId: string;
+  issueDate?: string;
+  dueDate?: string;
+  currency?: string;
+  taxes?: TaxInput[];
+  taxNote?: string;
+  discountRate?: string;
+  notes?: string;
+  paymentInstructions?: string;
+  paymentMethodIds?: string[];
+  items?: InvoiceItemCreate[];
+  timeEntryIds?: string[];
+  milestoneIds?: string[];
+  /** RETAINER projects: start date (YYYY-MM-DD) of the period to bill. */
+  retainerPeriodStart?: string;
+}
+
+/** `PATCH /invoices/{id}` (drafts only). Cannot change items, time, milestones or the project. `null` clears the text fields. */
+export interface InvoiceUpdate {
+  issueDate?: string;
+  dueDate?: string;
+  taxes?: TaxInput[];
+  taxNote?: string | null;
+  discountRate?: string;
+  notes?: string | null;
+  paymentInstructions?: string | null;
+  paymentMethodIds?: string[];
+}

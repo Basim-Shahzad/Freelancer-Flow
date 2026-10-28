@@ -1,9 +1,9 @@
 import { toDecimal, toMinor } from "@/lib/api/money";
 import type {
-  ApiInvoiceDisplayStatus, ApiInvoiceEventType, ApiPaymentMethod, InvoiceEventResponse, InvoicePaymentMethodResponse, InvoiceResponse,
-  InvoiceSendResponse, PaymentCreate, PaymentResponse, TaxLineResponse,
+  ApiInvoiceDisplayStatus, ApiInvoiceEventType, ApiPaymentMethod, InvoiceCreate, InvoiceEventResponse, InvoicePaymentMethodResponse,
+  InvoiceResponse, InvoiceSendResponse, InvoiceUpdate, PaymentCreate, PaymentResponse, TaxInput, TaxLineResponse,
 } from "@/lib/api/invoices.types";
-import { apiDateToIso } from "@/lib/api/mappers/projects";
+import { apiDateToIso, isoToApiDateTime } from "@/lib/api/mappers/projects";
 import { KIND_TO_TYPE, TYPE_TO_KIND } from "@/lib/api/mappers/payment-methods";
 import type { PaymentMethodType } from "@/lib/api/payment-methods.types";
 import { DEFAULT_BANK_SCHEME } from "@/lib/payment-methods";
@@ -89,7 +89,9 @@ export function responseToInvoice(r: InvoiceResponse): InvoiceDetail {
     },
     items: r.items.map((i) => ({
       id: i.id, description: i.description, quantity: Number(i.quantity), unitPrice: m(i.unitPrice), amount: m(i.amount), fromTime: i.timeEntryId !== null,
+      timeEntryId: text(i.timeEntryId), milestoneId: text(i.milestoneId),
     })),
+    retainerPeriodStart: apiDateToIso(r.retainerPeriodStart),
     payments: r.payments.map((p) => toPayment(p, currency)),
     methods: r.paymentMethods.map(snapshotToMethod),
     subtotal: m(r.subtotal),
@@ -111,6 +113,93 @@ export function responseToInvoice(r: InvoiceResponse): InvoiceDetail {
     createdAt: r.createdAt,
     updatedAt: r.updatedAt,
   };
+}
+
+/* ------------------------------------------------------------- create / update */
+
+export interface TaxInputRow {
+  name: string;
+  /** Percent as typed ("15", "7.5"). */
+  rate: string;
+  isInclusive?: boolean;
+  isCompound?: boolean;
+  isWithholding?: boolean;
+}
+
+const toTaxInput = (t: TaxInputRow): TaxInput => ({
+  name: t.name.trim(), rate: t.rate.trim() || "0",
+  isInclusive: !!t.isInclusive, isCompound: !!t.isCompound, isWithholding: !!t.isWithholding,
+});
+
+export interface InvoiceCreateInput {
+  projectId: string;
+  currency: Currency;
+  /** ISO dates (YYYY-MM-DD). */
+  issueDate: string;
+  dueDate: string;
+  /** Manual lines: quantity as a decimal, unit price in minor units. */
+  items: { description: string; quantity: number; unitPrice: number }[];
+  timeEntryIds: string[];
+  milestoneIds: string[];
+  retainerPeriodStart?: string;
+  /** `null` = the profile's default taxes; `[]` = none. */
+  taxes: TaxInputRow[] | null;
+  taxNote?: string;
+  /** Percent as typed. */
+  discountRate: string;
+  notes?: string;
+  paymentInstructions?: string;
+  /** `null` = the active default methods; `[]` = none. */
+  paymentMethodIds: string[] | null;
+}
+
+/** The `POST /invoices` body. Optional text and the two "server default" lists are omitted when unset. */
+export function toInvoiceCreate(i: InvoiceCreateInput): InvoiceCreate {
+  const taxNote = i.taxNote?.trim();
+  const notes = i.notes?.trim();
+  const instructions = i.paymentInstructions?.trim();
+  return {
+    projectId: i.projectId,
+    currency: i.currency,
+    issueDate: isoToApiDateTime(i.issueDate),
+    dueDate: isoToApiDateTime(i.dueDate),
+    items: i.items.map((x) => ({ description: x.description.trim(), quantity: x.quantity.toFixed(2), unitPrice: toDecimal(x.unitPrice, i.currency) })),
+    timeEntryIds: i.timeEntryIds,
+    milestoneIds: i.milestoneIds,
+    ...(i.retainerPeriodStart ? { retainerPeriodStart: i.retainerPeriodStart } : {}),
+    ...(i.taxes ? { taxes: i.taxes.map(toTaxInput) } : {}),
+    ...(taxNote ? { taxNote } : {}),
+    discountRate: i.discountRate.trim() || "0",
+    ...(notes ? { notes } : {}),
+    ...(instructions ? { paymentInstructions: instructions } : {}),
+    ...(i.paymentMethodIds ? { paymentMethodIds: i.paymentMethodIds } : {}),
+  };
+}
+
+/** The fields a draft can change. Everything is optional; only the keys present are sent. */
+export interface InvoiceEditInput {
+  issueDate?: string;
+  dueDate?: string;
+  taxes?: TaxInputRow[];
+  taxNote?: string;
+  discountRate?: string;
+  notes?: string;
+  paymentInstructions?: string;
+  paymentMethodIds?: string[];
+}
+
+/** The `PATCH /invoices/{id}` body: only the allowed fields; cleared text becomes `null`. */
+export function toInvoiceUpdate(p: InvoiceEditInput): InvoiceUpdate {
+  const out: InvoiceUpdate = {};
+  if (p.issueDate !== undefined) out.issueDate = isoToApiDateTime(p.issueDate);
+  if (p.dueDate !== undefined) out.dueDate = isoToApiDateTime(p.dueDate);
+  if (p.taxes !== undefined) out.taxes = p.taxes.map(toTaxInput);
+  if (p.taxNote !== undefined) out.taxNote = p.taxNote.trim() || null;
+  if (p.discountRate !== undefined) out.discountRate = p.discountRate.trim() || "0";
+  if (p.notes !== undefined) out.notes = p.notes.trim() || null;
+  if (p.paymentInstructions !== undefined) out.paymentInstructions = p.paymentInstructions.trim() || null;
+  if (p.paymentMethodIds !== undefined) out.paymentMethodIds = p.paymentMethodIds;
+  return out;
 }
 
 export function responseToShare(r: InvoiceSendResponse): InvoiceShare {

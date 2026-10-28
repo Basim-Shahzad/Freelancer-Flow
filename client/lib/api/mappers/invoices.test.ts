@@ -3,8 +3,79 @@ import type { ApiInvoiceDisplayStatus, ApiInvoiceEventType } from "@/lib/api/inv
 import { eventResponseFixture, invoiceResponseFixture, paymentResponseFixture, sendResponseFixture, snapshotFixture } from "@/lib/test/invoices";
 import {
   DISPLAY_STATUS, EVENT_LABEL, PAYMENT_METHOD_LABEL, RECORDABLE_METHODS, preferredPaymentMethod, responseToEvent, responseToInvoice,
-  responseToShare, savedTypeToPaymentMethod, snapshotToMethod, toPaymentCreate,
+  responseToShare, savedTypeToPaymentMethod, snapshotToMethod, toInvoiceCreate, toInvoiceUpdate, toPaymentCreate,
+  type InvoiceCreateInput,
 } from "./invoices";
+
+const createInput = (over: Partial<InvoiceCreateInput> = {}): InvoiceCreateInput => ({
+  projectId: "p1", currency: "USD", issueDate: "2026-10-01", dueDate: "2026-10-31", items: [], timeEntryIds: [], milestoneIds: [],
+  taxes: null, discountRate: "", paymentMethodIds: null, ...over,
+});
+
+describe("toInvoiceCreate", () => {
+  it("sends manual lines as decimal strings (no floats) and dates as UTC midnights", () => {
+    const body = toInvoiceCreate(createInput({ items: [{ description: " Design ", quantity: 1.5, unitPrice: 12050 }] }));
+    expect(body.items).toEqual([{ description: "Design", quantity: "1.50", unitPrice: "120.50" }]);
+    expect(body.issueDate).toBe("2026-10-01T00:00:00Z");
+    expect(body.dueDate).toBe("2026-10-31T00:00:00Z");
+  });
+
+  it("maps each source: time entries, milestones, retainer period", () => {
+    expect(toInvoiceCreate(createInput({ timeEntryIds: ["t1"] })).timeEntryIds).toEqual(["t1"]);
+    expect(toInvoiceCreate(createInput({ milestoneIds: ["m1"] })).milestoneIds).toEqual(["m1"]);
+    const r = toInvoiceCreate(createInput({ retainerPeriodStart: "2026-10-01" }));
+    expect(r.retainerPeriodStart).toBe("2026-10-01");
+    expect(r.items).toEqual([]);
+    expect(toInvoiceCreate(createInput()).retainerPeriodStart).toBeUndefined();
+  });
+
+  it("omits paymentMethodIds when null, sends [] and a list as given", () => {
+    expect("paymentMethodIds" in toInvoiceCreate(createInput())).toBe(false);
+    expect(toInvoiceCreate(createInput({ paymentMethodIds: [] })).paymentMethodIds).toEqual([]);
+    expect(toInvoiceCreate(createInput({ paymentMethodIds: ["a", "b"] })).paymentMethodIds).toEqual(["a", "b"]);
+  });
+
+  it("omits taxes when null, sends [] as none and maps a tax row", () => {
+    expect("taxes" in toInvoiceCreate(createInput())).toBe(false);
+    expect(toInvoiceCreate(createInput({ taxes: [] })).taxes).toEqual([]);
+    expect(toInvoiceCreate(createInput({ taxes: [{ name: " VAT ", rate: "15" }] })).taxes)
+      .toEqual([{ name: "VAT", rate: "15", isInclusive: false, isCompound: false, isWithholding: false }]);
+  });
+
+  it("sends the percent discount and drops blank text", () => {
+    const body = toInvoiceCreate(createInput({ discountRate: "10", notes: "  ", taxNote: "", paymentInstructions: " Pay by wire " }));
+    expect(body.discountRate).toBe("10");
+    expect("notes" in body).toBe(false);
+    expect("taxNote" in body).toBe(false);
+    expect(body.paymentInstructions).toBe("Pay by wire");
+    expect(toInvoiceCreate(createInput()).discountRate).toBe("0");
+  });
+});
+
+describe("toInvoiceUpdate", () => {
+  it("sends only the fields given, limited to the editable ones", () => {
+    expect(toInvoiceUpdate({})).toEqual({});
+    expect(toInvoiceUpdate({ dueDate: "2026-11-15", discountRate: "5" })).toEqual({ dueDate: "2026-11-15T00:00:00Z", discountRate: "5" });
+    const all = toInvoiceUpdate({ issueDate: "2026-10-01", dueDate: "2026-10-31", taxes: [], taxNote: "x", discountRate: "0", notes: "n", paymentInstructions: "p", paymentMethodIds: [] });
+    expect(Object.keys(all).sort()).toEqual(["discountRate", "dueDate", "issueDate", "notes", "paymentInstructions", "paymentMethodIds", "taxNote", "taxes"]);
+  });
+
+  it("clears text with null", () => {
+    expect(toInvoiceUpdate({ notes: " ", taxNote: "", paymentInstructions: "" })).toEqual({ notes: null, taxNote: null, paymentInstructions: null });
+  });
+});
+
+describe("responseToInvoice sources", () => {
+  it("keeps the time entry and milestone ids and the retainer period start", () => {
+    const base = invoiceResponseFixture();
+    const inv = responseToInvoice({
+      ...base, retainerPeriodStart: "2026-10-01",
+      items: [{ ...base.items[0]!, timeEntryId: "t1", milestoneId: null }, { ...base.items[0]!, id: "x2", timeEntryId: null, milestoneId: "m1" }],
+    });
+    expect(inv.items.map((i) => [i.timeEntryId, i.milestoneId])).toEqual([["t1", undefined], [undefined, "m1"]]);
+    expect(inv.retainerPeriodStart).toBe("2026-10-01");
+  });
+});
 
 describe("displayStatus -> chip status", () => {
   const cases: [ApiInvoiceDisplayStatus, string][] = [

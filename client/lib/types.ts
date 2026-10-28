@@ -253,6 +253,9 @@ export interface InvoiceItem {
   unitPrice: number;
   amount: number;
   fromTime: boolean;
+  /** The time entry or milestone this line bills, when it came from one. */
+  timeEntryId?: string;
+  milestoneId?: string;
 }
 
 /** A payment recorded against a server invoice. `method` may be a legacy value (CARD, CHEQUE, PAYPAL). */
@@ -319,6 +322,8 @@ export interface InvoiceDetail {
   /** Free-text "additional note" shown beside the payment methods. */
   paymentInstructions?: string;
   paymentDisclaimer: string;
+  /** Start date (ISO) of the retainer period this invoice bills, if any. */
+  retainerPeriodStart?: string;
   sentAt?: string;
   viewedAt?: string;
   /** When the invoice became fully paid. */

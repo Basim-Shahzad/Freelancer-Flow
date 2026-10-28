@@ -2,7 +2,7 @@
 
 import { keepPreviousData, useInfiniteQuery, useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { useMemo } from "react";
-import type { InvoiceResponse, PaymentCreate, ShareChannel } from "@/lib/api/invoices.types";
+import type { InvoiceCreate, InvoiceResponse, InvoiceUpdate, PaymentCreate, ShareChannel } from "@/lib/api/invoices.types";
 import { responseToEvent, responseToInvoice, responseToShare, STATUS_TO_API } from "@/lib/api/mappers/invoices";
 import type { ListResult } from "@/lib/api/pagination";
 import { useSession } from "@/lib/hooks/auth/use-auth";
@@ -194,6 +194,33 @@ function useInvoiceAction<V>(call: (vars: V) => Promise<InvoiceResponse>, opts: 
       const res = await call(vars);
       void settle(qc, res, opts);
       return responseToInvoice(res);
+    },
+  });
+}
+
+/**
+ * POST /invoices: always creates a DRAFT (sending is a separate action). Time entries, milestones and retainer
+ * periods become "invoiced", so time and project caches are refreshed too. 409 = e.g. the retainer period is already invoiced.
+ */
+export function useCreateInvoice() {
+  return useInvoiceAction((body: InvoiceCreate) => invoicesService.create(body), { time: true });
+}
+
+/** PATCH /invoices/{id}: header fields of a draft only; the server returns recomputed totals. */
+export function useUpdateInvoice() {
+  return useInvoiceAction(({ id, body }: { id: string; body: InvoiceUpdate }) => invoicesService.update(id, body));
+}
+
+/** DELETE /invoices/{id}: drafts only. Frees the invoice's time entries, milestones and retainer period. */
+export function useDeleteInvoice() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      await invoicesService.remove(id);
+      qc.removeQueries({ queryKey: invoiceKeys.detail(id) });
+      qc.removeQueries({ queryKey: invoiceKeys.events(id) });
+      const keys = [invoiceKeys.lists(), invoiceKeys.options(), ACTIVITY_KEY, DASHBOARD_KEY, timeKeys.all, projectKeys.all];
+      await Promise.all(keys.map((queryKey) => qc.invalidateQueries({ queryKey })));
     },
   });
 }

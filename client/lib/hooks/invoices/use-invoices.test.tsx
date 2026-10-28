@@ -6,7 +6,7 @@ import { getApiErrorStatus } from "@/lib/services/api.service";
 import { createTestQueryClient, mockApi, seedAuth } from "@/lib/test";
 import { eventResponseFixture, invoiceResponseFixture, paymentResponseFixture, sendResponseFixture } from "@/lib/test/invoices";
 import {
-  invoiceKeys, useCancelInvoice, useInvoice, useInvoiceEvents, useInvoiceOptions, useInvoicePdf, useInvoices, useRecordPayment,
+  invoiceKeys, useCancelInvoice, useCreateInvoice, useDeleteInvoice, useUpdateInvoice, useInvoice, useInvoiceEvents, useInvoiceOptions, useInvoicePdf, useInvoices, useRecordPayment,
   useRemindInvoice, useReverseWriteOff, useSendInvoice, useShareLinks, useVoidPayment, useWriteOffInvoice,
 } from "./use-invoices";
 
@@ -250,6 +250,72 @@ describe("lifecycle actions", () => {
       expect(client.getQueryState(["activity", "feed"])?.isInvalidated).toBe(true);
       expect(client.getQueryState(["dashboard", "summary"])?.isInvalidated).toBe(true);
     });
+  });
+});
+
+describe("create / update / delete", () => {
+  const body = { projectId: "p1", items: [{ description: "Design", quantity: "1.00", unitPrice: "100.00" }] };
+
+  it("creates a draft, caches it and refreshes time, projects, activity and dashboard", async () => {
+    m.mock.onPost("/invoices").reply(201, invoiceResponseFixture({ id: "new", displayStatus: "DRAFT" }));
+    const { client, wrapper } = setup();
+    for (const k of [["time", "running"], ["projects", "list"], ["activity", "feed"], ["dashboard", "summary"]]) client.setQueryData(k, []);
+    const { result } = renderHook(() => useCreateInvoice(), { wrapper });
+    const created = await act(async () => result.current.mutateAsync(body));
+    expect(created.id).toBe("new");
+    expect(m.mock.history.post[0]!.data).toBe(JSON.stringify(body));
+    expect(client.getQueryData(invoiceKeys.detail("new"))).toBeTruthy();
+    await waitFor(() => {
+      for (const k of [["time", "running"], ["projects", "list"], ["activity", "feed"], ["dashboard", "summary"]]) expect(client.getQueryState(k)?.isInvalidated).toBe(true);
+    });
+  });
+
+  it("surfaces 422, 409 (retainer already invoiced), 404 and a network error", async () => {
+    const { wrapper } = setup();
+    const { result } = renderHook(() => useCreateInvoice(), { wrapper });
+    const status = async () => getApiErrorStatus(await act(async () => result.current.mutateAsync(body).catch((e: unknown) => e)));
+    m.mock.onPost("/invoices").replyOnce(422, { detail: [{ loc: ["body", "items"], msg: "bad", type: "x" }] });
+    expect(await status()).toBe(422);
+    m.mock.onPost("/invoices").replyOnce(409, { detail: "That retainer period is already invoiced" });
+    expect(await status()).toBe(409);
+    m.mock.onPost("/invoices").replyOnce(404, { detail: "Project not found" });
+    expect(await status()).toBe(404);
+    m.mock.onPost("/invoices").networkErrorOnce();
+    expect(await status()).toBeUndefined();
+  });
+
+  it("updates a draft with the returned totals", async () => {
+    m.mock.onPatch("/invoices/inv1").reply(200, invoiceResponseFixture({ notes: "hello" }));
+    const { client, wrapper } = setup();
+    const { result } = renderHook(() => useUpdateInvoice(), { wrapper });
+    const updated = await act(async () => result.current.mutateAsync({ id: "inv1", body: { notes: "hello" } }));
+    expect(updated.notes).toBe("hello");
+    expect(m.mock.history.patch[0]!.data).toBe(JSON.stringify({ notes: "hello" }));
+    expect(client.getQueryData(invoiceKeys.detail("inv1"))).toBeTruthy();
+  });
+
+  it("deletes a draft, drops its detail and refreshes lists, time and projects", async () => {
+    m.mock.onDelete("/invoices/inv1").reply(204);
+    const { client, wrapper } = setup();
+    client.setQueryData(invoiceKeys.detail("inv1"), invoiceResponseFixture());
+    client.setQueryData(["time", "running"], null);
+    client.setQueryData(["projects", "list"], []);
+    const { result } = renderHook(() => useDeleteInvoice(), { wrapper });
+    await act(async () => { await result.current.mutateAsync("inv1"); });
+    expect(client.getQueryData(invoiceKeys.detail("inv1"))).toBeUndefined();
+    await waitFor(() => {
+      expect(client.getQueryState(["time", "running"])?.isInvalidated).toBe(true);
+      expect(client.getQueryState(["projects", "list"])?.isInvalidated).toBe(true);
+    });
+  });
+
+  it("surfaces a 404/409 on delete", async () => {
+    const { wrapper } = setup();
+    const { result } = renderHook(() => useDeleteInvoice(), { wrapper });
+    m.mock.onDelete("/invoices/inv1").replyOnce(409, { detail: "Only draft invoices can be deleted" });
+    expect(getApiErrorStatus(await act(async () => result.current.mutateAsync("inv1").catch((e: unknown) => e)))).toBe(409);
+    m.mock.onDelete("/invoices/inv1").replyOnce(404, { detail: "nope" });
+    expect(getApiErrorStatus(await act(async () => result.current.mutateAsync("inv1").catch((e: unknown) => e)))).toBe(404);
   });
 });
 
