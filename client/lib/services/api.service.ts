@@ -34,7 +34,8 @@ export function refreshAccessToken(): Promise<string> {
 }
 
 // Endpoints where a 401 means "bad credentials / no session", not "expired token".
-const NO_REFRESH = ["/auth/login", "/auth/register", "/auth/refresh", "/auth/change-password"];
+/** Auth endpoints and re-verified-password endpoints: a 401 there is a wrong credential, not an expired token. */
+const NO_REFRESH = ["/auth/login", "/auth/register", "/auth/refresh", "/auth/change-password", "/export"];
 
 api.interceptors.request.use((config) => {
   const token = useAuthStore.getState().accessToken;

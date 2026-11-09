@@ -28,6 +28,15 @@ describe("request interceptor", () => {
   });
 });
 
+describe("401 on /export", () => {
+  it("rejects without refreshing or signing out", async () => {
+    m.mock.onPost("/export").reply(401, { detail: "Incorrect password" });
+    await expect(api.post("/export", { password: "x" })).rejects.toMatchObject({ response: { status: 401 } });
+    expect(m.refresh.history.post).toHaveLength(0);
+    expect(useAuthStore.getState().status).toBe("authenticated");
+  });
+});
+
 describe("401 refresh flow", () => {
   it("refreshes once, stores the new token and retries the request", async () => {
     m.mock.onGet("/clients").reply((config) =>
