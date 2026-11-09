@@ -16,6 +16,7 @@ import { mergeOutbox, queuedToTimeEntry, resolveRunning, snapshotOf, type EntryS
 import { useOutbox } from "@/lib/time/outbox-store";
 import type { TimeEntry } from "@/lib/types";
 import { timeKeys } from "./keys";
+import { dashboardKeys } from "@/lib/hooks/dashboard/keys";
 import { flushOutbox } from "./sync";
 
 export { timeKeys } from "./keys";
@@ -49,9 +50,14 @@ async function viaApiOrQueue(call: () => Promise<TimeEntryResponse>, queue: () =
   }
 }
 
-/** Refreshes everything a time change touches. Dashboard and activity keys join here when those steps land. */
+/** Refreshes everything a time change touches, including the dashboard (timer, unbilled) and the audit feed. */
 function invalidateTime(qc: QueryClient) {
-  return Promise.all([qc.invalidateQueries({ queryKey: timeKeys.all }), qc.invalidateQueries({ queryKey: projectKeys.all })]);
+  return Promise.all([
+    qc.invalidateQueries({ queryKey: timeKeys.all }),
+    qc.invalidateQueries({ queryKey: projectKeys.all }),
+    qc.invalidateQueries({ queryKey: dashboardKeys.all }),
+    qc.invalidateQueries({ queryKey: ["activity"] }),
+  ]);
 }
 
 /** After a write: sync the running-timer cache, replay the outbox when online, refetch. */
