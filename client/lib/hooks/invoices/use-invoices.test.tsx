@@ -183,7 +183,7 @@ describe("send and remind", () => {
     m.mock.onGet("/invoices/inv1/share").reply(200, { portalUrl: "p", pdfUrl: "d", whatsappUrl: "w" });
     const { result } = renderHook(() => useShareLinks(), { wrapper: setup().wrapper });
     await act(async () => { await result.current.mutateAsync("inv1"); });
-    expect(result.current.data).toEqual({ portalUrl: "p", pdfUrl: "d", whatsappUrl: "w" });
+    await waitFor(() => expect(result.current.data).toEqual({ portalUrl: "p", pdfUrl: "d", whatsappUrl: "w" }));
   });
 });
 
