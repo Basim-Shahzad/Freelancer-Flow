@@ -7,10 +7,10 @@ import type { Project } from "@/lib/types";
 export interface ActiveProjectRow { project: Project; clientName: string; stage: StageInfo; progress: ProgressInfo | null }
 
 /** Projects in progress, with milestone / retainer-period / manual progress. */
-export function ProjectsSection({ rows, className }: { rows: ActiveProjectRow[]; className?: string }) {
+export function ProjectsSection({ rows, total, className }: { rows: ActiveProjectRow[]; total?: number; className?: string }) {
   return (
     <Card className={className}>
-      <CardHead title="Active projects" sub="Where each one sits, work to paid" action={<Link href="/projects" className="inline-flex min-h-11 items-center text-sm font-medium text-primary-ink underline decoration-1 underline-offset-[3px]">All</Link>} />
+      <CardHead title="Active projects" sub={total !== undefined && total > rows.length ? `Showing ${rows.length} of ${total}` : "Where each one sits, work to paid"} action={<Link href="/projects" className="inline-flex min-h-11 items-center text-sm font-medium text-primary-ink underline decoration-1 underline-offset-[3px]">All</Link>} />
       <CardBody className="py-1">
       {rows.length === 0 ? (
         <p className="text-sm text-muted-foreground">No active projects. <Link href="/projects/new" className="font-medium text-primary-ink underline underline-offset-[3px]">Start one</Link> to track progress here.</p>
