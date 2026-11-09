@@ -14,26 +14,31 @@ import { formatClock, useElapsed } from "@/lib/hooks/use-elapsed";
 import { formatDuration, formatHours, formatMoney } from "@/lib/money";
 import { useClientOptions } from "@/lib/hooks/clients";
 import { useProjectOptions } from "@/lib/hooks/projects";
-import { useRunningTimer, useStopTimer } from "@/lib/hooks/time-entries";
-import { useAppStore } from "@/lib/store";
+import { useAllTimeEntries, useRunningTimer, useStopTimer } from "@/lib/hooks/time-entries";
+import type { RunningTimerView } from "@/lib/api/mappers/dashboard";
 import { cn } from "@/lib/utils";
 import { bucketDayStrip, entrySegments, liveSegment } from "./day-strip";
 
 /**
- * "Today" card: the running timer (from the API; stop here, start from the top bar where the project is chosen),
- * day strip, and week stats. The day strip and week totals still read the mock `time` slice until step 11.
+ * "Today" card: the running timer (stop here, start from the top bar where the project is chosen), day strip, and
+ * week stats. The timer comes from `useRunningTimer` (live, offline-aware); the dashboard summary's `runningTimer`
+ * fills in until that query settles. Day strip and week totals read every project's entries (no "list all" endpoint).
  */
-export function TodayCard({ today, unbilledMinutes, className }: { today: string; unbilledMinutes: number; className?: string }) {
-  const { running } = useRunningTimer();
+export function TodayCard({ today, unbilledMinutes, summaryTimer = null, className }: { today: string; unbilledMinutes: number; summaryTimer?: RunningTimerView | null; className?: string }) {
+  const { running: live, query } = useRunningTimer();
+  const running = live ?? null;
   const { projects } = useProjectOptions();
   const { clients } = useClientOptions();
-  const time = useAppStore((s) => s.time);
+  const projectIds = useMemo(() => projects.map((p) => p.id), [projects]);
+  const { data: allTime } = useAllTimeEntries(projectIds);
+  const time = useMemo(() => allTime ?? [], [allTime]);
   const stopTimer = useStopTimer();
   const { error } = useApiToast();
-  const isRunning = Boolean(running);
-  const startedAt = running?.startAt;
-  const timerProjectId = running?.projectId;
-  const timerDescription = running?.description ?? "";
+  const seed = query.isPending ? summaryTimer : null;
+  const isRunning = Boolean(running ?? seed);
+  const startedAt = running?.startAt ?? seed?.startAt;
+  const timerProjectId = running?.projectId ?? seed?.projectId;
+  const timerDescription = running?.description ?? seed?.description ?? "";
   const elapsed = useElapsed(startedAt, isRunning);
 
   const project = projects.find((p) => p.id === timerProjectId);
