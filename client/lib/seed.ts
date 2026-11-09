@@ -1,6 +1,6 @@
 import { daysFromToday as d } from "./dates";
 import type {
-  ActivityEntry, BusinessLocal, BusinessProfile, DataExport, Invoice, PortalProject, TimeEntry,
+  BusinessLocal, BusinessProfile, Invoice, PortalProject, TimeEntry,
 } from "./types";
 
 /**
@@ -140,22 +140,4 @@ export const seedTime: TimeEntry[] = [
   te("t-8", "p-harbor", "Navigation rework", -6, 6, "10:00"),
   te("t-9", "p-harbor", "Settings screen build", -5, 5.5, "09:00"),
   te("t-10", "p-harbor", "Release candidate testing", -10, 6, "10:30", true, "inv-41"),
-];
-
-const act = (id: string, days: number, hm: string, type: ActivityEntry["type"], action: string, record: string, detail: string): ActivityEntry => ({ id, at: ts(days, hm), type, action, record, detail });
-
-export const seedActivity: ActivityEntry[] = [
-  act("a1", -1, "16:31", "payment", "Payment recorded", "INV-0044", "PKR 30,000 · Raast · ref RA-4410"),
-  act("a2", -2, "10:20", "invoice", "Invoice sent by email", "INV-0042", "To jordan@harborlabs.example"),
-  act("a3", -2, "10:14", "invoice", "Invoice created", "INV-0042", "25 h + 1 manual line · USD 1,250.00"),
-  act("a4", -3, "18:40", "project", "Milestone ready for approval", "Brand site", "“Design approved” shared via link"),
-  act("a5", -5, "12:02", "settings", "Payment method reordered", "Settings", "ESFCA wire moved above PKR bank transfer"),
-  act("a6", -7, "17:30", "invoice", "Written off", "INV-0036", "USD 400.00 · reason: client closed"),
-  act("a7", -10, "08:20", "invoice", "Status changed to paid", "INV-0041", "Payment USD 1,980.00 recorded · ESFCA wire"),
-  act("a8", -14, "00:00", "invoice", "Status changed to overdue", "INV-0039", "Automatic · due date passed"),
-];
-
-export const seedExports: DataExport[] = [
-  { id: "x-1", requestedAt: ts(-54), status: "expired", fileName: "paylancr-export-1.zip", sizeLabel: "3.1 MB" },
-  { id: "x-2", requestedAt: ts(-125), status: "expired", fileName: "paylancr-export-2.zip", sizeLabel: "1.8 MB" },
 ];

@@ -2,12 +2,12 @@
 
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
-import { daysFromToday, nowISO, todayISO } from "../dates";
+import { daysFromToday, nowISO } from "../dates";
 import {
-  seedActivity, seedBusinessLocal, seedExports, seedInvoices, seedPortalProjects, seedTime,
+  seedBusinessLocal, seedInvoices, seedPortalProjects, seedTime,
 } from "../seed";
 import type {
-  ActivityEntry, ActivityType, BusinessLocal, DataExport, Invoice, InvoiceEvent, InvoiceEventType,
+  BusinessLocal, Invoice, InvoiceEvent, InvoiceEventType,
   PortalProject, TimeEntry,
 } from "../types";
 
@@ -28,8 +28,6 @@ interface State {
    */
   time: TimeEntry[];
   invoices: Invoice[];
-  activity: ActivityEntry[];
-  exports: DataExport[];
 }
 
 interface Actions {
@@ -44,9 +42,6 @@ interface Actions {
 
   markViewed(id: string): void;
 
-  requestExport(): DataExport;
-  finishExport(id: string): void;
-
   /** Reset to demo data (dev + settings). */
   resetDemo(): void;
 }
@@ -60,18 +55,13 @@ const initial = (): State => ({
   portalProjects: seedPortalProjects,
   time: seedTime,
   invoices: seedInvoices,
-  activity: seedActivity,
-  exports: seedExports,
 });
 
 const ev = (type: InvoiceEventType, label: string): InvoiceEvent => ({ id: uid("ev"), type, at: nowISO(), label });
 
 export const useAppStore = create<AppStore>()(
   persist(
-    (set, get) => {
-      const log = (type: ActivityType, action: string, record: string, detail: string) =>
-        set((s) => ({ activity: [{ id: uid("a"), at: nowISO(), type, action, record, detail }, ...s.activity].slice(0, 500) }));
-
+    (set) => {
       const patchInvoice = (id: string, fn: (inv: Invoice) => Invoice) =>
         set((s) => ({ invoices: s.invoices.map((i) => (i.id === id ? fn(i) : i)) }));
 
@@ -85,26 +75,15 @@ export const useAppStore = create<AppStore>()(
 
         approveMilestone: (projectId, milestoneId) => {
           set((s) => ({ portalProjects: s.portalProjects.map((p) => p.id !== projectId ? p : { ...p, milestones: p.milestones.map((m) => m.id === milestoneId ? { ...m, status: "approved", approvedAt: nowISO(), comment: undefined } : m) }) }));
-          const p = get().portalProjects.find((x) => x.id === projectId);
-          log("project", "Milestone approved by client", p?.name ?? projectId, `“${p?.milestones.find((m) => m.id === milestoneId)?.title}” via share link`);
         },
         requestMilestoneChanges: (projectId, milestoneId, comment) => {
           set((s) => ({ portalProjects: s.portalProjects.map((p) => p.id !== projectId ? p : { ...p, milestones: p.milestones.map((m) => m.id === milestoneId ? { ...m, status: "changes_requested", comment } : m) }) }));
-          const p = get().portalProjects.find((x) => x.id === projectId);
-          log("project", "Changes requested by client", p?.name ?? projectId, comment.slice(0, 80));
         },
 
         markViewed: (id) => patchInvoice(id, (i) => (i.events.some((e) => e.type === "viewed") ? i : { ...i, events: [ev("viewed", "Viewed by client"), ...i.events] })),
         // Creating, editing, sending, reminding, payments, write-off and cancelling run on the API (`lib/hooks/invoices`);
         // the remaining mock invoices feed the dashboard/export/portal until steps 11-14.
 
-        requestExport: () => {
-          const x: DataExport = { id: uid("x"), requestedAt: nowISO(), status: "preparing", fileName: `paylancr-export-${todayISO()}.zip`, sizeLabel: "4.2 MB" };
-          set((s) => ({ exports: [x, ...s.exports] }));
-          log("settings", "Data export requested", "Settings", x.fileName);
-          return x;
-        },
-        finishExport: (id) => set((s) => ({ exports: s.exports.map((e) => (e.id === id ? { ...e, status: "ready" } : e)) })),
 
         resetDemo: () => set({ ...initial(), hydrated: true }),
       };
@@ -138,7 +117,7 @@ export const useAppStore = create<AppStore>()(
       },
       storage: createJSONStorage(() => localStorage),
       skipHydration: true,
-      partialize: ({ businessLocal, portalProjects, time, invoices, activity, exports }) => ({ businessLocal, portalProjects, time, invoices, activity, exports }),
+      partialize: ({ businessLocal, portalProjects, time, invoices }) => ({ businessLocal, portalProjects, time, invoices }),
     },
   ),
 );

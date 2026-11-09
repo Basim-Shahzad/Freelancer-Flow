@@ -417,17 +417,6 @@ export interface PaymentMethod {
   payLink?: string;
 }
 
-export type ActivityType = "invoice" | "payment" | "project" | "client" | "time" | "settings";
-
-export interface ActivityEntry {
-  id: string;
-  at: string;
-  type: ActivityType;
-  action: string;
-  record: string;
-  detail: string;
-}
-
 export interface BusinessProfile {
   businessName: string;
   ownerName: string;
@@ -451,11 +440,3 @@ export interface BusinessProfile {
  * the user across devices. Revisit once the backend models them (invoice numbering: steps 8-9).
  */
 export type BusinessLocal = Pick<BusinessProfile, "phone" | "footerNote" | "invoicePrefix" | "nextInvoiceNumber" | "logoName">;
-
-export interface DataExport {
-  id: string;
-  requestedAt: string;
-  status: "preparing" | "ready" | "expired";
-  fileName: string;
-  sizeLabel: string;
-}

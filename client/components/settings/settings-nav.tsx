@@ -47,7 +47,7 @@ export function SettingsOfflineNotice() {
   if (online) return null;
   return (
     <Notice tone="warn">
-      <b>You’re offline.</b> You can keep editing; changes are kept on this device. Requesting a data export needs a connection.
+      <b>You’re offline.</b> You can keep editing; changes are kept on this device..
     </Notice>
   );
 }
