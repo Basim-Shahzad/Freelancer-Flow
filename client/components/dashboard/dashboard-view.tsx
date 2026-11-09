@@ -5,65 +5,51 @@ import { useMemo } from "react";
 import { Plus } from "lucide-react";
 import { format } from "date-fns";
 import { StateBlock } from "@/components/domain/state-block";
-import { deriveStage, projectProgress, withoutSchedule } from "@/components/projects/logic";
+import type { StageInfo } from "@/components/projects/logic";
+import { projectProgress } from "@/components/projects/logic";
 import { Button } from "@/components/ui/button";
 import { Page, PageHeader } from "@/components/ui/section";
 import { PageSkeleton } from "@/components/ui/skeleton";
 import { todayISO } from "@/lib/dates";
-import { useHydrated } from "@/lib/hooks/use-hydrated";
-import { useClientOptions } from "@/lib/hooks/clients";
+import { useDashboard } from "@/lib/hooks/dashboard";
 import { useProjectOptions } from "@/lib/hooks/projects";
+import { useBusiness } from "@/lib/hooks/profile";
+import { getApiErrorMessage } from "@/lib/services/api.service";
 import { useAppStore } from "@/lib/store";
 import { useAuthStore } from "@/lib/store/auth";
-import { byDateDesc, toInvoiceView } from "@/lib/selectors";
-import { AttentionSection, PaymentsSection } from "./activity-sections";
-import { attentionInvoices, cashIn, monthRange, recentPayments, unbilledSummary } from "./aggregate";
-import { CashSection } from "./money-sections";
+import { ActivitySection, AttentionSection } from "./activity-sections";
+import { attentionInvoices } from "./attention";
+import { CashSection, UnbilledSection } from "./money-sections";
 import { OfflineNotice } from "./offline-notice";
+import { OwedHero } from "./owed-hero";
 import { PendingScopeChanges } from "./pending-scope-changes";
 import { ProjectsSection, type ActiveProjectRow } from "./projects-section";
-import { OwedHero } from "./owed-hero";
-import { activeCurrencies, sentToPaidDays, stagesByCurrency } from "./stages";
 import { TodayCard } from "./timer-card";
-import { useBusiness } from "@/lib/hooks/profile";
 
 export const greeting = (hour: number) => (hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening");
 
+const ACTIVE_ROWS = 6;
+
 export function DashboardView() {
-  const hydrated = useHydrated();
-  const { clients } = useClientOptions();
   const { projects } = useProjectOptions();
-  const invoices = useAppStore((s) => s.invoices);
-  const time = useAppStore((s) => s.time);
+  const dash = useDashboard();
+  const online = useAppStore((s) => s.online);
   const base = useBusiness().defaultCurrency;
   const userName = useAuthStore((s) => s.user?.fullName ?? undefined);
+  const today = todayISO();
+  const summary = dash.summary;
 
-  const data = useMemo(() => {
-    const today = todayISO();
-    const views = invoices.map((i) => toInvoiceView(i, clients, projects)).sort(byDateDesc);
-    const stages = stagesByCurrency(views, projects, time, today);
-    const rows: ActiveProjectRow[] = projects
+  const rows = useMemo<ActiveProjectRow[]>(() => {
+    const ready = new Set([...(summary?.unbilled.time ?? []), ...(summary?.unbilled.milestones ?? []), ...(summary?.unbilled.retainerPeriods ?? [])].map((u) => u.projectId));
+    return projects
       .filter((p) => p.status === "active")
-      .map((p) => ({
-        project: p,
-        clientName: p.client.name,
-        // Milestones and retainer periods are not loaded for every project here (the dashboard update does that).
-        stage: deriveStage(withoutSchedule(p), views.filter((v) => v.projectId === p.id), time, today),
-        progress: projectProgress(p),
-      }));
-    return {
-      today,
-      thisMonth: cashIn(views, monthRange(today)),
-      lastMonth: cashIn(views, monthRange(today, -1)),
-      stages, currencies: activeCurrencies(stages, base), paidDays: sentToPaidDays(views),
-      unbilled: unbilledSummary(projects, time, today),
-      payments: recentPayments(views, 6),
-      attention: attentionInvoices(views, today, 5),
-      rows,
-    };
-  }, [clients, projects, invoices, time, base]);
-
-  if (!hydrated) return <PageSkeleton rows={4} />;
+      .slice(0, ACTIVE_ROWS)
+      .map((p) => {
+        const stage: StageInfo = ready.has(p.id) ? { stage: "invoice", caption: "Something is ready to invoice." } : { stage: "work", caption: "Work is in progress. Nothing to invoice yet." };
+        return { project: p, clientName: p.client.name, stage, progress: projectProgress(p) };
+      });
+  }, [projects, summary]);
+  const attention = useMemo(() => attentionInvoices(dash.attention.invoices, today, 5), [dash.attention.invoices, today]);
 
   const now = new Date();
   const first = userName?.split(" ")[0];
@@ -80,10 +66,23 @@ export function DashboardView() {
     />
   );
 
-  if (clients.length === 0) {
+  if (dash.isPending) return <PageSkeleton rows={4} />;
+
+  if (dash.isError || !summary) {
     return (
       <Page>
         {header}
+        <OfflineNotice />
+        <StateBlock kind="error" title="Couldn’t load your dashboard" body={online ? getApiErrorMessage(dash.error) : "You’re offline. Reconnect and try again."} cta={{ label: "Try again", onClick: () => void dash.refetch() }} />
+      </Page>
+    );
+  }
+
+  if (summary.isEmpty && projects.length === 0) {
+    return (
+      <Page>
+        {header}
+        <OfflineNotice />
         <StateBlock kind="empty" title="Your ledger starts here" body="Add a client, then a project. Cash in, outstanding and overdue appear here once you record your first payment." cta={{ label: "Add your first client", href: "/clients/new" }} />
       </Page>
     );
@@ -93,17 +92,18 @@ export function DashboardView() {
     <Page>
       {header}
       <OfflineNotice />
-      <OwedHero stages={data.stages} currencies={data.currencies} base={base} paidDays={data.paidDays} />
+      <OwedHero summary={summary} base={base} />
       <div className="grid items-start gap-6 @4xl:grid-cols-[minmax(0,1fr)_22rem]">
         <div className="flex min-w-0 flex-col gap-6">
-          <AttentionSection items={data.attention} />
+          <AttentionSection items={attention} isPending={dash.attention.isPending} isError={dash.attention.isError} onRetry={() => void dash.attention.refetch()} />
           <PendingScopeChanges />
-          <CashSection thisMonth={data.thisMonth} lastMonth={data.lastMonth} today={data.today} base={base} />
-          <PaymentsSection rows={data.payments} />
+          <CashSection cashIn={summary.cashIn} base={base} />
+          <UnbilledSection unbilled={summary.unbilled} />
+          <ActivitySection events={dash.activity.data?.events ?? []} isPending={dash.activity.isPending} isError={dash.activity.isError} onRetry={() => void dash.activity.refetch()} />
         </div>
         <div className="flex min-w-0 flex-col gap-6">
-          <TodayCard today={data.today} unbilledMinutes={data.unbilled.minutes} />
-          <ProjectsSection rows={data.rows} />
+          <TodayCard today={today} unbilledMinutes={summary.unbilled.minutes} summaryTimer={summary.runningTimer} />
+          <ProjectsSection rows={rows} total={summary.activeProjects} />
         </div>
       </div>
     </Page>
