@@ -21,10 +21,10 @@ describe("useActivityFeed", () => {
     m.mock.onGet("/activity").reply((c) => (c.params.cursor ? [200, { events: [ev("b")], total: 2, nextCursor: null }] : [200, { events: [ev("a")], total: 2, nextCursor: "c1" }]));
     const { result } = setup();
     await waitFor(() => expect(result.current.hasNextPage).toBe(true));
-    expect(m.mock.history.get[0].params).toMatchObject({ entity_type: "invoice", limit: 50 });
+    expect(m.mock.history.get[0]!.params).toMatchObject({ entity_type: "invoice", limit: 50 });
     await result.current.fetchNextPage();
     await waitFor(() => expect(result.current.data?.pages).toHaveLength(2));
-    expect(m.mock.history.get[1].params.cursor).toBe("c1");
+    expect(m.mock.history.get[1]!.params.cursor).toBe("c1");
     expect(result.current.hasNextPage).toBe(false);
   });
 
@@ -32,7 +32,7 @@ describe("useActivityFeed", () => {
     m.mock.onGet("/activity").replyOnce(401).onGet("/activity").reply(200, { events: [ev("a")], total: 1, nextCursor: null });
     m.refresh.onPost("/auth/refresh").reply(200, { accessToken: "new" });
     const { result } = setup();
-    await waitFor(() => expect(result.current.data?.pages[0].events).toHaveLength(1));
+    await waitFor(() => expect(result.current.data?.pages[0]!.events).toHaveLength(1));
   });
 
   it("surfaces network errors", async () => {
