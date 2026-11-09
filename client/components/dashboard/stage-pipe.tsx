@@ -1,8 +1,17 @@
 import Link from "next/link";
-import { fmtDate } from "@/lib/dates";
 import { formatHours, amountParts } from "@/lib/money";
 import { cn } from "@/lib/utils";
-import type { CurrencyStages } from "./stages";
+import type { Currency } from "@/lib/types";
+
+/** What the pipe shows for one currency, all from the dashboard summary (minor units). */
+export interface PipeStages {
+  currency: Currency;
+  unbilled: { amount: number; minutes: number; items: number };
+  out: { amount: number; count: number };
+  late: { amount: number; count: number };
+  landed: { amount: number };
+  owed: number;
+}
 
 /** Chevron tiles collapse to stacked rounded tiles in narrow containers. Drift stripe honours reduced motion. */
 const CSS = `
@@ -33,24 +42,21 @@ interface Tile { key: string; name: string; amount: number; line: string; href: 
 
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
-function tilesFor(s: CurrencyStages): Tile[] {
+function tilesFor(s: PipeStages): Tile[] {
   const unbilledBits = [s.unbilled.minutes > 0 ? `${formatHours(s.unbilled.minutes)} hourly` : null, s.unbilled.items > 0 ? plural(s.unbilled.items, "ready item") : null].filter(Boolean);
-  const nextDue = s.out.nextDue ? ` · next due ${fmtDate(s.out.nextDue).slice(0, 6)}` : "";
   return [
-    { key: "unbilled", name: "Not billed yet", amount: s.unbilled.amount, est: true, line: unbilledBits.length ? `${unbilledBits.join(" + ")} (est.)` : "Nothing waiting to be billed", href: s.unbilled.minutes > 0 ? "/time" : "/projects",
+    { key: "unbilled", name: "Not billed yet", amount: s.unbilled.amount, est: true, line: unbilledBits.length ? `${unbilledBits.join(" + ")} (est.)` : "Nothing waiting to be billed", href: "/invoices/new",
       tone: "bg-[color-mix(in_srgb,var(--foreground)_6%,var(--background))] text-muted-foreground", amt: "text-foreground" },
-    { key: "drafted", name: "Drafted, not sent", amount: s.drafted.amount, line: s.drafted.count ? plural(s.drafted.count, "draft invoice") : "No drafts", href: "/invoices",
-      tone: "bg-[color-mix(in_srgb,var(--primary)_10%,var(--background))] text-muted-foreground", amt: "text-foreground" },
-    { key: "out", name: "Out with clients", amount: s.out.amount, line: s.out.count ? `${plural(s.out.count, "invoice")}, inside terms${nextDue}` : "Nothing out right now", href: "/invoices",
+    { key: "out", name: "Out with clients", amount: s.out.amount, line: s.out.count ? `${plural(s.out.count, "invoice")}, inside terms` : "Nothing out right now", href: "/invoices",
       tone: "bg-primary text-primary-foreground", amt: "text-primary-foreground", drift: s.out.count > 0 },
-    { key: "late", name: "Past due", amount: s.late.amount, line: s.late.count ? `${plural(s.late.count, "invoice")}, oldest ${plural(s.late.oldestDays, "day")} late` : "Nothing past due", href: "/invoices",
+    { key: "late", name: "Past due", amount: s.late.amount, line: s.late.count ? `${plural(s.late.count, "invoice")} past due` : "Nothing past due", href: "/invoices?status=overdue",
       tone: "bg-error-tint text-error-ink", amt: "text-error-ink" },
-    { key: "landed", name: "Landed this month", amount: s.landed.amount, line: s.landed.count ? plural(s.landed.count, "payment") : "No payments yet", href: "/invoices",
+    { key: "landed", name: "Landed this month", amount: s.landed.amount, line: s.landed.amount > 0 ? "Recorded payments" : "No payments yet", href: "/invoices",
       tone: "bg-accent-tint text-warning-ink", amt: "text-warning-ink" },
   ];
 }
 
-export function StagePipe({ stages }: { stages: CurrencyStages }) {
+export function StagePipe({ stages }: { stages: PipeStages }) {
   return (
     <>
       <style>{CSS}</style>
