@@ -3,6 +3,7 @@ import { Money } from "@/components/domain/money";
 import { StatusChip } from "@/components/domain/status-chip";
 import { LCell, LedgerRow, LMain, LSub } from "@/components/ui/ledger";
 import { Card, CardBody, CardHead } from "@/components/ui/section";
+import { activityHref } from "@/lib/api/mappers/activity";
 import type { ActivityEventResponse } from "@/lib/api/activity.types";
 import { fmtDate } from "@/lib/dates";
 import type { AttentionItem } from "./attention";
@@ -48,12 +49,7 @@ export function AttentionSection({ items, isPending = false, isError = false, on
   );
 }
 
-const ENTITY_HREF: Record<string, string> = { invoice: "/invoices", project: "/projects", client: "/clients" };
-
-const hrefFor = (e: ActivityEventResponse) => {
-  const base = ENTITY_HREF[e.entityType];
-  return base ? `${base}/${e.entityId}` : e.entityType === "time_entry" ? "/time" : "/settings/activity";
-};
+const hrefFor = (e: ActivityEventResponse) => activityHref(e.entityType, e.entityId);
 
 /** The most recent audit events, linked to the thing they happened to. */
 export function ActivitySection({ events, isPending = false, isError = false, onRetry }: { events: ActivityEventResponse[]; isPending?: boolean; isError?: boolean; onRetry?: () => void }) {
