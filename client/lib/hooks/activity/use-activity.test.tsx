@@ -2,11 +2,11 @@ import { renderHook, waitFor } from "@testing-library/react";
 import * as React from "react";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { createTestQueryClient, mockApi, seedAuth } from "@/lib/test";
+import { createTestQueryClient, mockApi, primeAuth } from "@/lib/test";
 import { useActivityFeed } from "./use-activity";
 
 let m: ReturnType<typeof mockApi>;
-beforeEach(() => { m = mockApi(); seedAuth(); });
+beforeEach(() => { m = mockApi(); primeAuth(); });
 afterEach(() => m.restore());
 
 const ev = (id: string) => ({ id, entityType: "invoice", entityId: "i1", action: "update", summary: "s", changes: null, createdAt: "2026-11-01T00:00:00Z" });

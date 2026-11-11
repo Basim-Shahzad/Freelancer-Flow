@@ -3,14 +3,14 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { getApiErrorStatus } from "@/lib/services/api.service";
-import { createTestQueryClient, mockApi, profileFixture, seedAuth } from "@/lib/test";
+import { createTestQueryClient, mockApi, profileFixture, primeAuth } from "@/lib/test";
 import { milestoneResponseFixture } from "@/lib/test/projects";
 import { applyOrder, milestoneKeys, useCreateMilestone, useDeleteMilestone, useMilestones, useReorderMilestones, useSubmitMilestone, useUpdateMilestone } from "./use-milestones";
 
 let m: ReturnType<typeof mockApi>;
 beforeEach(() => {
   m = mockApi();
-  seedAuth("authenticated");
+  primeAuth("authenticated");
   m.mock.onGet("/profile").reply(200, profileFixture());
 });
 afterEach(() => m.restore());
@@ -120,7 +120,7 @@ describe("applyOrder", () => {
 });
 
 describe("useReorderMilestones", () => {
-  const seeded = () => {
+  const primed = () => {
     const { client, wrapper } = setup();
     client.setQueryData(milestoneKeys.list("p1"), rows);
     return { client, wrapper };
@@ -130,7 +130,7 @@ describe("useReorderMilestones", () => {
   it("PUTs every id in the new order and applies it to the list", async () => {
     m.mock.onPut("/projects/p1/milestones/order").reply(200, { milestones: applyOrder(rows, ["c", "a", "b"]), total: 3 });
     m.mock.onGet(LIST).reply(200, { milestones: applyOrder(rows, ["c", "a", "b"]), total: 3 });
-    const { client, wrapper } = seeded();
+    const { client, wrapper } = primed();
     const { result } = renderHook(() => useReorderMilestones("p1"), { wrapper });
     await act(async () => { await result.current.mutateAsync(["c", "a", "b"]); });
     expect(JSON.parse(m.mock.history.put[0]!.data)).toEqual({ milestoneIds: ["c", "a", "b"] });
@@ -141,7 +141,7 @@ describe("useReorderMilestones", () => {
     let release: () => void = () => undefined;
     m.mock.onPut("/projects/p1/milestones/order").reply(() => new Promise((resolve) => { release = () => resolve([200, { milestones: [], total: 0 }]); }));
     m.mock.onGet(LIST).reply(200, { milestones: applyOrder(rows, ["b", "a", "c"]), total: 3 });
-    const { client, wrapper } = seeded();
+    const { client, wrapper } = primed();
     const { result } = renderHook(() => useReorderMilestones("p1"), { wrapper });
     act(() => { result.current.mutate(["b", "a", "c"]); });
     await waitFor(() => expect(order(client)).toEqual(["b", "a", "c"]));
@@ -152,7 +152,7 @@ describe("useReorderMilestones", () => {
   it("rolls back when the server refuses (422)", async () => {
     m.mock.onPut("/projects/p1/milestones/order").reply(422, { detail: "Send every milestone id exactly once" });
     m.mock.onGet(LIST).reply(200, { milestones: rows, total: 3 });
-    const { client, wrapper } = seeded();
+    const { client, wrapper } = primed();
     const { result } = renderHook(() => useReorderMilestones("p1"), { wrapper });
     const err = await act(async () => result.current.mutateAsync(["c", "a"]).catch((e: unknown) => e));
     expect(getApiErrorStatus(err)).toBe(422);

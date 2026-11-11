@@ -25,7 +25,7 @@ export function createTestQueryClient() {
 }
 
 /** Puts the auth store into a known state. Defaults to a signed-in user with a token. */
-export function seedAuth(state: "authenticated" | "unauthenticated" = "authenticated", token = "test-token") {
+export function primeAuth(state: "authenticated" | "unauthenticated" = "authenticated", token = "test-token") {
   if (state === "authenticated") useAuthStore.setState({ accessToken: token, user: testUser, status: "authenticated", signOutReason: null });
   else useAuthStore.setState({ accessToken: null, user: null, status: "unauthenticated", signOutReason: null });
 }
@@ -35,9 +35,9 @@ interface Options extends Omit<RenderOptions, "wrapper"> {
   queryClient?: QueryClient;
 }
 
-/** RTL render wrapped in a fresh QueryClientProvider with the auth store seeded. */
+/** RTL render wrapped in a fresh QueryClientProvider with the auth store primed. */
 export function renderWithProviders(ui: React.ReactElement, { auth = "authenticated", queryClient = createTestQueryClient(), ...options }: Options = {}) {
-  seedAuth(auth);
+  primeAuth(auth);
   const Wrapper = ({ children }: { children: React.ReactNode }) => <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
   return { queryClient, ...render(ui, { wrapper: Wrapper, ...options }) };
 }

@@ -1,6 +1,6 @@
 import type { AxiosHeaders, AxiosRequestConfig } from "axios";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { mockApi, seedAuth } from "@/lib/test";
+import { mockApi, primeAuth } from "@/lib/test";
 import { useAuthStore } from "@/lib/store/auth";
 import { api, getApiErrorMessage, getApiErrorStatus } from "./api.service";
 
@@ -10,7 +10,7 @@ const authOf = (config: AxiosRequestConfig) => (config.headers as AxiosHeaders |
 
 beforeEach(() => {
   m = mockApi();
-  seedAuth("authenticated", "old-token");
+  primeAuth("authenticated", "old-token");
 });
 afterEach(() => m.restore());
 
@@ -22,7 +22,7 @@ describe("request interceptor", () => {
   });
 
   it("sends no Authorization header without a token", async () => {
-    seedAuth("unauthenticated");
+    primeAuth("unauthenticated");
     m.mock.onGet("/clients").reply((config) => [200, { auth: authOf(config) ?? null }]);
     expect((await api.get("/clients")).data.auth).toBeNull();
   });
@@ -84,7 +84,7 @@ describe("401 refresh flow", () => {
   });
 
   it("does not mark expiry when there was no authenticated session", async () => {
-    seedAuth("unauthenticated");
+    primeAuth("unauthenticated");
     m.mock.onGet("/clients").reply(401);
     m.refresh.onPost("/auth/refresh").reply(401);
     await expect(api.get("/clients")).rejects.toBeDefined();

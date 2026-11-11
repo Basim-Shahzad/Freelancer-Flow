@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { FxRates } from "@/lib/api/mappers/exchange-rates";
-import type { InvoiceView } from "@/lib/selectors";
+import type { InvoiceView } from "./logic";
 import { fxRatesFixture } from "@/lib/test/exchange-rates";
 import { milestoneFixture, scheduledProjectFixture } from "@/lib/test/projects";
 import type { ProjectWithSchedule, TimeEntry } from "@/lib/types";

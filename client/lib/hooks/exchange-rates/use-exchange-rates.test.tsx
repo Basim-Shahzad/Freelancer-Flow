@@ -2,14 +2,14 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { renderHook, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { createTestQueryClient, mockApi, seedAuth } from "@/lib/test";
+import { createTestQueryClient, mockApi, primeAuth } from "@/lib/test";
 import { exchangeRatesFixture } from "@/lib/test/exchange-rates";
 import { useExchangeRates, usePortalExchangeRates } from "./use-exchange-rates";
 
 let m: ReturnType<typeof mockApi>;
 beforeEach(() => {
   m = mockApi();
-  seedAuth("authenticated");
+  primeAuth("authenticated");
 });
 afterEach(() => m.restore());
 
@@ -28,7 +28,7 @@ describe("useExchangeRates", () => {
   });
 
   it("is not fetched while unauthenticated", async () => {
-    seedAuth("unauthenticated");
+    primeAuth("unauthenticated");
     m.mock.onGet("/reference/exchange-rates").reply(200, exchangeRatesFixture());
     const { result } = renderHook(() => useExchangeRates(), { wrapper: setup().wrapper });
     await new Promise((r) => setTimeout(r, 20));

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { InvoiceView } from "@/lib/selectors";
+import type { InvoiceView } from "./logic";
 import { milestoneFixture, scheduledProjectFixture } from "@/lib/test/projects";
 import type { ProjectWithSchedule, TimeEntry } from "@/lib/types";
 import { changeRequestActions, changeRequestState, deriveStage, milestoneActions, milestoneState, projectProgress, progressText, rateLabel, stagePips, unbilledOf, unbilledWeeks } from "./logic";

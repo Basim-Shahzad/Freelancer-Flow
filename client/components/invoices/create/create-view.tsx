@@ -39,7 +39,7 @@ const NO_TIME: string[] = [];
 interface Props { projectId?: string; period?: string }
 
 export function InvoiceCreateView(props: Props) {
-  // The flow seeds its state from the payment methods, projects and existing invoices, so wait for them
+  // The flow initialises its state from the payment methods, projects and existing invoices, so wait for them
   // (a later refetch error must not unmount it).
   const methodsQuery = usePaymentMethods();
   const projectOptions = useProjectOptions();
@@ -65,7 +65,7 @@ function CreateFlow({ projectId, period, methods, projects, invoices }: Props & 
   const [state, setState] = useState<FlowState>(() => {
     const p = projects.find((x) => x.id === projectId);
     const c = clients.find((x) => x.id === p?.clientId);
-    // The selection is seeded below, once the project's time / milestones / retainer periods have loaded.
+    // The selection is preselected below, once the project's time / milestones / retainer periods have loaded.
     return {
       projectId: p?.id ?? "", selected: [], manual: [newManualRow()], taxMode: "default", taxName: "", taxRate: "0", discount: "0",
       termsDays: c?.termsDays ?? business.defaultTermsDays, methodIds: null, notes: "", paymentInstructions: "",
@@ -96,10 +96,10 @@ function CreateFlow({ projectId, period, methods, projects, invoices }: Props & 
   );
   const items = useMemo(() => (scheduled ? itemsForProject(scheduled, timeQuery.data ?? [], invoices) : []), [scheduled, timeQuery.data, invoices]);
 
-  const seededFor = useRef<string | null>(null);
+  const preselectedFor = useRef<string | null>(null);
   useEffect(() => {
-    if (!scheduled || scheduleLoading || seededFor.current === scheduled.id) return;
-    seededFor.current = scheduled.id;
+    if (!scheduled || scheduleLoading || preselectedFor.current === scheduled.id) return;
+    preselectedFor.current = scheduled.id;
     setState((s) => ({ ...s, selected: initialSelection(items, period, scheduled) }));
   }, [scheduled, scheduleLoading, items, period]);
 
@@ -124,7 +124,7 @@ function CreateFlow({ projectId, period, methods, projects, invoices }: Props & 
   const chooseProject = (id: string) => {
     const p = projects.find((x) => x.id === id);
     const c = clients.find((x) => x.id === p?.clientId);
-    seededFor.current = null; // the effect above picks the new project's ready items once its schedule is in
+    preselectedFor.current = null; // the effect above picks the new project's ready items once its schedule is in
     setState((s) => ({ ...s, projectId: id, selected: [], termsDays: c?.termsDays ?? s.termsDays, methodIds: null }));
     setError(null);
   };

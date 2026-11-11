@@ -3,7 +3,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { getApiErrorStatus } from "@/lib/services/api.service";
-import { createTestQueryClient, mockApi, seedAuth } from "@/lib/test";
+import { createTestQueryClient, mockApi, primeAuth } from "@/lib/test";
 import { paymentMethodResponseFixture, paymentMethodResponses } from "@/lib/test/payment-methods";
 import {
   paymentMethodKeys, useCreatePaymentMethod, useDeletePaymentMethod, usePaymentMethod, usePaymentMethods, useReorderPaymentMethods, useSetDefaultPaymentMethod,
@@ -13,7 +13,7 @@ import {
 let m: ReturnType<typeof mockApi>;
 beforeEach(() => {
   m = mockApi();
-  seedAuth("authenticated");
+  primeAuth("authenticated");
 });
 afterEach(() => m.restore());
 
@@ -67,7 +67,7 @@ describe("usePaymentMethods", () => {
   });
 
   it("does not fetch while signed out", async () => {
-    seedAuth("unauthenticated");
+    primeAuth("unauthenticated");
     const { result } = renderHook(() => usePaymentMethods(), { wrapper: setup().wrapper });
     expect(result.current.fetchStatus).toBe("idle");
     expect(listCalls()).toHaveLength(0);

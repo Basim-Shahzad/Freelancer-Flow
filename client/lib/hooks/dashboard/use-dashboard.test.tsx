@@ -4,14 +4,14 @@ import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { DashboardSummary } from "@/lib/api/dashboard.types";
 import { useActivity } from "@/lib/hooks/activity";
-import { createTestQueryClient, mockApi, profileFixture, seedAuth } from "@/lib/test";
+import { createTestQueryClient, mockApi, profileFixture, primeAuth } from "@/lib/test";
 import { dashboardKeys } from "./keys";
 import { useDashboardSummary } from "./use-dashboard";
 
 let m: ReturnType<typeof mockApi>;
 beforeEach(() => {
   m = mockApi();
-  seedAuth("authenticated");
+  primeAuth("authenticated");
   m.mock.onGet("/profile").reply(200, profileFixture());
   m.mock.onGet("/projects").reply(200, { projects: [], total: 0 });
 });

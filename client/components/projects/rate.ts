@@ -2,7 +2,7 @@ import { daysBetween, fmtDate } from "@/lib/dates";
 import type { FxRates } from "@/lib/api/mappers/exchange-rates";
 import { convertForDisplay, ESTIMATE_LABEL } from "@/lib/fx";
 import { formatMoney } from "@/lib/money";
-import type { InvoiceView } from "@/lib/selectors";
+import type { InvoiceView } from "./logic";
 import { CURRENCIES, type Currency, type ProjectWithSchedule, type TimeEntry } from "@/lib/types";
 import { milestoneTotal } from "./logic";
 

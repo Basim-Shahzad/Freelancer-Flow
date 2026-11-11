@@ -4,7 +4,7 @@ import type { Client } from "@/lib/types";
 const base = { phone: "", address: "", taxId: "", notes: "", createdAt: "2026-01-01T00:00:00.000Z" } as const;
 
 /**
- * Clients matching the ids that the (still mocked) seed projects, time and invoices point at, for pure-logic
+ * Clients matching the ids that the fixture projects, time and invoices point at, for pure-logic
  * tests that join on `clientId`. The app itself gets clients from the API (`useClients` / `useClientOptions`).
  */
 export const testClients: Client[] = [
@@ -15,7 +15,7 @@ export const testClients: Client[] = [
   { ...base, id: "c-kareem", name: "Imran Kareem", companyName: "Kareem & Co.", email: "imran@kareem.example", whatsapp: "+971555550129", currency: "USD", termsDays: 14 },
 ];
 
-/** `testClients` as `GET /clients` items, for mocking the API or seeding the query cache. */
+/** `testClients` as `GET /clients` items, for mocking the API or priming the query cache. */
 export const testClientItems: ClientListItem[] = testClients.map((c) => ({
   id: c.id, name: c.name, email: c.email, phone: null, whatsappNumber: c.whatsapp, company: c.companyName, taxId: null, createdAt: c.createdAt, projects: [],
 }));

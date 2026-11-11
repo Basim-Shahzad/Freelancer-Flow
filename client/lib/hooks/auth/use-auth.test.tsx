@@ -3,7 +3,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { useAuthStore } from "@/lib/store/auth";
-import { createTestQueryClient, mockApi, seedAuth } from "@/lib/test";
+import { createTestQueryClient, mockApi, primeAuth } from "@/lib/test";
 import { useAuthBootstrap, useChangePassword, useLogin, useLogout, useLogoutAll } from "./use-auth";
 
 let m: ReturnType<typeof mockApi>;
@@ -11,7 +11,7 @@ const wrapper = ({ children }: { children: ReactNode }) => <QueryClientProvider 
 
 beforeEach(() => {
   m = mockApi();
-  seedAuth("authenticated");
+  primeAuth("authenticated");
 });
 afterEach(() => m.restore());
 

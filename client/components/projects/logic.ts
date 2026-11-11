@@ -1,12 +1,19 @@
 import { format, startOfWeek } from "date-fns";
 import { fmtDate, isoDate, parse } from "@/lib/dates";
-import { isLive } from "@/lib/invoice";
 import { formatHours, formatMoney } from "@/lib/money";
-import type { InvoiceView } from "@/lib/selectors";
+import { calcTotals, isLive } from "@/lib/invoice";
 import type { Stage } from "@/components/domain/stage-thread";
-import type { BillingType, ChangeRequest, ChangeRequestStatus, Milestone, MilestoneStatus, Project, ProjectStatus, ProjectWithSchedule, RetainerInterval, TimeEntry } from "@/lib/types";
+import type { BillingType, Client, Invoice, InvoiceStatus, ChangeRequest, ChangeRequestStatus, Milestone, MilestoneStatus, Project, ProjectStatus, ProjectWithSchedule, RetainerInterval, TimeEntry } from "@/lib/types";
 
 /** Pure project helpers: labels, stage derivation, progress, unbilled work. */
+
+/** An invoice with its derived status and totals, as the rate and billing helpers consume it. */
+export interface InvoiceView extends Invoice {
+  display: InvoiceStatus;
+  totals: ReturnType<typeof calcTotals>;
+  client?: Client;
+  project?: Project;
+}
 
 export const BILLING_LABEL: Record<BillingType, string> = {
   fixed: "Fixed price",

@@ -2,7 +2,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { renderHook, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createTestQueryClient, mockApi, profileFixture, seedAuth } from "@/lib/test";
+import { createTestQueryClient, mockApi, profileFixture, primeAuth } from "@/lib/test";
 import { router } from "@/lib/test/navigation";
 import { useAuthStore } from "@/lib/store/auth";
 import { useAuthGate } from "./use-auth-gate";
@@ -40,7 +40,7 @@ describe("useAuthGate({ require: 'app' })", () => {
   });
 
   it("stays not ready, without redirecting, until the profile has loaded", async () => {
-    seedAuth("authenticated");
+    primeAuth("authenticated");
     const { result } = useGate({ require: "app" });
     expect(result.current).toBe(false);
     expect(router.replace).not.toHaveBeenCalled();
@@ -48,14 +48,14 @@ describe("useAuthGate({ require: 'app' })", () => {
   });
 
   it("is ready for an authenticated, onboarded user", async () => {
-    seedAuth("authenticated");
+    primeAuth("authenticated");
     const { result } = useGate({ require: "app" });
     await waitFor(() => expect(result.current).toBe(true));
     expect(router.replace).not.toHaveBeenCalled();
   });
 
   it("sends signed-out users to /login with next", () => {
-    seedAuth("unauthenticated");
+    primeAuth("unauthenticated");
     const { result } = useGate({ require: "app" });
     expect(result.current).toBe(false);
     expect(router.replace).toHaveBeenCalledWith("/login?next=%2Fprojects%3Ftab%3Dtime");
@@ -63,7 +63,7 @@ describe("useAuthGate({ require: 'app' })", () => {
   });
 
   it("sends users who signed out themselves to plain /login", () => {
-    seedAuth("unauthenticated");
+    primeAuth("unauthenticated");
     useAuthStore.setState({ signOutReason: "manual" });
     useGate({ require: "app" });
     expect(router.replace).toHaveBeenCalledWith("/login");
@@ -71,7 +71,7 @@ describe("useAuthGate({ require: 'app' })", () => {
   });
 
   it("toasts once and keeps next when the session expired", () => {
-    seedAuth("unauthenticated");
+    primeAuth("unauthenticated");
     useAuthStore.setState({ signOutReason: "expired" });
     const { rerender } = useGate({ require: "app" });
     rerender();
@@ -82,7 +82,7 @@ describe("useAuthGate({ require: 'app' })", () => {
   });
 
   it("sends authenticated users with an incomplete profile to /onboarding", async () => {
-    seedAuth("authenticated");
+    primeAuth("authenticated");
     m.mock.reset();
     setProfile(false);
     const { result } = useGate({ require: "app" });
@@ -91,7 +91,7 @@ describe("useAuthGate({ require: 'app' })", () => {
   });
 
   it("does not carry an auth page into next", async () => {
-    seedAuth("authenticated");
+    primeAuth("authenticated");
     m.mock.reset();
     setProfile(false);
     window.history.replaceState(null, "", "/login");
@@ -102,7 +102,7 @@ describe("useAuthGate({ require: 'app' })", () => {
 
 describe("useAuthGate({ require: 'onboarding' })", () => {
   it("is ready for authenticated users whose profile is incomplete", async () => {
-    seedAuth("authenticated");
+    primeAuth("authenticated");
     m.mock.reset();
     setProfile(false);
     const { result } = useGate({ require: "onboarding" });
@@ -110,20 +110,20 @@ describe("useAuthGate({ require: 'onboarding' })", () => {
   });
 
   it("sends onboarded users to the dashboard", async () => {
-    seedAuth("authenticated");
+    primeAuth("authenticated");
     useGate({ require: "onboarding" });
     await waitFor(() => expect(router.replace).toHaveBeenCalledWith("/dashboard"));
   });
 
   it("does not redirect while suspended (wizard is finishing)", async () => {
-    seedAuth("authenticated");
+    primeAuth("authenticated");
     const { result } = useGate({ require: "onboarding", suspended: { current: true } });
     await waitFor(() => expect(result.current).toBe(true));
     expect(router.replace).not.toHaveBeenCalled();
   });
 
   it("sends signed-out users to /login without next", () => {
-    seedAuth("unauthenticated");
+    primeAuth("unauthenticated");
     useGate({ require: "onboarding" });
     expect(router.replace).toHaveBeenCalledWith("/login");
   });

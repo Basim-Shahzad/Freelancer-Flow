@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { TimeEntryResponse } from "@/lib/api/time-entries.types";
 import { getApiErrorMessage, getApiErrorStatus } from "@/lib/services/api.service";
-import { createTestQueryClient, mockApi, seedAuth } from "@/lib/test";
+import { createTestQueryClient, mockApi, primeAuth } from "@/lib/test";
 import { runningEntryFixture, timeEntryFixture, timeEntryResponseFixture } from "@/lib/test/time-entries";
 import { useAppStore } from "@/lib/store";
 import { useOutbox } from "@/lib/time/outbox-store";
@@ -16,7 +16,7 @@ import {
 let m: ReturnType<typeof mockApi>;
 beforeEach(() => {
   m = mockApi();
-  seedAuth("authenticated");
+  primeAuth("authenticated");
   useOutbox.getState().reset();
   localStorage.clear();
   useAppStore.setState({ online: true });

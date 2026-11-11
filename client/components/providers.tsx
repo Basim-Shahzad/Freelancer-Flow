@@ -8,16 +8,17 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuthBootstrap } from "@/lib/hooks/auth";
 import { useTimeSync } from "@/lib/hooks/time-entries";
 import { useOnlineSync } from "@/lib/hooks/use-online";
-import { useAppStore } from "@/lib/store";
 
-/** Loads persisted data after mount (avoids SSR hydration mismatches) and tracks connectivity. */
-function StoreBootstrap() {
-  useEffect(() => {
-    const done = () => useAppStore.getState().setHydrated(true);
-    const p = useAppStore.persist.rehydrate();
-    if (p && typeof (p as Promise<void>).then === "function") (p as Promise<void>).then(done, done);
-    else done();
-  }, []);
+/** Removed mock-store persistence key; cleared once so stale demo data does not linger in browsers. */
+const LEGACY_STORE_KEY = "paylancr-v1";
+
+export function clearLegacyStore() {
+  try { localStorage.removeItem(LEGACY_STORE_KEY); } catch { /* storage unavailable */ }
+}
+
+/** Tracks connectivity, bootstraps auth and flushes the time outbox. */
+function AppBootstrap() {
+  useEffect(clearLegacyStore, []);
   useOnlineSync();
   useAuthBootstrap();
   useTimeSync();
@@ -32,7 +33,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
     <QueryClientProvider client={queryClient}>
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
       <TooltipProvider delayDuration={200}>
-        <StoreBootstrap />
+        <AppBootstrap />
         {children}
         <Toaster
           position="bottom-center"

@@ -41,7 +41,7 @@ const testBase = { description: "", milestonesEnabled: false, totalTimeSpentMinu
 const ref = (id: string, name: string) => ({ clientId: id, client: { id, name } });
 
 /**
- * Projects matching the ids that the (still mocked) seed invoices and time point at, for pure-logic tests that
+ * Projects matching the ids that the fixture invoices and time point at, for pure-logic tests that
  * join on `projectId`. The app itself gets projects from the API (`useProjects` / `useProjectOptions`).
  */
 export const testProjects: Project[] = [

@@ -3,7 +3,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { getApiErrorStatus } from "@/lib/services/api.service";
-import { createTestQueryClient, mockApi, profileFixture, seedAuth } from "@/lib/test";
+import { createTestQueryClient, mockApi, profileFixture, primeAuth } from "@/lib/test";
 import { periodResponseFixture, projectResponseFixture } from "@/lib/test/projects";
 import { projectKeys, useCreateProject, useDeleteProject, useProject, useProjectOptions, useProjects, useRetainerPeriods, useUpdateProject } from "./use-projects";
 import { responseToProject } from "@/lib/api/mappers/projects";
@@ -11,7 +11,7 @@ import { responseToProject } from "@/lib/api/mappers/projects";
 let m: ReturnType<typeof mockApi>;
 beforeEach(() => {
   m = mockApi();
-  seedAuth("authenticated");
+  primeAuth("authenticated");
   m.mock.onGet("/profile").reply(200, profileFixture());
 });
 afterEach(() => m.restore());

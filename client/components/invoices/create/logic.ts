@@ -5,7 +5,7 @@ import { lineAmount, previewTotals } from "@/lib/invoice";
 import type { DocInvoice } from "@/lib/invoice-doc";
 import { formatHours, formatMoney, parseAmount } from "@/lib/money";
 import { getApiErrorMessage, getApiErrorStatus } from "@/lib/services/api.service";
-import { uid } from "@/lib/store";
+import { uid } from "@/lib/id";
 import type { InvoiceDetail, InvoiceLine, PaymentMethod, Project, ProjectWithSchedule, TimeEntry } from "@/lib/types";
 
 /** Pure logic for the 5-step invoice builder: items per billing type, manual lines, validation, the API payload and a live preview. */

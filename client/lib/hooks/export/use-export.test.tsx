@@ -3,12 +3,12 @@ import * as React from "react";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useAuthStore } from "@/lib/store/auth";
-import { createTestQueryClient, mockApi, seedAuth } from "@/lib/test";
+import { createTestQueryClient, mockApi, primeAuth } from "@/lib/test";
 import { exportErrorMessage, useExportData } from "./use-export";
 
 let m: ReturnType<typeof mockApi>;
 beforeEach(() => {
-  m = mockApi(); seedAuth();
+  m = mockApi(); primeAuth();
   URL.createObjectURL = vi.fn(() => "blob:x"); URL.revokeObjectURL = vi.fn();
 });
 afterEach(() => m.restore());

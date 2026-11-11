@@ -14,7 +14,7 @@ let m: ReturnType<typeof mockApi>;
 beforeEach(() => {
   vi.clearAllMocks();
   m = mockApi();
-  useAppStore.setState({ online: true, hydrated: true });
+  useAppStore.setState({ online: true });
   m.mock.onGet("/profile").reply(200, profileFixture({ businessName: null }));
   window.history.replaceState(null, "", "/login");
 });

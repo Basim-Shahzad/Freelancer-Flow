@@ -34,11 +34,11 @@ export function TodayCard({ today, unbilledMinutes, summaryTimer = null, classNa
   const time = useMemo(() => allTime ?? [], [allTime]);
   const stopTimer = useStopTimer();
   const { error } = useApiToast();
-  const seed = query.isPending ? summaryTimer : null;
-  const isRunning = Boolean(running ?? seed);
-  const startedAt = running?.startAt ?? seed?.startAt;
-  const timerProjectId = running?.projectId ?? seed?.projectId;
-  const timerDescription = running?.description ?? seed?.description ?? "";
+  const pending = query.isPending ? summaryTimer : null;
+  const isRunning = Boolean(running ?? pending);
+  const startedAt = running?.startAt ?? pending?.startAt;
+  const timerProjectId = running?.projectId ?? pending?.projectId;
+  const timerDescription = running?.description ?? pending?.description ?? "";
   const elapsed = useElapsed(startedAt, isRunning);
 
   const project = projects.find((p) => p.id === timerProjectId);
