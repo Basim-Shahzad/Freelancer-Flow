@@ -9,6 +9,7 @@ import { useBusiness } from "@/lib/hooks/profile";
 import { useSession } from "@/lib/hooks/auth/use-auth";
 import { clientsService } from "@/lib/services/clients.service";
 import type { Client } from "@/lib/types";
+import { STALE } from "@/lib/hooks/stale-times";
 
 export const CLIENTS_PAGE_SIZE = 20;
 const OPTIONS_PAGE_SIZE = 100;
@@ -127,7 +128,7 @@ export function useClientOptions(): ClientOptions {
     queryKey: clientKeys.options(),
     queryFn: fetchAllClients,
     enabled: isAuthenticated,
-    staleTime: 5 * 60_000,
+    staleTime: STALE.STABLE,
   });
   const clients = useMemo(() => (query.data ? query.data.items.map((i) => listItemToClient(i, defaults)) : NONE), [query.data, defaults]);
   const byId = useMemo(() => new Map(clients.map((c) => [c.id, c])), [clients]);

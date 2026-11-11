@@ -6,10 +6,9 @@ import type { ExchangeRatesResponse } from "@/lib/api/exchange-rates.types";
 import { type FxRates, portalRates, toFxRates } from "@/lib/api/mappers/exchange-rates";
 import { exchangeRatesService } from "@/lib/services/exchange-rates.service";
 import { useSession } from "@/lib/hooks/auth/use-auth";
+import { STALE } from "@/lib/hooks/stale-times";
 
 export const exchangeRateKeys = { all: ["exchangeRates"] as const, latest: ["exchangeRates", "latest"] as const };
-
-const SIX_HOURS = 6 * 60 * 60_000;
 
 /** Reference rates for the signed-in app. Rates move daily, so they stay fresh for hours and never refetch on focus. */
 export function useExchangeRates() {
@@ -18,7 +17,7 @@ export function useExchangeRates() {
     queryKey: exchangeRateKeys.latest,
     queryFn: exchangeRatesService.get,
     enabled: isAuthenticated,
-    staleTime: SIX_HOURS,
+    staleTime: STALE.REFERENCE,
     gcTime: 24 * 60 * 60_000,
     refetchOnWindowFocus: false,
     select: toFxRates,

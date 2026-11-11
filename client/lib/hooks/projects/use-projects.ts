@@ -9,6 +9,7 @@ import { useSession } from "@/lib/hooks/auth/use-auth";
 import { useBusiness } from "@/lib/hooks/profile";
 import { projectsService } from "@/lib/services/projects.service";
 import type { Currency, Project } from "@/lib/types";
+import { STALE } from "@/lib/hooks/stale-times";
 
 export const PROJECTS_PAGE_SIZE = 20;
 const OPTIONS_PAGE_SIZE = 100;
@@ -149,7 +150,7 @@ export function useProjectOptions(): ProjectOptions {
     queryKey: projectKeys.options(),
     queryFn: fetchAllProjects,
     enabled: isAuthenticated,
-    staleTime: 5 * 60_000,
+    staleTime: STALE.STABLE,
   });
   const projects = useMemo(() => (query.data ? query.data.items.map((i) => responseToProject(i, fallback)) : NONE), [query.data, fallback]);
   const byId = useMemo(() => new Map(projects.map((p) => [p.id, p])), [projects]);

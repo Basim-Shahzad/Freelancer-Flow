@@ -9,6 +9,7 @@ import { useInvoices } from "@/lib/hooks/invoices";
 import { useProjectOptions } from "@/lib/hooks/projects";
 import { dashboardService } from "@/lib/services/dashboard.service";
 import { dashboardKeys } from "./keys";
+import { STALE } from "@/lib/hooks/stale-times";
 
 /** Server-computed figures, grouped by currency. Currency-less unbilled rows resolve through the project list. */
 export function useDashboardSummary() {
@@ -18,7 +19,7 @@ export function useDashboardSummary() {
     queryKey: dashboardKeys.summary(),
     queryFn: dashboardService.summary,
     enabled: isAuthenticated,
-    staleTime: 30_000,
+    staleTime: STALE.LIVE,
     placeholderData: keepPreviousData,
   });
   const data = useMemo(() => (query.data ? mapDashboardSummary(query.data, (id) => byId.get(id)?.currency) : undefined), [query.data, byId]);

@@ -7,6 +7,7 @@ import { useSession } from "@/lib/hooks/auth/use-auth";
 import { projectKeys } from "@/lib/hooks/projects";
 import { milestonesService } from "@/lib/services/milestones.service";
 import type { Currency } from "@/lib/types";
+import { STALE } from "@/lib/hooks/stale-times";
 
 export const milestoneKeys = {
   all: ["milestones"] as const,
@@ -23,6 +24,7 @@ export function useMilestones(projectId: string | undefined, currency: Currency,
     queryKey: milestoneKeys.list(projectId ?? ""),
     queryFn: () => milestonesService.list(projectId ?? ""),
     enabled: isAuthenticated && !!projectId && enabled,
+    staleTime: STALE.LIVE,
     select: (rows) => rows.map((r) => responseToMilestone(r, currency)),
   });
 }

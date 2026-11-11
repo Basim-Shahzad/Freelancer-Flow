@@ -6,6 +6,7 @@ import type { ChangePasswordInput, LoginInput, RegisterInput } from "@/lib/api/t
 import { refreshAccessToken } from "@/lib/services/api.service";
 import { authService } from "@/lib/services/auth.service";
 import { useAuthStore } from "@/lib/store/auth";
+import { STALE } from "@/lib/hooks/stale-times";
 
 export const authKeys = { me: ["auth", "me"] as const };
 
@@ -28,7 +29,7 @@ export function useMe() {
     queryKey: authKeys.me,
     queryFn: authService.me,
     enabled: !!token,
-    staleTime: 5 * 60_000,
+    staleTime: STALE.STABLE,
   });
   useEffect(() => {
     if (query.data) useAuthStore.getState().setUser(query.data);

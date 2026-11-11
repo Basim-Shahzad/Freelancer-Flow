@@ -10,6 +10,7 @@ import { projectKeys } from "@/lib/hooks/projects";
 import { timeKeys } from "@/lib/hooks/time-entries/keys";
 import { invoicesService } from "@/lib/services/invoices.service";
 import type { InvoiceDetail, InvoiceStatus } from "@/lib/types";
+import { STALE } from "@/lib/hooks/stale-times";
 
 export const INVOICES_PAGE_SIZE = 20;
 const OPTIONS_PAGE_SIZE = 100;
@@ -83,6 +84,7 @@ export function useInvoices(filters: InvoiceFilters = {}) {
       return last.items.length > 0 && loaded < last.total ? last.next : undefined;
     },
     placeholderData: keepPreviousData,
+    staleTime: STALE.LIVE,
     enabled: isAuthenticated,
     select: (data) => ({
       invoices: data.pages.flatMap((p) => p.items.map(responseToInvoice)),
@@ -97,6 +99,7 @@ export function useInvoice(id: string | undefined) {
     queryKey: invoiceKeys.detail(id ?? ""),
     queryFn: () => invoicesService.get(id ?? ""),
     enabled: isAuthenticated && !!id,
+    staleTime: STALE.LIVE,
     select: responseToInvoice,
   });
 }
@@ -129,7 +132,7 @@ const NONE: InvoiceDetail[] = [];
 /** Every invoice, for screens that need to resolve or total them all (pages 100 at a time; cached and shared). */
 export function useInvoiceOptions() {
   const { isAuthenticated } = useSession();
-  const query = useQuery({ queryKey: invoiceKeys.options(), queryFn: fetchAllInvoices, enabled: isAuthenticated, staleTime: 5 * 60_000 });
+  const query = useQuery({ queryKey: invoiceKeys.options(), queryFn: fetchAllInvoices, enabled: isAuthenticated, staleTime: STALE.STABLE });
   const invoices = useMemo(() => (query.data ? query.data.items.map(responseToInvoice) : NONE), [query.data]);
   const byId = useMemo(() => new Map(invoices.map((i) => [i.id, i])), [invoices]);
   return { invoices, byId, isLoading: query.isLoading, isError: query.isError };

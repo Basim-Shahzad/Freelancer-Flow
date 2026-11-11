@@ -18,6 +18,7 @@ import type { TimeEntry } from "@/lib/types";
 import { timeKeys } from "./keys";
 import { dashboardKeys } from "@/lib/hooks/dashboard/keys";
 import { flushOutbox } from "./sync";
+import { STALE } from "@/lib/hooks/stale-times";
 
 export { timeKeys } from "./keys";
 
@@ -82,7 +83,7 @@ export function useRunningTimer(currencyOf?: CurrencyOf) {
     queryFn: () => timeEntriesService.running(),
     enabled: isAuthenticated,
     refetchOnWindowFocus: true,
-    staleTime: 0,
+    staleTime: STALE.ALWAYS_FRESH,
   });
   const server = useMemo(() => (query.data ? responseToTimeEntry(query.data, currencyOf) : null), [query.data, currencyOf]);
   const running = useMemo(() => resolveRunning(server, queue), [server, queue]);
@@ -271,7 +272,7 @@ export function useAllTimeEntries(projectIds: string[], currencyOf?: CurrencyOf)
       queryKey: timeKeys.project(id),
       queryFn: () => fetchAllForProject(id),
       enabled: isAuthenticated,
-      staleTime: 30_000,
+      staleTime: STALE.LIVE,
     })),
     combine: combineProjects,
   });

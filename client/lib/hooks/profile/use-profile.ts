@@ -7,6 +7,7 @@ import type { ProfileResponse, ProfileUpdate } from "@/lib/api/profile.types";
 import { profileService } from "@/lib/services/profile.service";
 import type { BusinessProfile } from "@/lib/types";
 import { useSession } from "@/lib/hooks/auth/use-auth";
+import { STALE } from "@/lib/hooks/stale-times";
 
 export const profileKeys = { all: ["profile"] as const, detail: ["profile", "detail"] as const };
 
@@ -17,7 +18,7 @@ export function useProfile() {
     queryKey: profileKeys.detail,
     queryFn: profileService.get,
     enabled: isAuthenticated,
-    staleTime: 5 * 60_000,
+    staleTime: STALE.STABLE,
   });
 }
 

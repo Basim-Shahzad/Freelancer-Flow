@@ -4,6 +4,7 @@ import { keepPreviousData, useInfiniteQuery, useQuery } from "@tanstack/react-qu
 import { toActivityParams, type ActivityFilter } from "@/lib/api/mappers/activity";
 import { useSession } from "@/lib/hooks/auth/use-auth";
 import { activityService, type ActivityParams } from "@/lib/services/activity.service";
+import { STALE } from "@/lib/hooks/stale-times";
 
 export const activityKeys = {
   all: ["activity"] as const,
@@ -19,7 +20,7 @@ export function useActivity(params: ActivityParams = {}, enabled = true) {
     queryFn: () => activityService.list(params),
     enabled: isAuthenticated && enabled,
     placeholderData: keepPreviousData,
-    staleTime: 30_000,
+    staleTime: STALE.LIVE,
   });
 }
 
@@ -34,6 +35,6 @@ export function useActivityFeed(filter: ActivityFilter) {
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (last) => last.nextCursor ?? undefined,
     enabled: isAuthenticated,
-    staleTime: 30_000,
+    staleTime: STALE.LIVE,
   });
 }
