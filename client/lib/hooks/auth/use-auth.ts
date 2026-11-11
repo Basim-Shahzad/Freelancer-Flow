@@ -6,6 +6,7 @@ import type { ChangePasswordInput, LoginInput, RegisterInput } from "@/lib/api/t
 import { refreshAccessToken } from "@/lib/services/api.service";
 import { authService } from "@/lib/services/auth.service";
 import { useAuthStore } from "@/lib/store/auth";
+import { useOutbox } from "@/lib/time/outbox-store";
 import { STALE } from "@/lib/hooks/stale-times";
 
 export const authKeys = { me: ["auth", "me"] as const };
@@ -98,6 +99,8 @@ function useSignedOut() {
   return () => {
     useAuthStore.getState().clear("manual");
     qc.clear();
+    // Queued time entries are user data: a deliberate sign-out must not leave them for the next person on this device.
+    useOutbox.getState().reset();
   };
 }
 

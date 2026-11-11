@@ -3,6 +3,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { useAuthStore } from "@/lib/store/auth";
+import { useOutbox } from "@/lib/time/outbox-store";
 import { createTestQueryClient, mockApi, primeAuth } from "@/lib/test";
 import { useAuthBootstrap, useChangePassword, useLogin, useLogout, useLogoutAll } from "./use-auth";
 
@@ -36,6 +37,14 @@ describe("sign-out hooks", () => {
     await act(() => result.current.mutateAsync().catch(() => undefined));
     await waitFor(() => expect(useAuthStore.getState().status).toBe("unauthenticated"));
     expect(useAuthStore.getState().signOutReason).toBe("manual");
+  });
+
+  it("useLogout clears the persisted time outbox", async () => {
+    useOutbox.setState({ items: [{ id: "q1" } as never] });
+    m.mock.onPost("/auth/logout").reply(200, {});
+    const { result } = renderHook(() => useLogout(), { wrapper });
+    await act(() => result.current.mutateAsync());
+    expect(useOutbox.getState().items).toHaveLength(0);
   });
 });
 
