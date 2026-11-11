@@ -31,6 +31,6 @@ export function pickPreviewInvoice(invoices: Invoice[]): Invoice | undefined {
 export function sampleInvoice(business: BusinessProfile): Invoice {
   return {
     id: "sample", number: formatInvoiceNumber(business.invoicePrefix, business.nextInvoiceNumber), clientId: "", currency: business.defaultCurrency,
-    status: "unpaid", issueDate: todayISO(), dueDate: todayISO(), lines: [], taxPercent: 0, discount: 0, paymentMethodIds: [], note: "", shareToken: "sample", payments: [], events: [],
+    status: "unpaid", issueDate: todayISO(), dueDate: todayISO(), lines: [], taxPercent: 0, discount: 0, paymentMethodIds: [], note: "", payments: [], events: [],
   };
 }

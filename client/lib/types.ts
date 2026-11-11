@@ -150,53 +150,6 @@ export interface Project {
 /** A project with its milestones and (retainer) periods, for the logic that needs them. */
 export type ProjectWithSchedule = Project & { milestones: Milestone[]; retainerPeriods: RetainerPeriod[] };
 
-/**
- * The client-portal project (`/p/[token]`). The portal has no account, so it stays on this mock shape until
- * step 13 gives it a token-based API. Not related to the authenticated `Project`.
- */
-export type PortalMilestoneStatus = "upcoming" | "awaiting_approval" | "approved" | "changes_requested";
-
-export interface PortalMilestone {
-  id: string;
-  title: string;
-  description: string;
-  amount: number;
-  dueDate: string;
-  status: PortalMilestoneStatus;
-  approvedAt?: string;
-  /** Client comment left when requesting changes. */
-  comment?: string;
-  invoiceId?: string;
-}
-
-export interface PortalRetainerPeriod {
-  id: string;
-  label: string;
-  start: string;
-  end: string;
-  amount: number;
-  invoiceId?: string;
-}
-
-export interface PortalProject {
-  id: string;
-  clientId: string;
-  name: string;
-  billingType: BillingType;
-  currency: Currency;
-  status: "active" | "paused" | "completed";
-  startDate: string;
-  hourlyRate?: number;
-  fixedAmount?: number;
-  retainerAmount?: number;
-  retainerHours?: number;
-  progress?: number;
-  milestones: PortalMilestone[];
-  retainerPeriods: PortalRetainerPeriod[];
-  shareToken: string;
-  notes: string;
-}
-
 export interface TimeEntry {
   id: string;
   projectId?: string;
@@ -390,7 +343,6 @@ export interface Invoice {
   discount: number;
   paymentMethodIds: string[];
   note: string;
-  shareToken: string;
   payments: Payment[];
   events: InvoiceEvent[];
   writtenOffAt?: string;

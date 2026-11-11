@@ -6,7 +6,7 @@ const base: Invoice = {
   id: "i1", number: "INV-0001", clientId: "c1", currency: "USD", status: "unpaid",
   issueDate: "2026-10-01", dueDate: "2026-10-15",
   lines: [{ id: "l1", description: "Work", qty: 25, rate: 4500 }, { id: "l2", description: "Workshop", qty: 1, rate: 12500 }],
-  taxPercent: 0, discount: 0, paymentMethodIds: [], note: "", shareToken: "t", payments: [], events: [],
+  taxPercent: 0, discount: 0, paymentMethodIds: [], note: "", payments: [], events: [],
 };
 
 describe("calcTotals", () => {

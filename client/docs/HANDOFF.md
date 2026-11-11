@@ -47,7 +47,7 @@ Known: dashboard "Active projects" card still has small progress bars; seed has 
 
 `GET/PATCH /profile` is the source of truth for the business profile; read it through `useBusiness()` (view model) / `useProfile()` (query state) in `lib/hooks/profile`. `ownerName` and `email` come from the signed-in user. "Onboarded" is derived: the profile has a `businessName` (`useOnboarded()`).
 
-The API has no home for `phone`, `footerNote`, `logoName`, `invoicePrefix` and `nextInvoiceNumber` (`invoiceNumberFormat` is a different shape). They stay in the persisted store as `businessLocal` (persist version 3), so they do **not** follow the user across devices. The token-based client portal still reads the demo `seedBusiness` until step 13.
+The API has no home for `phone`, `footerNote`, `logoName`, `invoicePrefix` and `nextInvoiceNumber` (`invoiceNumberFormat` is a different shape). They stay in the persisted store as `businessLocal` (persist version 3), so they do **not** follow the user across devices. The client portal takes the business identity from the invoice's `issuer`.
 
 ## Clients (API-backed since step 4)
 
@@ -120,3 +120,5 @@ Backend gaps to raise: no internal (project-less) time, no list-all endpoint (de
 - **Edit draft** sends only changed fields among `issueDate`, `dueDate`, `taxes`, `taxNote`, `discountRate`, `notes`, `paymentInstructions`, `paymentMethodIds`. Line items, time, milestones and the project cannot change, so the dialog offers **Delete the draft and recreate it** (deletes, then opens `/invoices/new?projectId=…&period=…`). Existing tax lines and methods are kept unless replaced: the API's snapshot ids are not the saved methods' ids, so methods are re-picked from the saved list. **Delete draft** is in the More menu (drafts only).
 
 Backend gaps to raise: no `openapi.json` is checked in (wire types were taken from the server schemas), the list cannot filter by several statuses at once, and `search` matches the invoice number only.
+
+- Step 13: the client portal runs on the token-based `/portal/*` API (`portalApi`, `lib/hooks/portal`). Mock `portalProjects`, their actions and `Invoice.shareToken` are gone (persist version 8). `PortalProjectResponse` has no milestones or invoices, so `/p/{id}` is a summary and approve/reject lives on `/m/{id}`. `/portal/convert` is sent the page token; check against the real backend which token it accepts.

@@ -1,6 +1,6 @@
 import { daysFromToday as d } from "./dates";
 import type {
-  BusinessLocal, BusinessProfile, Invoice, PortalProject, TimeEntry,
+  BusinessLocal, BusinessProfile, Invoice, TimeEntry,
 } from "./types";
 
 /**
@@ -10,7 +10,7 @@ import type {
 const ts = (days: number, hm = "10:00") => `${d(days)}T${hm}:00.000Z`;
 const ev = (id: string, type: Invoice["events"][number]["type"], days: number, label: string, hm = "10:00") => ({ id, type, at: ts(days, hm), label });
 
-/** Demo business for the token-based client portal, which has no account and stays on mock data until step 13. */
+/** Demo business used by previews and tests. */
 export const seedBusiness: BusinessProfile = {
   businessName: "Malik Studio", ownerName: "Ayesha Malik", email: "ayesha@maliks.studio", phone: "+92 300 5550214",
   taxId: "1234567-8", address: "Gulberg III, Lahore, Pakistan", defaultCurrency: "USD", defaultTermsDays: 14,
@@ -21,105 +21,71 @@ export const seedBusinessLocal: BusinessLocal = {
   phone: seedBusiness.phone, footerNote: seedBusiness.footerNote, invoicePrefix: seedBusiness.invoicePrefix, nextInvoiceNumber: seedBusiness.nextInvoiceNumber,
 };
 
-/** Projects for the token-based client portal (`/p/[token]`); the authenticated app reads projects from the API. */
-export const seedPortalProjects: PortalProject[] = [
-  {
-    id: "p-harbor", clientId: "c-harbor", name: "Mobile app", billingType: "hourly", currency: "USD", status: "active",
-    startDate: d(-110), hourlyRate: 4500, progress: 60, milestones: [], retainerPeriods: [], shareToken: "harbor-mobile-7Kq2", notes: "Checkout, onboarding and settings.",
-  },
-  {
-    id: "p-gulberg", clientId: "c-gulberg", name: "Brand site", billingType: "milestone", currency: "PKR", status: "active",
-    startDate: d(-80), notes: "Marketing site for the new textile line.", shareToken: "gulberg-brand-9Xr4", retainerPeriods: [],
-    milestones: [
-      { id: "m-1", title: "Brand discovery", description: "Workshops, moodboards and a brand direction.", amount: 18500000, dueDate: d(-32), status: "approved", approvedAt: ts(-37), invoiceId: "inv-39" },
-      { id: "m-2", title: "Design approved", description: "Final homepage and inner-page designs for desktop and mobile, with the brand guide.", amount: 8500000, dueDate: d(7), status: "awaiting_approval" },
-      { id: "m-3", title: "Build handover", description: "Production build, CMS handover and a walkthrough.", amount: 10000000, dueDate: d(35), status: "upcoming" },
-    ],
-  },
-  {
-    id: "p-alnoor", clientId: "c-alnoor", name: "Retainer", billingType: "retainer", currency: "USD", status: "active",
-    startDate: d(-65), retainerAmount: 130000, retainerHours: 12, notes: "12 hours a month of design support.", shareToken: "alnoor-retainer-3Mt8", milestones: [],
-    retainerPeriods: [
-      { id: "rp-aug", label: "Aug 2026", start: "2026-08-01", end: "2026-08-31", amount: 130000, invoiceId: "inv-35" },
-      { id: "rp-sep", label: "Sep 2026", start: "2026-09-01", end: "2026-09-30", amount: 130000, invoiceId: "inv-43" },
-      { id: "rp-oct", label: "Oct 2026", start: "2026-10-01", end: "2026-10-31", amount: 130000, invoiceId: "inv-45" },
-    ],
-  },
-  {
-    id: "p-dua", clientId: "c-dua", name: "Logo refresh", billingType: "fixed", currency: "PKR", status: "active",
-    startDate: d(-40), fixedAmount: 18000000, progress: 75, notes: "Logo, palette and a one-page guideline.", shareToken: "dua-logo-5Hn1", milestones: [], retainerPeriods: [],
-  },
-  {
-    id: "p-kareem", clientId: "c-kareem", name: "Pitch deck", billingType: "fixed", currency: "USD", status: "completed",
-    startDate: d(-150), fixedAmount: 240000, progress: 100, notes: "", shareToken: "kareem-deck-2Wd6", milestones: [], retainerPeriods: [],
-  },
-];
-
 const line = (id: string, description: string, qty: number, rate: number, type: "time" | "milestone" | "retainer" | "manual", refId?: string) => ({ id, description, qty, rate, source: { type, refId } });
 
 export const seedInvoices: Invoice[] = [
   {
     id: "inv-45", number: "INV-0045", clientId: "c-alnoor", projectId: "p-alnoor", currency: "USD", status: "draft",
     issueDate: d(0), dueDate: d(7), lines: [line("l45a", "Retainer · Oct 2026", 1, 130000, "retainer", "rp-oct")],
-    taxPercent: 0, discount: 0, paymentMethodIds: ["pm-payoneer"], note: "", shareToken: "inv45-Qp0Z", payments: [],
+    taxPercent: 0, discount: 0, paymentMethodIds: ["pm-payoneer"], note: "",  payments: [],
     events: [ev("e45a", "created", 0, "Draft created", "09:05")],
   },
   {
     id: "inv-44", number: "INV-0044", clientId: "c-dua", projectId: "p-dua", currency: "PKR", status: "unpaid",
     issueDate: d(-6), dueDate: d(1), lines: [line("l44a", "Logo refresh · design delivery", 1, 9000000, "manual")],
-    taxPercent: 0, discount: 0, paymentMethodIds: ["pm-pkrbank", "pm-raast"], note: "", shareToken: "inv44-Lm3V",
+    taxPercent: 0, discount: 0, paymentMethodIds: ["pm-pkrbank", "pm-raast"], note: "", 
     payments: [{ id: "pay44a", amount: 3000000, date: d(-1), method: "Raast", reference: "RA-4410", recordedAt: ts(-1, "16:31") }],
     events: [ev("e44a", "created", -6, "Invoice created"), ev("e44b", "sent", -6, "Sent on WhatsApp", "10:20"), ev("e44c", "viewed", -5, "Viewed by client", "11:02"), ev("e44d", "payment", -1, "Payment recorded · PKR 30,000", "16:31")],
   },
   {
     id: "inv-43", number: "INV-0043", clientId: "c-alnoor", projectId: "p-alnoor", currency: "USD", status: "unpaid",
     issueDate: d(-5), dueDate: d(2), lines: [line("l43a", "Retainer · Sep 2026", 1, 130000, "retainer", "rp-sep")],
-    taxPercent: 0, discount: 0, paymentMethodIds: ["pm-payoneer"], note: "", shareToken: "inv43-Rt5N", payments: [],
+    taxPercent: 0, discount: 0, paymentMethodIds: ["pm-payoneer"], note: "",  payments: [],
     events: [ev("e43a", "created", -5, "Invoice created"), ev("e43b", "sent", -5, "Sent by email to sara@alnoor.example", "10:20")],
   },
   {
     id: "inv-42", number: "INV-0042", clientId: "c-harbor", projectId: "p-harbor", currency: "USD", status: "unpaid",
     issueDate: d(-2), dueDate: d(12), lines: [line("l42a", "Mobile app QA · 28 Sep – 02 Oct", 25, 4500, "manual"), line("l42b", "Sprint planning workshop", 1, 12500, "manual")],
-    taxPercent: 0, discount: 0, paymentMethodIds: ["pm-payoneer", "pm-esfca"], note: "", shareToken: "inv42-k3x9q2", payments: [],
+    taxPercent: 0, discount: 0, paymentMethodIds: ["pm-payoneer", "pm-esfca"], note: "",  payments: [],
     events: [ev("e42a", "created", -2, "Invoice created", "10:14"), ev("e42b", "sent", -2, "Sent by email to jordan@harborlabs.example", "10:20"), ev("e42c", "viewed", -2, "Viewed by client", "11:02")],
   },
   {
     id: "inv-41", number: "INV-0041", clientId: "c-harbor", projectId: "p-harbor", currency: "USD", status: "unpaid",
     issueDate: d(-32), dueDate: d(-18), lines: [line("l41a", "Mobile app · Sep sprint", 44, 4500, "manual")],
-    taxPercent: 0, discount: 0, paymentMethodIds: ["pm-payoneer", "pm-esfca"], note: "", shareToken: "inv41-Vb8D",
+    taxPercent: 0, discount: 0, paymentMethodIds: ["pm-payoneer", "pm-esfca"], note: "", 
     payments: [{ id: "pay41a", amount: 198000, date: d(-10), method: "ESFCA wire", reference: "SCB-220914", recordedAt: ts(-10, "08:20") }],
     events: [ev("e41a", "created", -32, "Invoice created"), ev("e41b", "sent", -32, "Sent by email"), ev("e41c", "payment", -10, "Payment recorded · USD 1,980.00", "08:20"), ev("e41d", "paid", -10, "Marked paid", "08:20")],
   },
   {
     id: "inv-40", number: "INV-0040", clientId: "c-kareem", projectId: "p-kareem", currency: "USD", status: "unpaid",
     issueDate: d(-50), dueDate: d(-36), lines: [line("l40a", "Pitch deck · final delivery", 1, 240000, "manual")],
-    taxPercent: 0, discount: 0, paymentMethodIds: ["pm-esfca"], note: "", shareToken: "inv40-Kd2F",
+    taxPercent: 0, discount: 0, paymentMethodIds: ["pm-esfca"], note: "", 
     payments: [{ id: "pay40a", amount: 240000, date: d(-40), method: "ESFCA wire", reference: "SCB-218877", recordedAt: ts(-40) }],
     events: [ev("e40a", "created", -50, "Invoice created"), ev("e40b", "sent", -50, "Sent by email"), ev("e40c", "payment", -40, "Payment recorded · USD 2,400.00"), ev("e40d", "paid", -40, "Marked paid")],
   },
   {
     id: "inv-39", number: "INV-0039", clientId: "c-gulberg", projectId: "p-gulberg", currency: "PKR", status: "unpaid",
     issueDate: d(-29), dueDate: d(-15), lines: [line("l39a", "Brand discovery milestone", 1, 18500000, "milestone", "m-1")],
-    taxPercent: 0, discount: 0, paymentMethodIds: ["pm-pkrbank", "pm-raast"], note: "", shareToken: "inv39-Gh7S", payments: [],
+    taxPercent: 0, discount: 0, paymentMethodIds: ["pm-pkrbank", "pm-raast"], note: "",  payments: [],
     events: [ev("e39a", "created", -29, "Invoice created"), ev("e39b", "sent", -29, "Sent by email", "12:05"), ev("e39c", "viewed", -28, "Viewed by client", "08:47"), ev("e39d", "reminder", -10, "Reminder sent by email (polite)", "09:00"), ev("e39e", "overdue", -14, "Marked overdue automatically", "00:00")],
   },
   {
     id: "inv-38", number: "INV-0038", clientId: "c-dua", projectId: "p-dua", currency: "PKR", status: "unpaid",
     issueDate: d(-38), dueDate: d(-31), lines: [line("l38a", "Logo refresh · 40% deposit", 1, 6000000, "manual")],
-    taxPercent: 0, discount: 0, paymentMethodIds: ["pm-pkrbank", "pm-raast"], note: "", shareToken: "inv38-Ac4B",
+    taxPercent: 0, discount: 0, paymentMethodIds: ["pm-pkrbank", "pm-raast"], note: "", 
     payments: [{ id: "pay38a", amount: 6000000, date: d(-33), method: "Raast", reference: "RA-3920", recordedAt: ts(-33) }],
     events: [ev("e38a", "created", -38, "Invoice created"), ev("e38b", "sent", -38, "Sent on WhatsApp"), ev("e38c", "payment", -33, "Payment recorded · PKR 60,000"), ev("e38d", "paid", -33, "Marked paid")],
   },
   {
     id: "inv-36", number: "INV-0036", clientId: "c-kareem", currency: "USD", status: "written_off",
     issueDate: d(-52), dueDate: d(-38), lines: [line("l36a", "Logo variants", 1, 40000, "manual")],
-    taxPercent: 0, discount: 0, paymentMethodIds: ["pm-esfca"], note: "", shareToken: "inv36-Ew9J", payments: [], writtenOffAt: ts(-7, "17:30"),
+    taxPercent: 0, discount: 0, paymentMethodIds: ["pm-esfca"], note: "",  payments: [], writtenOffAt: ts(-7, "17:30"),
     events: [ev("e36a", "created", -52, "Invoice created"), ev("e36b", "sent", -52, "Sent by email"), ev("e36c", "reminder", -9, "Reminder sent on WhatsApp (final)", "17:30"), ev("e36d", "written_off", -7, "Written off · USD 400.00 · reason: client closed", "17:30")],
   },
   {
     id: "inv-35", number: "INV-0035", clientId: "c-alnoor", projectId: "p-alnoor", currency: "USD", status: "unpaid",
     issueDate: d(-36), dueDate: d(-29), lines: [line("l35a", "Retainer · Aug 2026", 1, 130000, "retainer", "rp-aug")],
-    taxPercent: 0, discount: 0, paymentMethodIds: ["pm-payoneer"], note: "", shareToken: "inv35-Pn1M",
+    taxPercent: 0, discount: 0, paymentMethodIds: ["pm-payoneer"], note: "", 
     payments: [{ id: "pay35a", amount: 130000, date: d(-30), method: "Payoneer", reference: "PAYO-77120", recordedAt: ts(-30) }],
     events: [ev("e35a", "created", -36, "Invoice created"), ev("e35b", "sent", -36, "Sent by email"), ev("e35c", "payment", -30, "Payment recorded · USD 1,300.00"), ev("e35d", "paid", -30, "Marked paid")],
   },

@@ -47,7 +47,7 @@ lib/                   types, money, fx, dates, invoice (calcTotals/deriveStatus
 
 ### Reference rates (PKR/USD, display only)
 
-`GET /reference/exchange-rates` is read by `useExchangeRates()` (`lib/hooks/exchange-rates`, fresh for 6 h) and handed to `<Money>` through a context: `AuthedFxRatesProvider` in the `(app)` layout, `FxRatesProvider rates={…}` elsewhere. So call sites only write `<Money estimateIn={counterpartOf(cur)} note />`; no rates plumbing. Only USD ↔ PKR is ever estimated; any other pair, or a missing/unusable rate, shows nothing. The line shows the API's real `asOf` and `source` ("date unavailable" if absent, never today). Portal visitors have no account: they use `usePortalExchangeRates(invoice.exchangeRates)` and never call the authenticated endpoint (step 13 supplies the real block; the mock portal invoice has none, so it shows no estimate yet). Marketing uses the labelled `SPECIMEN_RATES`. Converted figures are never summed, stored or sent to the API.
+`GET /reference/exchange-rates` is read by `useExchangeRates()` (`lib/hooks/exchange-rates`, fresh for 6 h) and handed to `<Money>` through a context: `AuthedFxRatesProvider` in the `(app)` layout, `FxRatesProvider rates={…}` elsewhere. So call sites only write `<Money estimateIn={counterpartOf(cur)} note />`; no rates plumbing. Only USD ↔ PKR is ever estimated; any other pair, or a missing/unusable rate, shows nothing. The line shows the API's real `asOf` and `source` ("date unavailable" if absent, never today). Portal visitors have no account: they use `usePortalExchangeRates(invoice.exchangeRates)` and never call the authenticated endpoint (the portal invoice response embeds the block; `null` shows no estimate). Marketing uses the labelled `SPECIMEN_RATES`. Converted figures are never summed, stored or sent to the API.
 - `lib/dates.ts` — `fmtDate` "05 Oct 2026", `fmtDay` "Mon 05 Oct", `fmtDateTime`, `todayISO`, `daysFromToday(n)`, `daysBetween(a,b)`, `addDays`, `isoDate`.
 - `lib/invoice.ts` — `isLive`, `formatInvoiceNumber`, and (mock invoice only, deleted with the mock layer in step 14) `calcTotals(inv)`, `deriveStatus(inv)`, `daysOverdue`, `lineAmount`. API invoices already carry `status` (the server's `displayStatus`) and every total.
 - `lib/payment-methods.ts` — `METHOD_KINDS`, `BANK_SCHEMES`, `fieldsFor(kind,scheme)`, `methodTitle`, `methodSummary`, `maskValue`.
@@ -104,3 +104,7 @@ Sensitive data: payment-method `details` hold IBANs and wallet numbers. They liv
 Per-step gate: `pnpm typecheck && pnpm lint && pnpm test && pnpm build`.
 
 Derived values: when the server computes a number that can be missing (`progressPercent`), keep it `number | null` in the view model and render "—" for `null`; never default it to 0 or recompute it on the client.
+
+## Client portal (`/p/{id}`, `/m/{id}`, `/i/{id}` + `?token=`)
+
+`portalApi` (`lib/services/portal.service.ts`) is isolated from `api`: no cookies, no refresh, no auth store; the JWT goes as `Authorization: Bearer` per call. `usePortalToken()` reads `?token=` once, keeps it in memory and strips it with `history.replaceState`. Portal queries never refetch (focus/mount/reconnect) or prefetch: the first invoice view stamps `viewedAt` and logs `VIEWED`. Query keys exclude the token.
