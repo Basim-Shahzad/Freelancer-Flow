@@ -17,6 +17,7 @@ import { getApiErrorMessage, getApiErrorStatus } from "@/lib/services/api.servic
 import { OfflineNotice, PasswordInput, describedBy } from "./form-bits";
 import { logInSchema, type LogInValues } from "./schemas";
 import { readNext, useSignedInRedirect } from "./use-signed-in-redirect";
+import { useFocusFirstError } from "@/lib/hooks/use-focus-first-error";
 
 const linkCls = "font-medium text-primary-ink underline decoration-1 underline-offset-[3px]";
 
@@ -28,11 +29,13 @@ export function LogInForm() {
   const [serverError, setServerError] = useState<string | null>(null);
   useSignedInRedirect();
 
-  const { register, control, handleSubmit, formState: { errors } } = useForm<LogInValues>({
+  const form = useForm<LogInValues>({
     resolver: zodResolver(logInSchema),
     defaultValues: { email: "", password: "", keep: true },
     mode: "onTouched",
   });
+  useFocusFirstError(form);
+  const { register, control, handleSubmit, formState: { errors } } = form;
 
   const onSubmit = handleSubmit(async (v) => {
     setBad(false);

@@ -22,6 +22,7 @@ import { getApiErrorMessage, getApiErrorStatus } from "@/lib/services/api.servic
 import type { InvoiceDetail } from "@/lib/types";
 import { draftChanges, draftDefaults } from "./draft";
 import { editDraftSchema, type EditDraftValues } from "./schemas";
+import { useFocusFirstError } from "@/lib/hooks/use-focus-first-error";
 
 const TAX_OPTIONS = [
   { value: "keep", label: "Keep the current taxes" },
@@ -47,6 +48,7 @@ export function EditDraftDialog({ invoice, open, onOpenChange, offline, onRecrea
   const methodsQuery = usePaymentMethods();
   const methods = useMemo(() => (methodsQuery.data ?? []).filter((m) => m.enabled), [methodsQuery.data]);
   const form = useForm<EditDraftValues>({ resolver: zodResolver(editDraftSchema), defaultValues: draftDefaults(invoice) });
+  useFocusFirstError(form);
   const { register, control, handleSubmit, setValue, reset, formState: { errors } } = form;
   const taxMode = useWatch({ control, name: "taxMode" });
   const changeMethods = useWatch({ control, name: "changeMethods" });

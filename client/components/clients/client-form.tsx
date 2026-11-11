@@ -21,6 +21,7 @@ import { useAppStore } from "@/lib/store";
 import { CURRENCIES, type Client } from "@/lib/types";
 import { DiscardDialog, describedBy, useUnsavedChanges } from "./form-parts";
 import { CLIENT_FIELD_ALIASES, clientSchema, clientToForm, emptyClientForm, formToClient, TERMS_PRESETS, termsLabel, type ClientFormValues } from "./schema";
+import { useFocusFirstError } from "@/lib/hooks/use-focus-first-error";
 
 const grid = "grid gap-5 @2xl:grid-cols-2";
 const wide = "@2xl:col-span-2";
@@ -40,6 +41,7 @@ export function ClientForm({ client }: { client?: Client }) {
     defaultValues: client ? clientToForm(client) : emptyClientForm(business.defaultCurrency, business.defaultTermsDays),
     mode: "onTouched",
   });
+  useFocusFirstError(form);
   const { register, control, handleSubmit, formState: { errors, isDirty, isSubmitting, submitCount } } = form;
   useUnsavedChanges(isDirty && !saved);
 

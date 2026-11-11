@@ -25,6 +25,7 @@ import { CURRENCIES, type BillingType, type Project } from "@/lib/types";
 import { BillingFields } from "./billing-fields";
 import { STATUS_LABEL } from "./logic";
 import { emptyProjectForm, formToProject, PROJECT_FIELD_ALIASES, PROJECT_STATUSES, projectResolver, projectToForm, type ProjectFormValues } from "./schema";
+import { useFocusFirstError } from "@/lib/hooks/use-focus-first-error";
 
 const TYPES: { value: BillingType; title: string; desc: string }[] = [
   { value: "fixed", title: "Fixed price", desc: "One agreed price, invoiced in full or in stages." },
@@ -50,6 +51,7 @@ export function ProjectForm({ project, clientId }: { project?: Project; clientId
     defaultValues: project ? projectToForm(project) : emptyProjectForm(clients, base, clientId),
     mode: "onTouched",
   });
+  useFocusFirstError(form);
   const { register, control, handleSubmit, setValue, formState: { errors, isDirty, isSubmitting, submitCount } } = form;
   const type = useWatch({ control, name: "billingType" });
   const currency = useWatch({ control, name: "currency" });

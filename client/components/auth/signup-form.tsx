@@ -19,6 +19,7 @@ import { getApiErrorMessage, getApiErrorStatus } from "@/lib/services/api.servic
 import { InlineError, OfflineNotice, PasswordInput, describedBy } from "./form-bits";
 import { COUNTRIES, COUNTRY_HINT_KEY, signUpSchema, type SignUpValues } from "./schemas";
 import { useSignedInRedirect } from "./use-signed-in-redirect";
+import { useFocusFirstError } from "@/lib/hooks/use-focus-first-error";
 
 const linkCls = "font-medium text-primary-ink underline decoration-1 underline-offset-[3px]";
 
@@ -35,6 +36,7 @@ export function SignUpForm() {
     defaultValues: { name: "", email: "", password: "", country: "PK", terms: false },
     mode: "onTouched",
   });
+  useFocusFirstError(form);
   const { register, control, handleSubmit, formState: { errors } } = form;
 
   const onSubmit = handleSubmit(async (v) => {

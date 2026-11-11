@@ -16,6 +16,7 @@ import { useApiToast } from "@/lib/hooks/use-api-toast";
 import { useIsOnline } from "@/lib/hooks/use-online";
 import { CURRENCIES, type BusinessProfile } from "@/lib/types";
 import { businessFormSchema, fromFormValues, formatSampleNumber, termsOptions, toFormValues, type BusinessFormValues } from "./business-schema";
+import { useFocusFirstError } from "@/lib/hooks/use-focus-first-error";
 
 /** API field -> form field, for 422 responses. */
 const API_FIELD_ALIASES = { businessAddress: "address", taxRegistrationNumber: "taxId", currency: "defaultCurrency", defaultPaymentTermsDays: "defaultTermsDays" };
@@ -31,6 +32,7 @@ export function BusinessForm({ business }: { business: BusinessProfile }) {
     resolver: zodResolver(schema),
     defaultValues: defaults,
   });
+  useFocusFirstError(form);
   const { register, control, handleSubmit, reset, watch, formState: { errors, isDirty, isSubmitting } } = form;
 
   const preview = formatSampleNumber(watch("invoiceNumberFormat") ?? "");
