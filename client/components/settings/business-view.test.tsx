@@ -11,7 +11,7 @@ let m: ReturnType<typeof mockApi>;
 beforeEach(() => {
   vi.clearAllMocks();
   m = mockApi();
-  useAppStore.setState({ online: true, hydrated: true });
+  useAppStore.setState({ online: true });
 });
 afterEach(() => m.restore());
 
