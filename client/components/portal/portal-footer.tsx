@@ -1,15 +1,9 @@
-"use client";
-
 import { ThreadMark } from "@/components/brand";
-import { useHydrated } from "@/lib/hooks/use-hydrated";
-import { seedBusiness } from "@/lib/seed"; // portal stays on mock data until step 13
 
 export function PortalFooter() {
-  const hydrated = useHydrated();
-  const businessName = seedBusiness.businessName;
   return (
     <footer className="flex flex-col items-center gap-2 border-t border-border px-4 py-5 text-center text-xs text-muted-foreground print:hidden">
-      <span>No account needed. This private link was shared{hydrated ? ` by ${businessName}` : " with you"}.</span>
+      <span>No account needed. This private link was shared with you.</span>
       <span>Paylancr does not process payments. Pay the freelancer directly.</span>
       <span className="inline-flex items-center gap-2"><ThreadMark />Sent with Paylancr</span>
     </footer>

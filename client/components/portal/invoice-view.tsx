@@ -1,7 +1,7 @@
 "use client";
 
 import { Download } from "lucide-react";
-import { useEffect, useRef } from "react";
+import { OfflineNotice } from "@/components/dashboard/offline-notice";
 import { InvoiceDocument } from "@/components/domain/invoice-document";
 import { Money } from "@/components/domain/money";
 import { StageThread } from "@/components/domain/stage-thread";
@@ -10,82 +10,60 @@ import { Button } from "@/components/ui/button";
 import { Notice } from "@/components/ui/notice";
 import { Section } from "@/components/ui/section";
 import { fmtDate } from "@/lib/dates";
-import { counterpartOf } from "@/lib/fx";
-import { deriveStatus, isLive } from "@/lib/invoice";
-import { legacyToDocInvoice } from "@/lib/invoice-doc";
-import { FxRatesProvider, usePortalExchangeRates } from "@/lib/hooks/exchange-rates";
-import { useHydrated } from "@/lib/hooks/use-hydrated";
-import { useClientOptions } from "@/lib/hooks/clients";
-import { usePaymentMethods } from "@/lib/hooks/payment-methods";
-import { useProjectOptions } from "@/lib/hooks/projects";
-import { useAppStore } from "@/lib/store";
-import type { PaymentMethod } from "@/lib/types";
+import { counterpartOf, NO_PROCESSING } from "@/lib/fx";
+import { isLive } from "@/lib/invoice";
+import { toDocInvoice, issuerToBusiness } from "@/lib/invoice-doc";
+import { FxRatesProvider } from "@/lib/hooks/exchange-rates";
+import { usePortalInvoice, usePortalInvoicePdf } from "@/lib/hooks/portal";
+import { usePortalToken } from "@/lib/portal/token";
+import { getApiErrorMessage } from "@/lib/services/api.service";
+import { ConvertToUser } from "./convert-dialog";
 import { HowToPay } from "./how-to-pay";
-import { dueLine, firstName, invoiceCaption, invoiceHero, isPortalVisible, lastPaymentDate, methodsForInvoice } from "./portal-logic";
-import { LinkInactive, PortalSkeleton } from "./portal-states";
-import { seedBusiness } from "@/lib/seed"; // portal stays on mock data until step 13
+import { dueLine, firstName, invoiceCaption, invoiceHero, lastPaymentDate } from "./portal-logic";
+import { MissingToken, PortalErrorState, PortalSkeleton } from "./portal-states";
+import { BLANK_BUSINESS } from "./blank-business";
 
-const NO_METHODS: PaymentMethod[] = [];
+export function InvoicePortalView({ id }: { id: string }) {
+  const token = usePortalToken();
+  const query = usePortalInvoice(id, token);
+  const pdf = usePortalInvoicePdf(id, token, "invoice.pdf");
 
-export function InvoicePortalView({ token }: { token: string }) {
-  const hydrated = useHydrated();
-  const invoice = useAppStore((s) => s.invoices.find((i) => i.shareToken === token));
-  // The portal has no account until step 13, so this only resolves while the owner is signed in on this browser;
-  // for everyone else "How to pay" falls back to "contact the freelancer".
-  const allMethods = usePaymentMethods().data ?? NO_METHODS;
-  const { clients } = useClientOptions();
-  const { byId: projectsById } = useProjectOptions();
-  const business = seedBusiness;
-  const online = useAppStore((s) => s.online);
-  const markViewed = useAppStore((s) => s.markViewed);
-  // Visitors have no account, so rates must come from the invoice response's `exchangeRates` block (never the
-  // authenticated endpoint). The mock invoice has no such block yet; step 13 passes the real one here.
-  const fxRates = usePortalExchangeRates(undefined);
+  if (!token) return <MissingToken what="invoice" />;
+  if (query.isPending) return <PortalSkeleton />;
+  if (query.isError) return <PortalErrorState error={query.error} what="invoice" onRetry={() => void query.refetch()} />;
 
-  const active = hydrated && invoice && isPortalVisible(invoice) ? invoice : undefined;
-  const activeId = active?.id;
-  const viewedFor = useRef<string | null>(null);
-  // Mark viewed once per opened invoice (the store ignores repeats too).
-  useEffect(() => {
-    if (activeId && viewedFor.current !== activeId) { viewedFor.current = activeId; markViewed(activeId); }
-  }, [activeId, markViewed]);
-
-  if (!hydrated) return <PortalSkeleton />;
-  if (!active) return <LinkInactive what="invoice" />;
-
-  const inv = active;
+  const { invoice: inv, rates } = query.data;
+  const business = issuerToBusiness(inv.issuer, BLANK_BUSINESS);
   const owner = firstName(business.ownerName);
-  const client = clients.find((c) => c.id === inv.clientId);
-  const project = inv.projectId ? projectsById.get(inv.projectId) : undefined;
-  const display = deriveStatus(inv);
+  const display = inv.status;
   const hero = invoiceHero(inv, display);
   const paid = display === "paid";
-  const methods = methodsForInvoice(inv, allMethods);
   const estimateIn = counterpartOf(inv.currency);
 
   return (
-    <FxRatesProvider rates={fxRates}>
-      {!online && <Notice tone="warn"><b>You’re offline.</b> Details you’ve already loaded stay here and can be copied.</Notice>}
+    <FxRatesProvider rates={rates}>
+      <OfflineNotice detail="Details you’ve already loaded stay here and can be copied." />
 
       <header className="flex flex-col gap-3 print:hidden">
         <div className="flex flex-wrap items-center gap-2.5">
           <span className="t-eyebrow">Invoice {inv.number}</span>
           <StatusChip status={display} />
         </div>
-        <h1 className="sr-only">Invoice {inv.number} from {business.businessName}</h1>
-        <span className="text-sm text-muted-foreground">{[client?.name, project?.name, dueLine(inv, display)].filter(Boolean).join(" · ")}</span>
+        <h1 className="sr-only">Invoice {inv.number} from {business.businessName || business.ownerName || "the freelancer"}</h1>
+        <span className="text-sm text-muted-foreground">{[inv.client.name, inv.project.name, dueLine(inv, display)].filter(Boolean).join(" · ")}</span>
         <span className="t-eyebrow pt-2">{hero.label}</span>
         <Money size="hero" currency={inv.currency} amount={hero.amount} estimateIn={hero.estimate ? estimateIn : undefined} note={hero.estimate} />
-        <div className="pt-1">
-          <Button variant="outline" onClick={() => window.print()}><Download aria-hidden="true" />Download PDF</Button>
+        <div className="flex flex-col gap-2 pt-1">
+          <Button variant="outline" className="self-start" loading={pdf.isPending} onClick={() => pdf.mutate()}><Download aria-hidden="true" />Download PDF</Button>
+          {pdf.isError && <Notice tone="error" role="alert">{getApiErrorMessage(pdf.error, "Couldn’t download the PDF. Try again.")}</Notice>}
         </div>
       </header>
 
       <div className="print:hidden"><StageThread stage={paid ? "paid" : "instructions"} caption={invoiceCaption(inv, display)} /></div>
 
-      {isLive(display) && (
-        <HowToPay methods={methods} number={inv.number} ownerFirst={owner} />
-      )}
+      {isLive(display) && <HowToPay methods={inv.methods} number={inv.number} ownerFirst={owner} />}
+
+      <p className="t-caption print:hidden">{NO_PROCESSING}{inv.paymentDisclaimer ? ` ${inv.paymentDisclaimer}` : ""}</p>
 
       {paid && (
         <Notice tone="ok" className="print:hidden">
@@ -97,8 +75,10 @@ export function InvoicePortalView({ token }: { token: string }) {
       )}
 
       <Section title="Invoice" id="pi-doc" className="print:[&>div]:hidden">
-        <InvoiceDocument part="lines" reveal invoice={legacyToDocInvoice(inv, display)} client={client} business={business} methods={[]} projectName={project?.name} className="print:border-0 print:p-0" />
+        <InvoiceDocument part="lines" reveal invoice={toDocInvoice(inv)} client={{ name: inv.client.name, companyName: "", address: "" }} business={business} methods={[]} projectName={inv.project.name} className="print:border-0 print:p-0" />
       </Section>
+
+      <ConvertToUser token={token} />
     </FxRatesProvider>
   );
 }

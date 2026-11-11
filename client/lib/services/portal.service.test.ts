@@ -11,7 +11,7 @@ describe("portalService", () => {
   it("sends the token as a Bearer header, never as a query param, and never the owner token", async () => {
     mock.onGet("/portal/project/p1").reply(200, { id: "p1" });
     await portalService.project("p1", "tok");
-    const req = mock.history.get[0];
+    const req = mock.history.get[0]!;
     expect(req.headers?.Authorization).toBe("Bearer tok");
     expect(req.params).toBeUndefined();
     expect(req.url).not.toContain("token");
@@ -30,8 +30,8 @@ describe("portalService", () => {
     mock.onPost("/portal/milestone/m1/reject").reply(200, { id: "m1" });
     await portalService.approve("m1", "tok");
     await portalService.reject("m1", "tok", " needs work ");
-    expect(JSON.parse(mock.history.post[0].data)).toEqual({});
-    expect(JSON.parse(mock.history.post[1].data)).toEqual({ comment: "needs work" });
+    expect(JSON.parse(mock.history.post[0]!.data)).toEqual({});
+    expect(JSON.parse(mock.history.post[1]!.data)).toEqual({ comment: "needs work" });
   });
 
   it("fetches the pdf as a blob and converts with only a password", async () => {
@@ -39,6 +39,6 @@ describe("portalService", () => {
     mock.onPost("/portal/convert").reply(200, {});
     expect(await portalService.invoicePdf("i1", "tok")).toBeInstanceOf(Blob);
     await portalService.convert("tok", "password1");
-    expect(JSON.parse(mock.history.post[0].data)).toEqual({ password: "password1" });
+    expect(JSON.parse(mock.history.post[0]!.data)).toEqual({ password: "password1" });
   });
 });

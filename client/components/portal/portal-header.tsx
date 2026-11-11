@@ -1,32 +1,9 @@
-"use client";
-
-import { useHydrated } from "@/lib/hooks/use-hydrated";
-import { Skeleton } from "@/components/ui/skeleton";
-import { seedBusiness } from "@/lib/seed"; // portal stays on mock data until step 13
-
-/** Business identity bar for share links. Hidden when printing. */
+/** Neutral bar for share links. The issuer's name is shown by each view from the API response. Hidden when printing. */
 export function PortalHeader() {
-  const hydrated = useHydrated();
-  const businessName = seedBusiness.businessName;
-  const owner = seedBusiness.ownerName;
   return (
     <header className="flex items-center gap-3 border-b border-rule px-4 py-3 print:hidden">
-      <span aria-hidden="true" className="grid size-9 shrink-0 place-items-center rounded-full border border-rule font-serif text-base">
-        {hydrated ? (businessName.trim().charAt(0).toUpperCase() || "P") : ""}
-      </span>
-      <div className="flex min-w-0 flex-col">
-        {hydrated ? (
-          <>
-            <span className="truncate font-semibold leading-snug">{businessName}</span>
-            <span className="text-xs leading-snug text-muted-foreground">Shared with you by {owner}</span>
-          </>
-        ) : (
-          <>
-            <Skeleton className="h-4 w-32" />
-            <span className="sr-only">Loading</span>
-          </>
-        )}
-      </div>
+      <span aria-hidden="true" className="grid size-9 shrink-0 place-items-center rounded-full border border-rule font-serif text-base">P</span>
+      <span className="text-sm font-semibold leading-snug">Shared with you</span>
     </header>
   );
 }

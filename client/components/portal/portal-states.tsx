@@ -1,4 +1,5 @@
 import { StateBlock } from "@/components/domain/state-block";
+import { classifyPortalError } from "@/lib/api/mappers/portal";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export function PortalSkeleton() {
@@ -16,17 +17,34 @@ export function PortalSkeleton() {
   );
 }
 
-/** Unknown, replaced or cancelled link. Locked-style, no way into the owner's app. */
-export function LinkInactive({ what }: { what: "project" | "invoice" }) {
+type What = "project" | "invoice" | "milestone";
+
+/** Unknown, replaced or revoked link. Locked-style, no way into the owner's app. */
+export function LinkInactive({ what }: { what: What }) {
   return (
     <StateBlock
       kind="locked"
-      title={what === "invoice" ? "This invoice link is no longer active" : "This link is no longer active"}
-      body={
-        what === "invoice"
-          ? "The freelancer cancelled this invoice or replaced the link. Ask them for the latest one."
-          : "The freelancer turned off this share link or it has been replaced. Ask them for a new one."
-      }
+      title={`This ${what} link is no longer active`}
+      body="The freelancer turned off this link or replaced it. Ask them for the latest one."
     />
   );
 }
+
+/** Every failed portal read maps to one of these. Never offers a way into the owner's app. */
+export function PortalErrorState({ error, what, onRetry }: { error: unknown; what: What; onRetry?: () => void }) {
+  const { kind, message } = classifyPortalError(error);
+  if (kind === "offline") {
+    return <StateBlock kind="offline" title="You’re offline" body={`Reconnect to open this ${what}.`} cta={onRetry ? { label: "Try again", onClick: onRetry } : undefined} />;
+  }
+  if (kind === "expired") {
+    return <StateBlock kind="locked" title="This link has expired or isn’t valid" body="Ask the freelancer to send you a fresh link. Links can also be switched off by the sender." />;
+  }
+  if (kind === "notfound") return <LinkInactive what={what} />;
+  if (kind === "ratelimited") {
+    return <StateBlock kind="error" title="Too many requests" body="Please wait a moment and try again later." cta={onRetry ? { label: "Try again", onClick: onRetry } : undefined} />;
+  }
+  return <StateBlock kind="error" title="Couldn’t load this page" body={message} cta={onRetry ? { label: "Try again", onClick: onRetry } : undefined} />;
+}
+
+/** The link has no `?token=`. */
+export const MissingToken = ({ what }: { what: What }) => <PortalErrorState error={{ isAxiosError: true, response: { status: 401 } }} what={what} />;

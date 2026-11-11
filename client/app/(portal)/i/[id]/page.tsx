@@ -3,7 +3,7 @@ import { InvoicePortalView } from "@/components/portal/invoice-view";
 
 export const metadata: Metadata = { title: "Invoice shared with you" };
 
-export default async function PortalInvoicePage({ params }: { params: Promise<{ token: string }> }) {
-  const { token } = await params;
-  return <InvoicePortalView token={token} />;
+export default async function PortalPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  return <InvoicePortalView id={id} />;
 }
