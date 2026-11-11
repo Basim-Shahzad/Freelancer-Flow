@@ -1,6 +1,6 @@
 import { InvoiceDocument } from "@/components/domain/invoice-document";
 import { legacyToDocInvoice } from "@/lib/invoice-doc";
-import { seedBusiness, seedInvoices } from "@/lib/seed";
+import { demoBusiness, demoInvoice } from "./preview-data";
 import type { Client, Currency, PaymentMethod } from "@/lib/types";
 
 /** Demo client for the marketing preview (the marketing pages have no account or API data). */
@@ -9,7 +9,7 @@ const sampleClient: Client = {
   address: "Austin, US", taxId: "", currency: "USD", termsDays: 14, notes: "", createdAt: "2026-01-01T00:00:00.000Z",
 };
 
-/** Demo payment methods for the marketing preview, keyed to the ids in the seed invoices. */
+/** Demo payment methods for the marketing preview, keyed to the ids in the demo invoice. */
 const sampleMethods: PaymentMethod[] = [
   { id: "pm-payoneer", kind: "payoneer", label: "Payoneer", enabled: true, isDefault: true, sortOrder: 0, fields: { accountEmail: "ayesha@maliks.studio", paymentRequestUrl: "https://payoneer.com/pay/malik-studio" } },
   {
@@ -22,15 +22,14 @@ const sampleMethods: PaymentMethod[] = [
 ];
 
 /**
- * The REAL client invoice view, inside a phone-width scroll frame, using demo seed data.
+ * The REAL client invoice view, inside a phone-width scroll frame, using demo data.
  * `reveal` shows full payment details as the client sees them.
  */
 export function ClientPreview({ neutral, estimateIn }: { neutral?: boolean; estimateIn?: Currency }) {
-  const invoice = seedInvoices.find((i) => i.id === "inv-42");
+  const invoice = demoInvoice;
   const client = sampleClient;
-  if (!invoice) return null;
   const methods = invoice.paymentMethodIds.flatMap((id) => sampleMethods.filter((m) => m.id === id));
-  const business = neutral ? { ...seedBusiness, taxId: "", address: "Your studio address, City" } : seedBusiness;
+  const business = neutral ? { ...demoBusiness, taxId: "", address: "Your studio address, City" } : demoBusiness;
   return (
     <div className="flex flex-col gap-4">
       <div
