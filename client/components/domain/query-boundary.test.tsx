@@ -36,7 +36,7 @@ describe("QueryBoundary", () => {
 
   it("shows the error message with a working retry", () => {
     renderWithProviders(<QueryBoundary query={q({ isError: true, error: httpError(500, "Boom") })}>{() => <p>data</p>}</QueryBoundary>);
-    expect(screen.getByRole("alert")).toHaveTextContent(/server had a problem|our server/i);
+    expect(screen.getByRole("alert")).toHaveTextContent("Boom");
     fireEvent.click(screen.getByRole("button", { name: /try again/i }));
     expect(base.refetch).toHaveBeenCalledOnce();
   });

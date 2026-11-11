@@ -53,7 +53,7 @@ export function QueryBoundary<T>({ query, children, isEmpty = defaultIsEmpty, lo
       const wait = () => { if (c.retryAfter) setCooldownUntil(Date.now() + c.retryAfter * 1000); void query.refetch(); };
       return <StateBlock kind="rateLimited" cta={{ label: coolingDown ? "Please wait…" : retry.label, onClick: coolingDown ? undefined : wait }} />;
     }
-    if (c.kind === "server") return <StateBlock kind="server" cta={retry} />;
+    if (c.kind === "server") return <StateBlock kind="server" body={getApiErrorMessage(query.error)} cta={retry} />;
     return <StateBlock kind="error" body={getApiErrorMessage(query.error)} cta={retry} />;
   }
   const { data } = query;
