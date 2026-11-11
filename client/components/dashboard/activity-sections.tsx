@@ -7,6 +7,7 @@ import { activityHref } from "@/lib/api/mappers/activity";
 import type { ActivityEventResponse } from "@/lib/api/activity.types";
 import { fmtDate } from "@/lib/dates";
 import type { AttentionItem } from "./attention";
+import { usePrefetchDetail } from "@/lib/hooks/use-prefetch";
 
 const linkCls = "inline-flex min-h-11 items-center text-sm font-medium text-primary-ink underline decoration-1 underline-offset-[3px]";
 
@@ -19,6 +20,7 @@ const REASON_TEXT = (a: AttentionItem): string => {
 /** Invoices needing attention: overdue, due within 3 days, or unsent drafts. */
 export function AttentionSection({ items, isPending = false, isError = false, onRetry }: { items: AttentionItem[]; isPending?: boolean; isError?: boolean; onRetry?: () => void }) {
   const cols = "minmax(0,1.2fr) minmax(0,1fr) auto auto";
+  const prefetch = usePrefetchDetail();
   return (
     <Card>
       <CardHead title="Needs attention" sub="Overdue, due within three days, or drafts not sent" action={<Link href="/invoices" className={linkCls}>All invoices</Link>} />
@@ -32,7 +34,7 @@ export function AttentionSection({ items, isPending = false, isError = false, on
       ) : (
         <div>
           {items.map((a) => (
-            <LedgerRow key={a.view.id} cols={cols} href={`/invoices/${a.view.id}`}>
+            <LedgerRow key={a.view.id} cols={cols} href={`/invoices/${a.view.id}`} prefetch={prefetch.invoice(a.view.id)}>
               <LCell><LMain className="num">{a.view.number}</LMain><LSub>{a.view.client.name}</LSub></LCell>
               <LCell narrow="hide"><LSub className="text-sm">{REASON_TEXT(a)}</LSub></LCell>
               <LCell narrow="hide"><StatusChip status={a.view.status} /></LCell>

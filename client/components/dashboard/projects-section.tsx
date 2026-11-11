@@ -1,13 +1,17 @@
+"use client";
+
 import Link from "next/link";
 import { Pips, Progress } from "@/components/ui/progress";
 import { Card, CardBody, CardHead } from "@/components/ui/section";
 import { BILLING_LABEL, STAGE_LABEL, stagePips, type ProgressInfo, type StageInfo } from "@/components/projects/logic";
 import type { Project } from "@/lib/types";
+import { usePrefetchDetail } from "@/lib/hooks/use-prefetch";
 
 export interface ActiveProjectRow { project: Project; clientName: string; stage: StageInfo; progress: ProgressInfo | null }
 
 /** Projects in progress, with milestone / retainer-period / manual progress. */
 export function ProjectsSection({ rows, total, className }: { rows: ActiveProjectRow[]; total?: number; className?: string }) {
+  const prefetch = usePrefetchDetail();
   return (
     <Card className={className}>
       <CardHead title="Active projects" sub={total !== undefined && total > rows.length ? `Showing ${rows.length} of ${total}` : "Where each one sits, work to paid"} action={<Link href="/projects" className="inline-flex min-h-11 items-center text-sm font-medium text-primary-ink underline decoration-1 underline-offset-[3px]">All</Link>} />
@@ -17,7 +21,7 @@ export function ProjectsSection({ rows, total, className }: { rows: ActiveProjec
       ) : (
         <div>
           {rows.map(({ project, clientName, stage, progress }) => (
-            <Link key={project.id} href={`/projects/${project.id}`} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-2.5 border-b border-border py-4 text-inherit no-underline hover:bg-hover">
+            <Link key={project.id} href={`/projects/${project.id}`} {...prefetch.project(project.id)} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-2.5 border-b border-border py-4 text-inherit no-underline hover:bg-hover">
               <div className="min-w-0">
                 <div className="font-semibold leading-snug">{project.name}</div>
                 <div className="text-xs leading-snug text-muted-foreground">{clientName} · {BILLING_LABEL[project.billingType]}</div>

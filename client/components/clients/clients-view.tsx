@@ -16,10 +16,12 @@ import { useClientOptions, useClients } from "@/lib/hooks/clients";
 import { useDebouncedValue } from "@/lib/hooks/use-debounced-value";
 import { getApiErrorMessage, getApiErrorStatus } from "@/lib/services/api.service";
 import { useAppStore } from "@/lib/store";
+import { usePrefetchDetail } from "@/lib/hooks/use-prefetch";
 
 const COLS = "minmax(0,1.5fr) minmax(0,1fr) minmax(0,1fr) minmax(0,.8fr) 1.25rem";
 
 export function ClientsView() {
+  const prefetch = usePrefetchDetail();
   const online = useAppStore((s) => s.online);
   const [q, setQ] = useState("");
   const search = useDebouncedValue(q.trim(), 300);
@@ -75,7 +77,7 @@ export function ClientsView() {
             <span>Client</span><span>Email</span><span>WhatsApp</span><span>Projects</span><span />
           </LedgerHead>
           {clients.map((client) => (
-            <LedgerRow key={client.id} cols={COLS} href={`/clients/${client.id}`} className="last:border-b-0">
+            <LedgerRow key={client.id} cols={COLS} href={`/clients/${client.id}`} prefetch={prefetch.client(client.id)} className="last:border-b-0">
               <LCell>
                 <LMain className="inline-flex items-center gap-2"><ClientDot clientId={client.id} clientIds={clientIds} />{client.companyName || client.name}</LMain>
                 <LSub>{client.companyName ? client.name : client.email}</LSub>

@@ -21,6 +21,7 @@ import { useDebouncedValue } from "@/lib/hooks/use-debounced-value";
 import { getApiErrorMessage, getApiErrorStatus } from "@/lib/services/api.service";
 import { useAppStore } from "@/lib/store";
 import { AMOUNT_TAGS, countLine, STATUS_FILTERS } from "./list-logic";
+import { usePrefetchDetail } from "@/lib/hooks/use-prefetch";
 
 const COLS = "7rem minmax(0,2fr) 8rem 9rem 11rem";
 const ALL = "";
@@ -28,6 +29,7 @@ const ALL = "";
 const createBtn = <Button asChild><Link href="/invoices/new"><Plus aria-hidden="true" />Create invoice</Link></Button>;
 
 export function InvoicesView() {
+  const prefetch = usePrefetchDetail();
   const online = useAppStore((s) => s.online);
   const [q, setQ] = useState("");
   const [clientId, setClientId] = useState(ALL);
@@ -86,7 +88,7 @@ export function InvoicesView() {
           <span>Number</span><span>Client</span><span>Due</span><span>Status</span><span className="justify-self-end">Amount</span>
         </LedgerHead>
         {invoices.map((v) => (
-          <LedgerRow key={v.id} cols={COLS} href={`/invoices/${v.id}`}>
+          <LedgerRow key={v.id} cols={COLS} href={`/invoices/${v.id}`} prefetch={prefetch.invoice(v.id)}>
             <LCell><LMain className="num">{v.number}<span className="sr-only">, open invoice</span></LMain></LCell>
             <LCell narrow="full" className="order-2 @2xl:order-none"><LMain>{v.client.name}</LMain><LSub>{v.project.name}</LSub></LCell>
             <LCell narrow="hide" className="text-sm text-muted-foreground">{v.status === "draft" ? "—" : fmtDate(v.dueDate)}</LCell>

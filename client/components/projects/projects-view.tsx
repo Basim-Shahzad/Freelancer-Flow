@@ -25,11 +25,13 @@ import { ClientDot } from "./client-dot";
 import { BILLING_LABEL, progressText, rateLabel, STATUS_LABEL } from "./logic";
 import { ProjectStatusChip } from "./project-status-chip";
 import { PROJECT_STATUSES } from "./schema";
+import { usePrefetchDetail } from "@/lib/hooks/use-prefetch";
 
 const COLS = "minmax(0,1.6fr) minmax(0,.8fr) minmax(0,1.1fr) minmax(0,.5fr) minmax(0,.7fr) minmax(0,.6fr) 1.25rem";
 const ALL = "";
 
 export function ProjectsView() {
+  const prefetch = usePrefetchDetail();
   const online = useAppStore((s) => s.online);
   const [q, setQ] = useState("");
   const [clientId, setClientId] = useState(ALL);
@@ -93,7 +95,7 @@ export function ProjectsView() {
             <span>Project</span><span>Status</span><span>Billing</span><span>Progress</span><span>Due</span><span>Time</span><span />
           </LedgerHead>
           {projects.map((p) => (
-            <LedgerRow key={p.id} cols={COLS} href={`/projects/${p.id}`} className="last:border-b-0">
+            <LedgerRow key={p.id} cols={COLS} href={`/projects/${p.id}`} prefetch={prefetch.project(p.id)} className="last:border-b-0">
               <LCell>
                 <LMain>{p.name}</LMain>
                 <LSub className="mt-0.5 inline-flex items-center gap-1.5"><ClientDot clientId={p.clientId} clientIds={clientIds} />{p.client.name}</LSub>

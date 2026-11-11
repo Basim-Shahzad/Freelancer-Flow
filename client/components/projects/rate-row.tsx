@@ -6,6 +6,7 @@ import { formatMoney } from "@/lib/money";
 import { ClientDot } from "./client-dot";
 import { ProjectStatusChip } from "./project-status-chip";
 import { billingSummary, hoursText, MIN_RATE_MINUTES, VERDICT_TEXT, type RateRow } from "./rate";
+import { usePrefetchDetail } from "@/lib/hooks/use-prefetch";
 
 const COLS = "minmax(0,1fr) auto";
 
@@ -54,8 +55,9 @@ function Detail({ r }: { r: RateRow }) {
 /** One ledger-style row: who/what on the start side, the real hourly figure on the end side, one detail line beneath. */
 export function RateLedgerRow({ r, clientName, clientIds }: { r: RateRow; clientName: string; clientIds: readonly string[] }) {
   const p = r.project;
+  const prefetch = usePrefetchDetail();
   return (
-    <LedgerRow cols={COLS} href={`/projects/${p.id}`} className="gap-y-2 px-5 last:border-b-0">
+    <LedgerRow cols={COLS} href={`/projects/${p.id}`} prefetch={prefetch.project(p.id)} className="gap-y-2 px-5 last:border-b-0">
       <LCell>
         <LMain className="text-base">{p.name}</LMain>
         <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-muted-foreground">

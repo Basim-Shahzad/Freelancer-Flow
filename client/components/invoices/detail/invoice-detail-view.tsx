@@ -42,7 +42,7 @@ export function InvoiceDetailView({ id }: { id: string }) {
   const toast = useApiToast();
   const query = useInvoice(id);
   const invoice = query.data;
-  const eventsQuery = useInvoiceEvents(invoice ? id : undefined);
+  const eventsQuery = useInvoiceEvents(id);
   const clientQuery = useClient(invoice?.clientId);
   const business = useBusiness();
   const pdf = useInvoicePdf();

@@ -17,10 +17,12 @@ import { getApiErrorMessage, getApiErrorStatus } from "@/lib/services/api.servic
 import { useAppStore } from "@/lib/store";
 import { ClientDetails } from "./client-details";
 import { DeleteClientDialog } from "./delete-client-dialog";
+import { usePrefetchDetail } from "@/lib/hooks/use-prefetch";
 
 const linkCls = "inline-flex min-h-11 items-center text-sm font-medium text-primary-ink underline decoration-1 underline-offset-[3px]";
 
 export function ClientDetailView({ id }: { id: string }) {
+  const prefetch = usePrefetchDetail();
   const router = useRouter();
   const toast = useApiToast();
   const online = useAppStore((s) => s.online);
@@ -83,7 +85,7 @@ export function ClientDetailView({ id }: { id: string }) {
             ) : (
               <div className="px-5">
                 {projects.map((p) => (
-                  <LedgerRow key={p.id} cols="minmax(0,1fr) 8rem" href={`/projects/${p.id}`} className="last:border-b-0">
+                  <LedgerRow key={p.id} cols="minmax(0,1fr) 8rem" href={`/projects/${p.id}`} prefetch={prefetch.project(p.id)} className="last:border-b-0">
                     <LCell><LMain>{p.name}</LMain></LCell>
                     <LCell narrow="hide" end><LSub>Added {fmtDate(p.createdAt.slice(0, 10))}</LSub></LCell>
                   </LedgerRow>
