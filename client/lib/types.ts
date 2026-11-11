@@ -373,22 +373,15 @@ export interface BusinessProfile {
   businessName: string;
   ownerName: string;
   email: string;
-  phone: string;
   taxId: string;
   address: string;
   defaultCurrency: Currency;
   defaultTermsDays: number;
-  invoicePrefix: string;
-  nextInvoiceNumber: number;
-  footerNote: string;
-  logoName?: string;
+  /** Server-side numbering template, e.g. "INV-{seq:04d}" (tokens: {seq}, {year}). */
+  invoiceNumberFormat: string;
+  logoUrl?: string;
+  paymentInstructions: string;
   /** Your own hourly rate (the "floor"), integer minor units in defaultCurrency. */
   hourlyRate?: number;
 }
 
-/**
- * Business fields the profile API has no home for yet (no phone / footer note / logo upload, and
- * `invoiceNumberFormat` is not a prefix + counter). They stay in the local store, so they do NOT follow
- * the user across devices. Revisit once the backend models them (invoice numbering: steps 8-9).
- */
-export type BusinessLocal = Pick<BusinessProfile, "phone" | "footerNote" | "invoicePrefix" | "nextInvoiceNumber" | "logoName">;

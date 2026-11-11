@@ -2,14 +2,13 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { useAppStore } from "@/lib/store";
-import { createTestQueryClient, mockApi, profileFixture, seedAuth } from "@/lib/test";
+import { createTestQueryClient, mockApi, profileFixture, primeAuth } from "@/lib/test";
 import { profileKeys, useBusiness, useOnboarded, useSaveBusiness, useUpdateProfile } from "./use-profile";
 
 let m: ReturnType<typeof mockApi>;
 beforeEach(() => {
   m = mockApi();
-  seedAuth("authenticated");
+  primeAuth("authenticated");
 });
 afterEach(() => m.restore());
 
@@ -75,24 +74,23 @@ describe("useUpdateProfile", () => {
 });
 
 describe("useSaveBusiness", () => {
-  it("sends API fields to PATCH /profile and keeps local-only fields in the store", async () => {
+  it("sends the mapped patch to PATCH /profile", async () => {
     m.mock.onGet("/profile").reply(200, profileFixture());
     m.mock.onPatch("/profile").reply(200, profileFixture({ businessAddress: "Karachi" }));
     const { wrapper } = setup();
     const { result } = renderHook(() => ({ save: useSaveBusiness(), business: useBusiness() }), { wrapper });
     await waitFor(() => expect(result.current.business.businessName).toBe("Malik Studio"));
-    await act(async () => { await result.current.save.save({ address: "Karachi", phone: "123", footerNote: "Bye" }); });
-    expect(JSON.parse(m.mock.history.patch[0]!.data)).toEqual({ businessAddress: "Karachi" });
-    expect(useAppStore.getState().businessLocal).toMatchObject({ phone: "123", footerNote: "Bye" });
+    await act(async () => { await result.current.save.save({ address: "Karachi", paymentInstructions: "Wire" }); });
+    expect(JSON.parse(m.mock.history.patch[0]!.data)).toEqual({ businessAddress: "Karachi", paymentInstructions: "Wire" });
   });
 
-  it("does not touch local fields when the API call fails", async () => {
+  it("rejects when the API call fails", async () => {
     m.mock.onGet("/profile").reply(200, profileFixture());
     m.mock.onPatch("/profile").reply(500);
-    useAppStore.getState().updateBusinessLocal({ phone: "old" });
     const { wrapper } = setup();
     const { result } = renderHook(() => useSaveBusiness(), { wrapper });
-    await act(async () => { await result.current.save({ address: "X", phone: "new" }).catch(() => undefined); });
-    expect(useAppStore.getState().businessLocal.phone).toBe("old");
+    let failed = false;
+    await act(async () => { await result.current.save({ address: "X" }).catch(() => { failed = true; }); });
+    expect(failed).toBe(true);
   });
 });

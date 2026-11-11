@@ -139,7 +139,7 @@ export function buildCompletion(d: OnboardingData, userEmail: string): Completio
   const wa = c.whatsapp.replace(/^\s*\+/, "").trim();
   return {
     business: {
-      businessName: b.businessName, ownerName: b.ownerName, email: userEmail, phone: "", taxId: b.taxId, address,
+      businessName: b.businessName, ownerName: b.ownerName, email: userEmail, taxId: b.taxId, address,
       defaultCurrency: d.currency.invoiceCurrency,
     },
     client: isClientBlank(c)

@@ -7,14 +7,13 @@ import { mapMethodErrors } from "@/components/domain/payment-method-errors";
 import { PageSkeleton } from "@/components/ui/skeleton";
 import { clientToCreate } from "@/lib/api/mappers/clients";
 import { toCreate } from "@/lib/api/mappers/payment-methods";
-import { splitBusinessPatch } from "@/lib/api/mappers/profile";
+import { businessToProfileUpdate } from "@/lib/api/mappers/profile";
 import { useAuthGate, useSession } from "@/lib/hooks/auth";
 import { useCreateClient } from "@/lib/hooks/clients";
 import { useCreatePaymentMethod } from "@/lib/hooks/payment-methods";
 import { useUpdateProfile } from "@/lib/hooks/profile";
 import { useApiToast } from "@/lib/hooks/use-api-toast";
 import { METHOD_KINDS, fieldsFor } from "@/lib/payment-methods";
-import { useAppStore } from "@/lib/store";
 import { sleep } from "../form-bits";
 import { MethodCreateError, buildCompletion, initialData, newProgress, runCompletion, STEP_COUNT, type OnboardingData } from "../onboarding-logic";
 import { COUNTRIES, COUNTRY_HINT_KEY, isClientBlank, type CountryCode } from "../schemas";
@@ -57,7 +56,6 @@ function Wizard({ name, email, finishing }: { name?: string; email: string; fini
   const router = useRouter();
   const createClient = useCreateClient();
   const createMethod = useCreatePaymentMethod();
-  const updateBusinessLocal = useAppStore((s) => s.updateBusinessLocal);
   const updateProfile = useUpdateProfile();
   const toast = useApiToast();
   /** Progress of `finish`, so a retry after a partial failure resumes instead of repeating finished steps. */
@@ -82,9 +80,8 @@ function Wizard({ name, email, finishing }: { name?: string; email: string; fini
     try {
       await runCompletion(c, data.business.country, {
         saveProfile: async (business, country) => {
-          const { remote, local } = splitBusinessPatch(business, business.defaultCurrency ?? "USD");
+          const remote = businessToProfileUpdate(business, business.defaultCurrency ?? "USD");
           await updateProfile.mutateAsync({ ...remote, ...(country !== "XX" ? { country } : {}) });
-          updateBusinessLocal(local);
         },
         addClient: async (client) => { await createClient.mutateAsync(clientToCreate(client)); },
         addMethod: async (m, i) => { await createMethod.mutateAsync(toCreate(m, i === 0)); },

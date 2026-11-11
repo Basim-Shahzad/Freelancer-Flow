@@ -2,10 +2,9 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo } from "react";
-import { isProfileComplete, profileToBusiness, splitBusinessPatch } from "@/lib/api/mappers/profile";
+import { isProfileComplete, profileToBusiness, businessToProfileUpdate } from "@/lib/api/mappers/profile";
 import type { ProfileResponse, ProfileUpdate } from "@/lib/api/profile.types";
 import { profileService } from "@/lib/services/profile.service";
-import { useAppStore } from "@/lib/store";
 import type { BusinessProfile } from "@/lib/types";
 import { useSession } from "@/lib/hooks/auth/use-auth";
 
@@ -23,15 +22,14 @@ export function useProfile() {
 }
 
 /**
- * The `BusinessProfile` view model (API profile + account user + local-only fields). Always returns a value:
+ * The `BusinessProfile` view model (API profile + account user). Always returns a value:
  * while the profile loads the text fields are empty and the currency is USD, so use `useProfile()` /
  * `<QueryBoundary>` on screens that must show a loading or error state.
  */
 export function useBusiness(): BusinessProfile {
   const { data } = useProfile();
   const { user } = useSession();
-  const local = useAppStore((s) => s.businessLocal);
-  return useMemo(() => profileToBusiness(data, user, local), [data, user, local]);
+  return useMemo(() => profileToBusiness(data, user), [data, user]);
 }
 
 /** Derived "onboarded" flag: the profile has a business name. `ready` is false until the profile has loaded. */
@@ -58,20 +56,15 @@ export function useUpdateProfile() {
   });
 }
 
-/**
- * Saves a UI-level business patch: API fields go to PATCH /profile, local-only fields to the store.
- * Local fields are written only after the API accepted the rest.
- */
+/** Saves a UI-level business patch via PATCH /profile. */
 export function useSaveBusiness() {
   const update = useUpdateProfile();
   const qc = useQueryClient();
-  const updateLocal = useAppStore((s) => s.updateBusinessLocal);
   const save = async (patch: Partial<BusinessProfile>) => {
     const profile = qc.getQueryData<ProfileResponse>(profileKeys.detail);
-    const { defaultCurrency } = profileToBusiness(profile, null, useAppStore.getState().businessLocal);
-    const { remote, local } = splitBusinessPatch(patch, defaultCurrency);
-    if (Object.keys(remote).length) await update.mutateAsync(remote);
-    if (Object.keys(local).length) updateLocal(local);
+    const { defaultCurrency } = profileToBusiness(profile, null);
+    const body = businessToProfileUpdate(patch, defaultCurrency);
+    if (Object.keys(body).length) await update.mutateAsync(body);
   };
   return { save, isPending: update.isPending };
 }
