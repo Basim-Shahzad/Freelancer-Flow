@@ -115,3 +115,12 @@ Backend gaps to raise: no internal (project-less) time, no list-all endpoint (de
 Backend gaps to raise: no `openapi.json` is checked in (wire types were taken from the server schemas), the list cannot filter by several statuses at once, and `search` matches the invoice number only.
 
 - Step 13: the client portal runs on the token-based `/portal/*` API (`portalApi`, `lib/hooks/portal`). Mock `portalProjects`, their actions and `Invoice.shareToken` are gone (persist version 8). `PortalProjectResponse` has no milestones or invoices, so `/p/{id}` is a summary and approve/reject lives on `/m/{id}`. `/portal/convert` is sent the page token; check against the real backend which token it accepts.
+
+## Step 15: errors, offline, performance
+- **Errors:** `lib/api/errors.ts` `classifyApiError` (offline, rateLimited + `Retry-After`, notFound, unauthorized, conflict, validation, server). `QueryBoundary` renders `StateBlock` kinds `rateLimited` / `server` / `offline`; route `error.tsx` files share `RouteError` (portal never logs).
+- **Query client** (`lib/query-client.ts`): queries `offlineFirst`, retry ≤2 only for 5xx/network (never 4xx/429); mutations `online`, no retry. `useOnlineSync` mirrors the store flag into `onlineManager`. Portal queries stay `staleTime: Infinity` with no refetch.
+- **staleTime** (`lib/hooks/stale-times.ts`): REFERENCE 6 h (FX), STABLE 5 min (profile, clients, projects, session, invoice options), LIVE 30 s (dashboard, activity, invoices, milestones), ALWAYS_FRESH 0 (time entries).
+- **Prefetch** (`use-prefetch.ts`): pointer-enter/focus only, skipped offline, deduped/fresh-skipped by react-query; list rows and dashboard links only, never portal. Waterfalls that must stay dependent: client on invoice/project `clientId`, milestones on project `currency`/`milestonesEnabled`.
+- **Storage allow-list** (`lib/storage-audit.test.ts`): `paylancr-time-outbox` (queued time entries, by design; now cleared on manual sign-out), `theme`, `paylancr-sidebar-collapsed`, `paylancr:signup-country`. No token/user data.
+- **A11y:** `useFocusFirstError` on client/project/business/signup/login/draft-edit forms; list sections carry `aria-busy`.
+- **Manual checklist NOT yet run** (needs uvicorn + `pnpm dev`): offline toggle, forced 429/500, Application tab, refresh-cookie flags, CORS credentials/origin, one request per hover.
