@@ -1,11 +1,9 @@
 "use client";
 
-import { useEffect } from "react";
 import { Logo } from "@/components/brand";
 import { StateBlock } from "@/components/domain/state-block";
 
 export default function GlobalRouteError({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
-  useEffect(() => { console.error(error); }, [error]);
   return (
     <main id="main" className="mx-auto flex min-h-dvh w-full max-w-xl flex-col justify-center gap-8 px-4 py-10">
       <Logo />

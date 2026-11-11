@@ -36,7 +36,7 @@ describe("QueryBoundary", () => {
 
   it("shows the error message with a working retry", () => {
     renderWithProviders(<QueryBoundary query={q({ isError: true, error: httpError(500, "Boom") })}>{() => <p>data</p>}</QueryBoundary>);
-    expect(screen.getByRole("alert")).toHaveTextContent("Boom");
+    expect(screen.getByRole("alert")).toHaveTextContent(/server had a problem|our server/i);
     fireEvent.click(screen.getByRole("button", { name: /try again/i }));
     expect(base.refetch).toHaveBeenCalledOnce();
   });
@@ -56,5 +56,16 @@ describe("QueryBoundary", () => {
   it("renders children with the data", () => {
     renderWithProviders(<QueryBoundary query={q({ data: { items: [1], total: 1 } })}>{(d: { items: number[] }) => <p>count {d.items.length}</p>}</QueryBoundary>);
     expect(screen.getByText("count 1")).toBeInTheDocument();
+  });
+
+  it("shows a rate-limit state for 429", () => {
+    renderWithProviders(<QueryBoundary query={q({ isError: true, error: httpError(429, "slow down") })}>{() => <p>data</p>}</QueryBoundary>);
+    expect(screen.getByText("Too many requests")).toBeInTheDocument();
+  });
+
+  it("shows the offline state when the request had no response", () => {
+    const config = { headers: new AxiosHeaders() };
+    renderWithProviders(<QueryBoundary query={q({ isError: true, error: new AxiosError("Network Error", "ERR_NETWORK", config) })}>{() => <p>data</p>}</QueryBoundary>);
+    expect(screen.getByText(/offline/i)).toBeInTheDocument();
   });
 });

@@ -4,7 +4,8 @@ import * as React from "react";
 import type { UseQueryResult } from "@tanstack/react-query";
 import { StateBlock } from "@/components/domain/state-block";
 import { Skeleton } from "@/components/ui/skeleton";
-import { getApiErrorMessage, getApiErrorStatus } from "@/lib/services/api.service";
+import { classifyApiError } from "@/lib/api/errors";
+import { getApiErrorMessage } from "@/lib/services/api.service";
 import { useAppStore } from "@/lib/store";
 
 interface Props<T> {
@@ -30,6 +31,14 @@ const defaultIsEmpty = (data: unknown): boolean => {
 export function QueryBoundary<T>({ query, children, isEmpty = defaultIsEmpty, loading, empty, emptyTitle, emptyBody, emptyCta }: Props<T>) {
   const online = useAppStore((s) => s.online);
   const retry = { label: query.isFetching ? "Retrying…" : "Try again", onClick: () => void query.refetch() };
+  const [cooldownUntil, setCooldownUntil] = React.useState(0);
+  const [, tick] = React.useReducer((n: number) => n + 1, 0);
+  React.useEffect(() => {
+    if (!cooldownUntil) return;
+    const t = setTimeout(tick, Math.max(0, cooldownUntil - Date.now()) + 20);
+    return () => clearTimeout(t);
+  }, [cooldownUntil]);
+  const coolingDown = cooldownUntil > Date.now();
 
   if (query.isPending) {
     if (!online) return <StateBlock kind="offline" cta={retry} />;
@@ -37,9 +46,14 @@ export function QueryBoundary<T>({ query, children, isEmpty = defaultIsEmpty, lo
   }
   if (query.isError) {
     if (!online) return <StateBlock kind="offline" cta={retry} />;
-    if (getApiErrorStatus(query.error) === 404) {
-      return <StateBlock kind="error" title="Not found" body="This item doesn’t exist or was removed." />;
+    const c = classifyApiError(query.error);
+    if (c.kind === "notFound") return <StateBlock kind="error" title="Not found" body="This item doesn’t exist or was removed." />;
+    if (c.kind === "offline") return <StateBlock kind="offline" cta={retry} />;
+    if (c.kind === "rateLimited") {
+      const wait = () => { if (c.retryAfter) setCooldownUntil(Date.now() + c.retryAfter * 1000); void query.refetch(); };
+      return <StateBlock kind="rateLimited" cta={{ label: coolingDown ? "Please wait…" : retry.label, onClick: coolingDown ? undefined : wait }} />;
     }
+    if (c.kind === "server") return <StateBlock kind="server" cta={retry} />;
     return <StateBlock kind="error" body={getApiErrorMessage(query.error)} cta={retry} />;
   }
   const { data } = query;

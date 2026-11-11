@@ -71,12 +71,14 @@ api.interceptors.response.use(
 export function getApiErrorMessage(error: unknown, fallback = "Something went wrong. Try again."): string {
   if (axios.isAxiosError(error)) {
     if (!error.response) return "Can’t reach the server. Check your connection and try again.";
+    if (error.response.status === 429) return "Too many requests. Try again in a moment.";
     const detail = (error.response.data as { detail?: unknown } | undefined)?.detail;
     if (typeof detail === "string") return detail;
     if (Array.isArray(detail)) {
       const msg = detail.map((d: { msg?: string }) => d?.msg).filter(Boolean).join(" ");
       if (msg) return msg;
     }
+    if (error.response.status >= 500) return "The server had a problem. Nothing has changed. Try again shortly.";
   }
   return fallback;
 }
