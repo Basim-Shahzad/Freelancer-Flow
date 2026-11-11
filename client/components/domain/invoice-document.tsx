@@ -149,7 +149,7 @@ export function InvoiceDocument({ invoice, client, business, methods, projectNam
 
       {part === "full" && (
         <p className="border-t border-border pt-3 text-xs text-muted-foreground">
-          {business.footerNote} Please use the invoice number as the payment reference.{!reveal && " Account details are shown in full to the client on the share link; they are masked here."}
+          Please use the invoice number as the payment reference.{!reveal && " Account details are shown in full to the client on the share link; they are masked here."}
         </p>
       )}
     </article>

@@ -1,6 +1,5 @@
-import { formatInvoiceNumber } from "@/lib/invoice";
 import { todayISO } from "@/lib/dates";
-import { byDateDesc } from "@/lib/selectors";
+import { formatSampleNumber } from "./business-schema";
 import type { MethodDraft } from "@/components/domain/payment-method-form";
 import type { BusinessProfile, Invoice, PaymentMethod, PaymentMethodKind } from "@/lib/types";
 
@@ -22,15 +21,9 @@ export function previewMethods(methods: PaymentMethod[], editing: Editing | null
   return applied;
 }
 
-/** Most recent real (non-draft) invoice, else any invoice, else undefined. */
-export function pickPreviewInvoice(invoices: Invoice[]): Invoice | undefined {
-  const sorted = [...invoices].sort(byDateDesc);
-  return sorted.find((i) => i.status !== "draft") ?? sorted[0];
-}
-
 export function sampleInvoice(business: BusinessProfile): Invoice {
   return {
-    id: "sample", number: formatInvoiceNumber(business.invoicePrefix, business.nextInvoiceNumber), clientId: "", currency: business.defaultCurrency,
+    id: "sample", number: formatSampleNumber(business.invoiceNumberFormat || "INV-{seq:04d}"), clientId: "", currency: business.defaultCurrency,
     status: "unpaid", issueDate: todayISO(), dueDate: todayISO(), lines: [], taxPercent: 0, discount: 0, paymentMethodIds: [], note: "", payments: [], events: [],
   };
 }

@@ -5,17 +5,15 @@ import { InvoiceDocument } from "@/components/domain/invoice-document";
 import type { MethodDraft } from "@/components/domain/payment-method-form";
 import { useClientOptions } from "@/lib/hooks/clients";
 import { legacyToDocInvoice } from "@/lib/invoice-doc";
-import { useAppStore } from "@/lib/store";
 import type { PaymentMethod } from "@/lib/types";
-import { pickPreviewInvoice, sampleInvoice } from "./preview-methods";
+import { sampleInvoice } from "./preview-methods";
 import { useBusiness } from "@/lib/hooks/profile";
 
-/** Sticky "what your client sees" preview, built from a real recent invoice. Disabled methods are excluded by the caller. */
+/** Sticky "what your client sees" preview, built from a sample invoice. Disabled methods are excluded by the caller. */
 export function MethodPreview({ methods }: { methods: PaymentMethod[] }) {
-  const invoices = useAppStore((s) => s.invoices);
   const { clients } = useClientOptions();
   const business = useBusiness();
-  const invoice = useMemo(() => pickPreviewInvoice(invoices) ?? sampleInvoice(business), [invoices, business]);
+  const invoice = useMemo(() => sampleInvoice(business), [business]);
   const client = clients.find((c) => c.id === invoice.clientId);
   return (
     <aside aria-label="Live invoice preview" className="flex flex-col gap-2 @4xl:sticky @4xl:top-4">

@@ -4,14 +4,14 @@ import { InvoiceDocument } from "@/components/domain/invoice-document";
 import { responseToInvoice } from "@/lib/api/mappers/invoices";
 import { issuerToBusiness, toDocInvoice } from "@/lib/invoice-doc";
 import { invoiceResponseFixture, snapshotFixture } from "@/lib/test/invoices";
-import { seedBusiness } from "@/lib/seed";
+import { testBusiness } from "@/lib/test/business";
 
 afterEach(cleanup);
 
 function renderDoc(over = {}, props: Partial<Parameters<typeof InvoiceDocument>[0]> = {}) {
   const inv = responseToInvoice(invoiceResponseFixture(over));
   return render(
-    <InvoiceDocument invoice={toDocInvoice(inv)} client={{ name: "Jordan", companyName: "Harbor Labs", address: "" }} business={issuerToBusiness(inv.issuer, seedBusiness)} methods={inv.methods} projectName="Mobile app" {...props} />,
+    <InvoiceDocument invoice={toDocInvoice(inv)} client={{ name: "Jordan", companyName: "Harbor Labs", address: "" }} business={issuerToBusiness(inv.issuer, testBusiness)} methods={inv.methods} projectName="Mobile app" {...props} />,
   );
 }
 

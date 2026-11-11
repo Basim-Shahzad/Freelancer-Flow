@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { seedBusiness, seedInvoices } from "@/lib/seed";
+import { testBusiness } from "@/lib/test/business";
 import { methodFixtures } from "@/lib/test/payment-methods";
-import { editingKey, pickPreviewInvoice, previewMethods, sampleInvoice } from "./preview-methods";
+import { editingKey, previewMethods, sampleInvoice } from "./preview-methods";
 
 const methods = methodFixtures();
 
@@ -31,12 +31,9 @@ describe("previewMethods", () => {
   });
 });
 
-describe("pickPreviewInvoice", () => {
-  it("prefers the most recent non-draft invoice", () => {
-    expect(pickPreviewInvoice(seedInvoices)?.number).toBe("INV-0042");
-  });
-  it("falls back to a sample", () => {
-    expect(pickPreviewInvoice([])).toBeUndefined();
-    expect(sampleInvoice(seedBusiness).number).toBe("INV-0046");
+describe("sampleInvoice", () => {
+  it("numbers the sample from the business's number format", () => {
+    expect(sampleInvoice(testBusiness).number).toBe("INV-0001");
+    expect(sampleInvoice({ ...testBusiness, invoiceNumberFormat: "" }).number).toBe("INV-0001");
   });
 });
