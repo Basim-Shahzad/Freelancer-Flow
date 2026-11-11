@@ -1,3 +1,4 @@
+import type { PortalInvoiceResponse } from "@/lib/api/portal.types";
 import type {
   InvoiceEventResponse, InvoicePaymentMethodResponse, InvoiceResponse, InvoiceSendResponse, PaymentResponse,
 } from "@/lib/api/invoices.types";
@@ -40,4 +41,8 @@ export function sendResponseFixture(overrides: Partial<InvoiceSendResponse> = {}
     portalUrl: "https://app.example/i/tok", pdfUrl: "https://api.example/portal/tok/pdf", whatsappUrl: "https://wa.me/15125550142?text=Hi",
     invoice: invoiceResponseFixture(), emailDelivered: true, ...overrides,
   };
+}
+
+export function portalInvoiceResponseFixture(overrides: Partial<PortalInvoiceResponse> = {}): PortalInvoiceResponse {
+  return { ...invoiceResponseFixture(), exchangeRates: null, ...overrides };
 }

@@ -7,7 +7,7 @@ import {
   CURRENCIES, type BillingType, type Currency, type Project, type ProjectStatus, type RetainerInterval, type RetainerPeriod,
 } from "@/lib/types";
 
-const asCurrency = (c: string | null | undefined, fallback: Currency): Currency => CURRENCIES.find((x) => x === c) ?? fallback;
+export const asCurrency = (c: string | null | undefined, fallback: Currency): Currency => CURRENCIES.find((x) => x === c) ?? fallback;
 
 /** `2026-11-01T00:00:00Z` -> `2026-11-01`. */
 export const apiDateToIso = (d: string | null | undefined): string | undefined => (d ? d.slice(0, 10) : undefined);
