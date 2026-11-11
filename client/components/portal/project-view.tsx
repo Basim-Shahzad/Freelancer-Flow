@@ -1,69 +1,40 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { StageThread } from "@/components/domain/stage-thread";
-import { Notice } from "@/components/ui/notice";
+import { OfflineNotice } from "@/components/dashboard/offline-notice";
 import { Section } from "@/components/ui/section";
-import { useHydrated } from "@/lib/hooks/use-hydrated";
-import { useClientOptions } from "@/lib/hooks/clients";
-import { useAppStore } from "@/lib/store";
-import { MilestoneList, type Outcome } from "./milestone-list";
-import { InvoicesSection, MilestoneProgress, SimpleOverview } from "./project-overview";
-import { deriveProjectStage, firstName, milestoneStats, projectCaption, projectInvoices } from "./portal-logic";
-import { LinkInactive, PortalSkeleton } from "./portal-states";
-import { seedBusiness } from "@/lib/seed"; // portal stays on mock data until step 13
+import { Tag } from "@/components/ui/tag";
+import { fmtDate } from "@/lib/dates";
+import { usePortalProject } from "@/lib/hooks/portal";
+import { usePortalToken } from "@/lib/portal/token";
+import { ConvertToUser } from "./convert-dialog";
+import { MissingToken, PortalErrorState, PortalSkeleton } from "./portal-states";
 
-export function ProjectPortalView({ token }: { token: string }) {
-  const hydrated = useHydrated();
-  const project = useAppStore((s) => s.portalProjects.find((p) => p.shareToken === token));
-  const invoices = useAppStore((s) => s.invoices);
-  const { clients } = useClientOptions();
-  const ownerName = seedBusiness.ownerName;
-  const online = useAppStore((s) => s.online);
-  const [outcomes, setOutcomes] = useState<Record<string, Outcome | undefined>>({});
+const STATUS_LABEL = { draft: "Draft", active: "In progress", paused: "Paused", completed: "Completed", archived: "Archived", cancelled: "Cancelled" } as const;
 
-  const visible = useMemo(() => (project ? projectInvoices(project, invoices) : []), [project, invoices]);
+/** Slim summary: the portal API exposes only name, description, status, due date and currency. */
+export function ProjectPortalView({ id }: { id: string }) {
+  const token = usePortalToken();
+  const query = usePortalProject(id, token);
 
-  if (!hydrated) return <PortalSkeleton />;
-  if (!project) return <LinkInactive what="project" />;
+  if (!token) return <MissingToken what="project" />;
+  if (query.isPending) return <PortalSkeleton />;
+  if (query.isError) return <PortalErrorState error={query.error} what="project" onRetry={() => void query.refetch()} />;
 
-  const owner = firstName(ownerName);
-  const client = clients.find((c) => c.id === project.clientId);
-  const hasMilestones = project.billingType === "milestone" && project.milestones.length > 0;
-  const stage = deriveProjectStage(project, visible);
-
+  const p = query.data;
   return (
     <>
-      {!online && (
-        <Notice tone="warn"><b>You’re offline.</b> You’re seeing the last loaded version. Approving needs a connection.</Notice>
-      )}
-
+      <OfflineNotice detail="You’re seeing the last loaded version." />
       <header className="flex flex-col gap-2.5">
         <span className="t-eyebrow">Project</span>
-        <h1 className="t-h1">{project.name}</h1>
-        {client && <span className="text-sm text-muted-foreground">{client.name} · prepared for {client.name}</span>}
+        <h1 className="t-h1">{p.name}</h1>
+        <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+          <Tag>{STATUS_LABEL[p.status]}</Tag>
+          {p.dueDate && <span>Due {fmtDate(p.dueDate)}</span>}
+          <span>Billed in {p.currency}</span>
+        </div>
       </header>
-
-      <StageThread stage={stage} caption={projectCaption(project, stage, owner)} />
-
-      {hasMilestones ? (
-        <>
-          <MilestoneProgress stats={milestoneStats(project.milestones)} currency={project.currency} />
-          <Section title="Milestones" id="pp-ms">
-            <MilestoneList
-              project={project}
-              ownerFirst={owner}
-              online={online}
-              outcomes={outcomes}
-              onOutcome={(id, o) => setOutcomes((prev) => ({ ...prev, [id]: o }))}
-            />
-          </Section>
-        </>
-      ) : (
-        <SimpleOverview project={project} invoices={visible} />
-      )}
-
-      <InvoicesSection invoices={visible} ownerFirst={owner} />
+      {p.description && <Section title="About this project" id="pp-about"><p className="m-0 whitespace-pre-line">{p.description}</p></Section>}
+      <ConvertToUser token={token} />
     </>
   );
 }
