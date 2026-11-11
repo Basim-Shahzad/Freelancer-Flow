@@ -18,19 +18,14 @@ Layout uses container queries (`@2xl:` etc.) and logical properties only, so RTL
 ## Money rules (enforced in copy and tests)
 No "Pay now" anywhere. Converted figures always read "≈ estimate · ref. rate <date>" with the reference-rate note. Invoice and portal carry "Paylancr does not process payments. Pay the freelancer directly using the details below." Money is integer minor units; status is derived (`deriveStatus`) from stored draft/unpaid/written_off/void plus payments and due date.
 
-## Replacing the mock layer
-1. `lib/store/index.ts` is the only data source; every screen reads selectors from `lib/selectors.ts` or store actions. Replace actions with API calls (React Query recommended) keeping the same names/signatures.
-2. Auth: `session` in the store; `AppShell` gates routes. Swap for real sessions (cookies + middleware) and make the portal routes resolve `token` server-side.
-3. Server pages are thin; data views are client components, so moving fetches to server components is incremental.
-4. Delete `StoreBootstrap` rehydration and the `useHydrated()` gates once data is remote (use Suspense/loading.tsx, already present per route).
-5. `lib/seed.ts` is demo-only.
+## Data layer (mock layer removed)
+The client is API-backed. Wire types live in `lib/api/*.types.ts`, plain axios calls in `lib/services`, react-query hooks in `lib/hooks/<domain>`, and pure wire-to-view-model mappers in `lib/api/mappers`. `lib/store/index.ts` holds only the `online` flag (nothing persisted); the offline time outbox is `lib/time/outbox-store.ts` (`paylancr-time-outbox`) and the theme is next-themes. `lib/seed.ts`, `lib/selectors.ts`, `useHydrated()` and the store persistence (the old `paylancr-v1` key, persist version 8) are gone; `AppBootstrap` deletes any stale `paylancr-v1` entry once on load. Marketing pages use `components/marketing/preview-data.ts` for demo data.
 
 ## Known limitations
 - Phase 2 (tax, ESFCA tracker, bank pack, CSV import, Drive, pricing) intentionally absent.
-- Mock auth: any email, password 8+ chars. Signup country is passed via sessionStorage; display currency is not saved.
-- Export is client-side JSON + invoices CSV (no ZIP). Logo upload is name-only. 
+- Signup country is passed via sessionStorage.
+- Export is client-side JSON + invoices CSV (no ZIP). There is no logo upload endpoint; the business form shows `logoUrl` read-only.
 - No "Edit draft" flow for invoices; creating an invoice never sends it (send is a separate action).
-- Time-sync conflicts use a demo rule with a simulated server copy; seed has no unsynced entries, so those states appear after going offline/editing.
 - Clients with projects or invoices cannot be deleted; the project form has no deposit % or estimated hours (the API has neither; see "Projects").
 - Unsaved-changes guard does not cover sidebar navigation.
 - Print stylesheet needs `:has()` support.
@@ -47,7 +42,7 @@ Known: dashboard "Active projects" card still has small progress bars; seed has 
 
 `GET/PATCH /profile` is the source of truth for the business profile; read it through `useBusiness()` (view model) / `useProfile()` (query state) in `lib/hooks/profile`. `ownerName` and `email` come from the signed-in user. "Onboarded" is derived: the profile has a `businessName` (`useOnboarded()`).
 
-The API has no home for `phone`, `footerNote`, `logoName`, `invoicePrefix` and `nextInvoiceNumber` (`invoiceNumberFormat` is a different shape). They stay in the persisted store as `businessLocal` (persist version 3), so they do **not** follow the user across devices. The client portal takes the business identity from the invoice's `issuer`.
+`invoiceNumberFormat` (server-owned numbering, tokens `{seq}`, `{seq:04d}`, `{year}`), `logoUrl` (read-only) and `paymentInstructions` come from the profile. The old local-only `businessLocal` (phone, footer note, prefix and next number) is removed. **Follow-up:** the backend should add `phone` and `footer_note` to the profile; add them back to onboarding and the business form once it does. The client portal takes the business identity from the invoice's `issuer`.
 
 ## Clients (API-backed since step 4)
 
@@ -96,7 +91,6 @@ Backend gaps to raise: deposit %, estimated hours, a project share token (needed
 - **Invoiced entries are locked** (`isInvoiced`): the row shows an "Invoiced" tag and a lock, the form opens read-only with the reason, and bulk selection skips them. The API exposes no invoice id on an entry, so the old link to the invoice and the "paid" fill in the week view are gone until the invoices migration.
 - **Bulk edit** is one all-or-nothing `PATCH /time-entries/bulk { ids, set }` (project, milestone, billable, description), at most 200 ids (refused client-side beyond that). 409 (invoiced), 404 (an id that is not the caller's) and 422 (milestone outside the target project) show the server's `detail`. The screen refetches afterwards because changing the project re-resolves rates on the server. Delete has no bulk endpoint, so it loops and reports the entries the server refused.
 - **Offline outbox** (`lib/time/outbox.ts` pure logic, `lib/time/outbox-store.ts` persisted zustand): start, stop, log, edit and delete made offline (or when the network drops mid-call) are folded to one item per entry id and replayed through `POST /time-entries/sync` in chunks of 200, in order, one flush at a time, on the `online` event and on mount (`useTimeSync`). Every result is handled on its own: `created/updated/deleted` leave the queue, `conflict` and `rejected` move to the panels on the Time screen, `warning: overlap` flags the entry. A network failure leaves everything queued. It is stored under `paylancr-time-outbox`; the mock `markSynced` and the demo conflict rule are gone.
-- The mock store keeps a read-only `time` array only for the dashboard (step 11) and export (step 12), which delete it. Persist version is now 7 and drops the stale mock `timer`.
 
 Backend gaps to raise: no internal (project-less) time, no list-all endpoint (decided), no invoice id on a time entry (only `isInvoiced`), and the status a single `PATCH` on an invoiced entry returns is unverified (the UI locks it before sending).
 
@@ -111,7 +105,6 @@ Backend gaps to raise: no internal (project-less) time, no list-all endpoint (de
 - **Record payment:** `method` has no `PKR_BANK_TRANSFER` (saved PKR bank transfers become `BANK_TRANSFER`) and adds `CASH`. CARD, CHEQUE and PAYPAL are not offered but still render on old payments. The method is pre-selected from the invoice's first listed payment method. A payment dated today omits `paidAt` (the server stamps now; a local "today" can be in the future in UTC).
 - **PDF:** `GET /invoices/{id}/pdf` as a Blob, saved as `<invoiceNumber>.pdf`. The browser Print button is gone. The client-facing `pdfUrl` is the portal's token URL.
 - **Document:** `InvoiceDocument` renders the invoice's snapshotted payment methods (a Payoneer `payLink` is a link-out reading "Open Payoneer payment page"), the free-text `paymentInstructions` as an "additional note", and the API's `paymentDisclaimer`. The PKR/USD reference line is still `<Money estimateIn note/>`.
-- **Still on the mock store until their steps:** dashboard (11), export (12), the portal (13), the project screens' invoice stats and `settings/method-preview`. The mock invoice seed therefore no longer matches what `/invoices` shows. Mock invoice actions for send, remind, payments, write-off and void were removed from the store.
 
 ## Invoices: create, edit draft, delete draft (step 9)
 
